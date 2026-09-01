@@ -1,0 +1,250 @@
+/**
+ * Tipos de dominio del panel de administración.
+ *
+ * Se centralizan aquí todas las interfaces que antes vivían dispersas dentro de
+ * AdminPanel.tsx, para poder compartirlas entre los distintos módulos de
+ * `features/` sin duplicarlas.
+ */
+
+export interface UsuarioPanel {
+  id_usuario: string
+  nombre: string
+  apellido: string
+  email: string
+  rol: string
+  activo: boolean
+}
+
+export interface PrefillAlumno {
+  nombre: string
+  apellido: string
+  dni: string
+  fecha_nacimiento: string
+}
+
+export interface PrefillUsuario {
+  nombre: string
+  apellido: string
+  email: string
+  password: string
+  rol: string
+  alumno?: PrefillAlumno | null
+}
+
+export interface Alumno {
+  id_alumno: number
+  nombre: string
+  apellido: string
+  dni: string
+  activo: boolean
+  cursos: { nivel: string; grado_anio: string; division: string } | null
+}
+
+export interface Docente {
+  id_docente: number
+  dni: string
+  especialidad: string | null
+  activo: boolean
+  usuarios: { nombre: string; apellido: string; email: string } | null
+}
+
+export interface Curso {
+  id_curso: number
+  nivel: string
+  grado_anio: string
+  division: string
+  capacidad_maxima: number
+}
+
+export interface Materia {
+  id_materia: number
+  nombre: string
+  horas_semanales: number
+  activo: boolean
+}
+
+export interface Asignacion {
+  id_asignacion: number
+  docentes: { usuarios: { nombre: string; apellido: string } | null } | null
+  materias: { nombre: string } | null
+  cursos: { nivel: string; grado_anio: string; division: string } | null
+}
+
+export interface AlumnoAsistencia {
+  id_alumno: number
+  nombre: string
+  apellido: string
+  estado: 'Presente' | 'Ausente' | 'Tarde' | 'Justificado'
+}
+
+export interface Calificacion {
+  id_calificacion: number
+  nota: number
+  trimestre: number
+  tipo_evaluacion: string
+  fecha_carga: string
+  alumnos: { nombre: string; apellido: string } | null
+  asignaciones: { materias: { nombre: string } | null } | null
+}
+
+export interface Cuota {
+  id_cuota: number
+  mes: number
+  anio: number
+  monto_base: number
+  descuento: number
+  estado: string
+  fecha_vencimiento: string
+  fecha_pago: string | null
+  metodo_pago: string | null
+  alumnos: { nombre: string; apellido: string } | null
+}
+
+export interface ActividadEx {
+  id_actividad: number
+  nombre: string
+  tipo: string
+  descripcion: string | null
+  cupo_maximo: number
+  activo: boolean
+}
+
+export interface DocumentoAlumno {
+  id_documento: number
+  id_alumno: number
+  nombre: string
+  tipo: string | null
+  url_archivo: string
+  fecha_carga: string
+}
+
+export interface Beca {
+  id_beca: number
+  id_alumno: number
+  porcentaje: number
+  motivo: string | null
+  activo: boolean
+  fecha_otorgamiento: string
+  alumnos: { nombre: string; apellido: string } | null
+}
+
+export interface Sueldo {
+  id_sueldo: number
+  id_usuario: string | null
+  mes: number
+  anio: number
+  monto: number
+  estado: string
+  fecha_pago: string | null
+  usuarios: { nombre: string; apellido: string; rol: string } | null
+}
+
+export interface Compra {
+  id_compra: number
+  descripcion: string
+  destino: string
+  cantidad: number
+  monto: number
+  proveedor: string | null
+  fecha_compra: string
+}
+
+export interface Instalacion {
+  id_instalacion: number
+  nombre: string
+  tipo: string | null
+  activo: boolean
+}
+
+export interface Reserva {
+  id_reserva: number
+  id_instalacion: number
+  fecha: string
+  hora_inicio: string
+  hora_fin: string
+  motivo: string | null
+  instalaciones: { nombre: string } | null
+  usuarios: { nombre: string; apellido: string } | null
+}
+
+export interface MensajeContacto {
+  id_mensaje: number
+  nombre: string
+  email: string
+  mensaje: string
+  leido: boolean
+  fecha_envio: string
+}
+
+export interface Inscripcion {
+  id_inscripcion: number
+  nombre_aspirante: string
+  apellido_aspirante: string | null
+  fecha_nacimiento_aspirante: string | null
+  dni_aspirante: string
+  nombre_tutor: string
+  email_tutor: string
+  telefono_tutor: string | null
+  nivel_solicitado: string
+  estado: string
+  fecha_solicitud: string
+  id_alumno_creado: number | null
+}
+
+export interface Noticia {
+  id_noticia: number
+  titulo: string
+  resumen: string | null
+  fecha_publicacion: string
+  activo: boolean
+  destacada: boolean
+}
+
+export interface Empleo {
+  id_empleo: number
+  titulo: string
+  descripcion: string | null
+  area: string | null
+  requisitos: string | null
+  tipo_contrato: string | null
+  activo: boolean
+  fecha_publicacion: string
+  fecha_cierre: string | null
+}
+
+export interface Postulacion {
+  id_postulacion: number
+  id_empleo: number
+  nombre: string
+  apellido: string
+  email: string
+  telefono: string | null
+  mensaje: string | null
+  estado: string
+  fecha_postulacion: string
+  empleos: { titulo: string; area: string | null } | null
+}
+
+export interface AlumnoLegajo {
+  id_alumno: number
+  nombre: string
+  apellido: string
+  dni: string
+  fecha_nacimiento: string | null
+  obra_social: string | null
+  activo: boolean
+  cursos: { nivel: string; grado_anio: string; division: string } | null
+}
+
+export interface InscripcionActividad {
+  id_inscripcion_act: number
+  id_actividad: number
+  id_alumno: number
+  fecha_inscripcion: string
+  alumnos: {
+    nombre: string
+    apellido: string
+    dni: string
+    cursos: { nivel: string; grado_anio: string; division: string } | null
+  } | null
+}

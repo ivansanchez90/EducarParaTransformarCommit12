@@ -5,13 +5,8 @@
  */
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import { Link, useNavigate } from 'react-router-dom'
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL as string,
-  import.meta.env.VITE_SUPABASE_ANON_KEY as string,
-)
+import { supabase } from './lib/supabaseClient'
 
 // ═══════════════════════════════════════════════════════════════
 //  TIPOS
@@ -147,7 +142,6 @@ export default function Home() {
   const [carouselIdx, setCarouselIdx] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchVal, setSearchVal] = useState('')
-  const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
     loadNoticias()
@@ -155,25 +149,6 @@ export default function Home() {
     loadEmpleos()
   }, [])
 
-  // Verificar el rol del usuario para redirección correcta
-  useEffect(() => {
-    const checkUserRole = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (session?.user) {
-        const { data } = await supabase
-          .from('usuarios')
-          .select('rol')
-          .eq('id_usuario', session.user.id)
-          .single()
-        if (data) {
-          setUserRole(data.rol)
-        }
-      }
-    }
-    checkUserRole()
-  }, [])
 
   async function loadNoticias() {
     const { data } = await supabase

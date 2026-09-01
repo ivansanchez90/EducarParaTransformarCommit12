@@ -15,19 +15,10 @@
  *   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { User } from '@supabase/supabase-js'
-import type { FormEvent } from 'react'
-
-// ═══════════════════════════════════════════════════════════════
-//  SUPABASE CLIENT
-// ═══════════════════════════════════════════════════════════════
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL as string,
-  import.meta.env.VITE_SUPABASE_ANON_KEY as string,
-)
+import { supabase } from './lib/supabaseClient'
 
 // ═══════════════════════════════════════════════════════════════
 //  TIPOS — coinciden con el schema de la base de datos
@@ -171,132 +162,6 @@ const NAV_ITEMS = [
   { key: 'actividades', icon: '🎨', label: 'Extracurriculares' },
   { key: 'notificaciones', icon: '🔔', label: 'Notificaciones' },
 ]
-
-// ═══════════════════════════════════════════════════════════════
-//  PANTALLA DE LOGIN
-// ═══════════════════════════════════════════════════════════════
-function LoginScreen() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const navigate = useNavigate()
-
-  const handleLogin = async (e: FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    const { data, error: err } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    if (err) {
-      setError('Credenciales incorrectas. Verificá tu email y contraseña.')
-      setLoading(false)
-      return
-    }
-
-    // Verificar el rol del usuario después del login exitoso
-    if (data.user) {
-      const { data: userData } = await supabase
-        .from('usuarios')
-        .select('rol')
-        .eq('id_usuario', data.user.id)
-        .single()
-
-      // Si es admin, Directivo o Docente, redirigir al panel administrativo
-      if (
-        userData?.rol === 'Admin' ||
-        userData?.rol === 'Directivo' ||
-        userData?.rol === 'Docente'
-      ) {
-        navigate('/admin')
-      }
-      // Si es Alumna, permanecer en el portal (el comportamiento por defecto)
-    }
-    setLoading(false)
-  }
-
-  return (
-    <div
-      className="font-[Nunito,_'Segoe_UI',_sans-serif] bg-bg min-h-screen text-text flex items-center justify-center"
-      style={{
-        background:
-          'radial-gradient(ellipse at 60% 0%, #EEE9FF 0%, #F5F4FB 60%)',
-      }}
-    >
-      <div className='bg-white rounded-[24px] px-10 py-11 w-full max-w-[400px] border border-border shadow-[0_8px_48px_rgba(91,53,197,0.14)]'>
-        {/* Logo */}
-        <div className='text-center mb-8'>
-          <Link to='/'>
-            <img
-              src='/logo.png'
-              alt='Educar Para Transformar'
-              className='h-20 mb-3 mx-auto'
-              onError={(e) => {
-                ;(e.target as HTMLImageElement).style.display = 'none'
-              }}
-            />
-          </Link>
-          <div className='text-[17px] font-black text-purple-700'>
-            Educar Para Transformar
-          </div>
-          <div className='text-xs text-textMuted tracking-[0.08em] mt-1'>
-            PORTAL ESTUDIANTIL
-          </div>
-        </div>
-
-        <form onSubmit={handleLogin} className='flex flex-col gap-3.5'>
-          <div>
-            <label className='text-xs font-extrabold text-textMuted block mb-1.5'>
-              Correo electrónico
-            </label>
-            <input
-              type='email'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder='tu@email.com'
-              required
-              className='w-full px-4 py-3 rounded-input border-2 border-border text-sm font-[inherit] outline-none box-border text-text'
-            />
-          </div>
-          <div>
-            <label className='text-xs font-extrabold text-textMuted block mb-1.5'>
-              Contraseña
-            </label>
-            <input
-              type='password'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder='••••••••'
-              required
-              className='w-full px-4 py-3 rounded-input border-2 border-border text-sm font-[inherit] outline-none box-border text-text'
-            />
-          </div>
-
-          {error && (
-            <div className='bg-red/[0.07] border border-red/25 rounded-[10px] px-3.5 py-2.5 text-sm text-red font-bold'>
-              ⚠️ {error}
-            </div>
-          )}
-
-          <button
-            type='submit'
-            disabled={loading}
-            className={`border-none rounded-[12px] py-3.5 text-[15px] font-extrabold font-[inherit] mt-1.5 transition-all
-              ${
-                loading
-                  ? 'bg-border text-textMuted cursor-not-allowed'
-                  : 'bg-gradient-to-br from-purple-700 to-purpleMid text-white cursor-pointer'
-              }`}
-          >
-            {loading ? 'Ingresando...' : 'Ingresar al portal'}
-          </button>
-        </form>
-      </div>
-    </div>
-  )
-}
 
 // ═══════════════════════════════════════════════════════════════
 //  COMPONENTE PRINCIPAL
