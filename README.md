@@ -1,4 +1,7 @@
 # Educar para Transformar — Campus Virtual
+
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/a491351e36c24b36952fd097ebedf593)](https://app.codacy.com/gh/ivansanchez90/EducarParaTransformarCommit12?utm_source=github.com&utm_medium=referral&utm_content=ivansanchez90/EducarParaTransformarCommit12&utm_campaign=Badge_Grade)
+
 ## Descripción
 Aplicación web de campus virtual para la institución educativa "Educar para
 Transformar" (nivel Inicial/Primario/Secundario). Permite gestionar alumnos,
