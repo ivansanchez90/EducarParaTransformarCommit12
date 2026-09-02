@@ -310,3 +310,6 @@ Toda la lógica de negocio se preservó sin cambios; la refactorización fue est
 - Iván Sánchez Oliva
 
 *Grupo 12 — Metodología de Sistemas II, TUP, UTN Facultad Regional Resistencia.*
+
+
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/a491351e36c24b36952fd097ebedf593)](https://app.codacy.com/gh/ivansanchez90/EducarParaTransformarCommit12/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
