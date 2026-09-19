@@ -109,6 +109,8 @@ git add prisma && git commit && git push                  # Coolify despliega y 
 > `VITE_API_URL` (al compilar el frontend) y `CORS_ORIGIN` / `PUBLIC_URL` en el
 > backend.
 
+> Lo que falta implementar del TP1 está listado en [`PENDIENTES.md`](PENDIENTES.md).
+
 ## Funcionalidades principales
 
 - **Gestión de usuarios**: alta, edición y desactivación de cuentas
