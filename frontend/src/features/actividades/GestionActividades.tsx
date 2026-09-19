@@ -2,7 +2,7 @@
 // Extraído de AdminPanel.tsx sin cambios de lógica.
 import { useState, useEffect, useCallback, Fragment } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { ActividadEx, Alumno, InscripcionActividad } from '../../types'
 import {
   btnPrimary,
@@ -42,31 +42,20 @@ export function GestionActividades() {
   const [inscribiendo, setInscribiendo] = useState(false)
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('actividades_extracurriculares')
-      .select('*')
-      .order('tipo', { ascending: true })
-      .order('nombre', { ascending: true })
-    if (data) setActividades(data as ActividadEx[])
-
-    const { data: insc } = await supabase
-      .from('inscripciones_actividades')
-      .select('id_actividad')
-    const cnt: Record<number, number> = {}
-    ;(insc ?? []).forEach((i: { id_actividad: number }) => {
-      cnt[i.id_actividad] = (cnt[i.id_actividad] ?? 0) + 1
-    })
-    setConteos(cnt)
+    // Cada actividad viene con su cantidad de inscriptos.
+    const { data } = await api.get<(ActividadEx & { inscriptos: number })[]>(
+      '/actividades',
+    )
+    if (data) {
+      setActividades(data)
+      setConteos(
+        Object.fromEntries(data.map((a) => [a.id_actividad, a.inscriptos])),
+      )
+    }
 
     // Alumnos activos para el selector de inscripción
-    const { data: al } = await supabase
-      .from('alumnos')
-      .select(
-        'id_alumno, nombre, apellido, dni, activo, cursos(nivel, grado_anio, division)',
-      )
-      .eq('activo', true)
-      .order('apellido', { ascending: true })
-    if (al) setAlumnos(al as unknown as Alumno[])
+    const { data: al } = await api.get<Alumno[]>('/alumnos?activo=true')
+    if (al) setAlumnos(al)
   }, [])
 
   useEffect(() => {
@@ -74,14 +63,10 @@ export function GestionActividades() {
   }, [load])
 
   const loadInscriptos = useCallback(async (idActividad: number) => {
-    const { data } = await supabase
-      .from('inscripciones_actividades')
-      .select(
-        'id_inscripcion_act, id_actividad, id_alumno, fecha_inscripcion, alumnos(nombre, apellido, dni, cursos(nivel, grado_anio, division))',
-      )
-      .eq('id_actividad', idActividad)
-      .order('fecha_inscripcion', { ascending: true })
-    if (data) setInscriptos(data as unknown as InscripcionActividad[])
+    const { data } = await api.get<InscripcionActividad[]>(
+      `/actividades/${idActividad}/inscripciones`,
+    )
+    if (data) setInscriptos(data)
   }, [])
 
   const toggleVerInscriptos = async (idActividad: number) => {
@@ -100,12 +85,9 @@ export function GestionActividades() {
     if (!selAlumno) return
     setInscribiendo(true)
     setInscMsg('')
-    const { error } = await supabase.from('inscripciones_actividades').insert([
-      {
-        id_actividad: idActividad,
-        id_alumno: Number(selAlumno),
-      },
-    ])
+    const { error } = await api.post(`/actividades/${idActividad}/inscripciones`, {
+      id_alumno: Number(selAlumno),
+    })
     if (error) {
       if (error.message.includes('Cupo completo')) {
         setInscMsg('❌ Cupo completo para esta actividad.')
@@ -126,15 +108,9 @@ export function GestionActividades() {
     setInscribiendo(false)
   }
 
-  const quitarInscripcion = async (
-    idInscripcion: number,
-    idActividad: number,
-  ) => {
+  const quitarInscripcion = async (idAlumno: number, idActividad: number) => {
     if (!confirm('¿Quitar al alumno de esta actividad?')) return
-    await supabase
-      .from('inscripciones_actividades')
-      .delete()
-      .eq('id_inscripcion_act', idInscripcion)
+    await api.delete(`/actividades/${idActividad}/inscripciones/${idAlumno}`)
     await loadInscriptos(idActividad)
     load()
   }
@@ -161,11 +137,8 @@ export function GestionActividades() {
     setMsg('')
     const payload = { ...form, cupo_maximo: Number(form.cupo_maximo) }
     const { error } = editId
-      ? await supabase
-          .from('actividades_extracurriculares')
-          .update(payload)
-          .eq('id_actividad', editId)
-      : await supabase.from('actividades_extracurriculares').insert([payload])
+      ? await api.put(`/actividades/${editId}`, payload)
+      : await api.post('/actividades', payload)
     if (error) setMsg('Error: ' + error.message)
     else {
       setShowForm(false)
@@ -174,10 +147,7 @@ export function GestionActividades() {
   }
 
   const toggleActivo = async (a: ActividadEx) => {
-    await supabase
-      .from('actividades_extracurriculares')
-      .update({ activo: !a.activo })
-      .eq('id_actividad', a.id_actividad)
+    await api.patch(`/actividades/${a.id_actividad}`, { activo: !a.activo })
     load()
   }
 
@@ -394,7 +364,7 @@ export function GestionActividades() {
                                     className='bg-[#E74C3C1A] text-red border-0 rounded-lg py-[5px] px-3 text-xs font-extrabold cursor-pointer'
                                     onClick={() =>
                                       quitarInscripcion(
-                                        i.id_inscripcion_act,
+                                        i.id_alumno,
                                         a.id_actividad,
                                       )
                                     }

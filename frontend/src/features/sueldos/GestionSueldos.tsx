@@ -1,7 +1,7 @@
 // Gestión de sueldos del personal — extraído de AdminPanel.tsx
 import { useState, useEffect, useCallback } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Sueldo, UsuarioPanel } from '../../types'
 import { MESES } from '../../constants'
 import {
@@ -28,20 +28,13 @@ export function GestionSueldos() {
   })
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('sueldos')
-      .select('*, usuarios(nombre, apellido, rol)')
-      .order('anio', { ascending: false })
-      .order('mes', { ascending: false })
-    if (data) setSueldos(data as unknown as Sueldo[])
+    const { data } = await api.get<Sueldo[]>('/sueldos')
+    if (data) setSueldos(data)
 
-    const { data: us } = await supabase
-      .from('usuarios')
-      .select('*')
-      .in('rol', ['Admin', 'Directivo', 'Docente'])
-      .eq('activo', true)
-      .order('apellido', { ascending: true })
-    if (us) setPersonal(us as UsuarioPanel[])
+    const { data: us } = await api.get<UsuarioPanel[]>(
+      '/usuarios?rol=Admin,Directivo,Docente&activo=true',
+    )
+    if (us) setPersonal(us)
   }, [])
 
   useEffect(() => {
@@ -51,15 +44,12 @@ export function GestionSueldos() {
   const registrar = async (e: FormEvent) => {
     e.preventDefault()
     setMsg('')
-    const { error } = await supabase.from('sueldos').insert([
-      {
-        id_usuario: form.id_usuario,
-        mes: Number(form.mes),
-        anio: Number(form.anio),
-        monto: Number(form.monto),
-        estado: 'Pendiente',
-      },
-    ])
+    const { error } = await api.post('/sueldos', {
+      id_usuario: form.id_usuario,
+      mes: Number(form.mes),
+      anio: Number(form.anio),
+      monto: Number(form.monto),
+    })
     if (error) setMsg('Error: ' + error.message)
     else {
       setForm((p) => ({ ...p, id_usuario: '', monto: '' }))
@@ -68,13 +58,7 @@ export function GestionSueldos() {
   }
 
   const marcarPagado = async (id: number) => {
-    await supabase
-      .from('sueldos')
-      .update({
-        estado: 'Pagado',
-        fecha_pago: new Date().toISOString().slice(0, 10),
-      })
-      .eq('id_sueldo', id)
+    await api.patch(`/sueldos/${id}/pagar`)
     load()
   }
 

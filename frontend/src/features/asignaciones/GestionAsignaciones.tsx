@@ -4,7 +4,7 @@
  */
 import type { FormEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Asignacion, Curso, Docente, Materia } from '../../types'
 import {
   btnPrimary,
@@ -31,23 +31,15 @@ export function GestionAsignaciones() {
   const load = useCallback(async () => {
     const [{ data: as }, { data: do_ }, { data: ma }, { data: cu }] =
       await Promise.all([
-        supabase
-          .from('asignaciones')
-          .select(
-            '*, docentes(usuarios(nombre,apellido)), materias(nombre), cursos(nivel,grado_anio,division)',
-          )
-          .eq('activo', true),
-        supabase
-          .from('docentes')
-          .select('*, usuarios(nombre,apellido)')
-          .eq('activo', true),
-        supabase.from('materias').select('*').eq('activo', true),
-        supabase.from('cursos').select('*').eq('activo', true),
+        api.get<Asignacion[]>('/asignaciones'),
+        api.get<Docente[]>('/docentes?activo=true'),
+        api.get<Materia[]>('/materias?activo=true'),
+        api.get<Curso[]>('/cursos'),
       ])
-    if (as) setAsignaciones(as as unknown as Asignacion[])
-    if (do_) setDocentes(do_ as unknown as Docente[])
-    if (ma) setMaterias(ma as Materia[])
-    if (cu) setCursos(cu as Curso[])
+    if (as) setAsignaciones(as)
+    if (do_) setDocentes(do_)
+    if (ma) setMaterias(ma)
+    if (cu) setCursos(cu)
   }, [])
 
   useEffect(() => {
@@ -57,19 +49,12 @@ export function GestionAsignaciones() {
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
     setMsg('')
-    const { data: periodo } = await supabase
-      .from('periodos_academicos')
-      .select('id_periodo')
-      .eq('activo', true)
-      .single()
-    const { error } = await supabase.from('asignaciones').insert([
-      {
-        id_docente: Number(form.id_docente),
-        id_materia: Number(form.id_materia),
-        id_curso: Number(form.id_curso),
-        id_periodo: periodo?.id_periodo ?? null,
-      },
-    ])
+    // El backend asigna el período académico activo.
+    const { error } = await api.post('/asignaciones', {
+      id_docente: Number(form.id_docente),
+      id_materia: Number(form.id_materia),
+      id_curso: Number(form.id_curso),
+    })
     if (error) setMsg('Error: ' + error.message)
     else {
       setMsg('✅ Asignación creada.')

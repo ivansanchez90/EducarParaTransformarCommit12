@@ -1,0 +1,528 @@
+// Esquema de la base de datos del campus virtual "Educar para Transformar".
+//
+// Los nombres de tablas y columnas se mantienen iguales a los que existían en
+// Supabase (snake_case). Los campos de relación se nombran como la tabla
+// relacionada (`cursos`, `usuarios`, `alumnos`...) para que las respuestas de
+// la API tengan la misma forma que devolvía Supabase y el frontend no cambie.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// Usuarios y autenticación
+// ─────────────────────────────────────────────────────────────
+
+model Usuario {
+  id_usuario      String   @id @default(uuid()) @db.Uuid
+  email           String   @unique
+  password_hash   String
+  nombre          String   @default("")
+  apellido        String   @default("")
+  /// Admin | Directivo | Docente | Alumno | Padre | Tutor
+  rol             String
+  telefono        String?
+  foto_perfil_url String?
+  activo          Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  docentes       Docente?
+  alumnos        Alumno[]             @relation("AlumnoUsuario")
+  hijos          Alumno[]             @relation("AlumnoPadre")
+  notificaciones Notificacion[]
+  reservas       ReservaInstalacion[]
+  sueldos        Sueldo[]
+  noticias       Noticia[]
+  galeria        Galeria[]
+  asistencias    Asistencia[]
+  empleos        Empleo[]
+  pagos          Pago[]
+
+  @@map("usuarios")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Estructura académica
+// ─────────────────────────────────────────────────────────────
+
+model PeriodoAcademico {
+  id_periodo   Int      @id @default(autoincrement())
+  nombre       String
+  fecha_inicio DateTime @db.Date
+  fecha_fin    DateTime @db.Date
+  activo       Boolean  @default(false)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  cursos         Curso[]
+  asignaciones   Asignacion[]
+  calificaciones Calificacion[]
+
+  @@map("periodos_academicos")
+}
+
+model Curso {
+  id_curso         Int     @id @default(autoincrement())
+  nivel            String
+  grado_anio       String
+  division         String
+  /// null = sin límite de cupo
+  capacidad_maxima Int?    @default(30)
+  activo           Boolean @default(true)
+  id_periodo       Int?
+
+  periodos_academicos PeriodoAcademico? @relation(fields: [id_periodo], references: [id_periodo], onDelete: SetNull)
+  alumnos             Alumno[]
+  asignaciones        Asignacion[]
+
+  @@map("cursos")
+}
+
+model Materia {
+  id_materia      Int     @id @default(autoincrement())
+  nombre          String
+  descripcion     String?
+  horas_semanales Int     @default(0)
+  activo          Boolean @default(true)
+
+  asignaciones Asignacion[]
+
+  @@map("materias")
+}
+
+model Docente {
+  id_docente    Int       @id @default(autoincrement())
+  id_usuario    String?   @unique @db.Uuid
+  dni           String?   @unique
+  titulo        String?
+  especialidad  String?
+  fecha_ingreso DateTime? @db.Date
+  activo        Boolean   @default(true)
+
+  usuarios       Usuario?       @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+  asignaciones   Asignacion[]
+  amonestaciones Amonestacion[]
+
+  @@map("docentes")
+}
+
+model Asignacion {
+  id_asignacion Int     @id @default(autoincrement())
+  id_docente    Int
+  id_materia    Int
+  id_curso      Int
+  id_periodo    Int?
+  activo        Boolean @default(true)
+
+  docentes            Docente           @relation(fields: [id_docente], references: [id_docente], onDelete: Cascade)
+  materias            Materia           @relation(fields: [id_materia], references: [id_materia], onDelete: Cascade)
+  cursos              Curso             @relation(fields: [id_curso], references: [id_curso], onDelete: Cascade)
+  periodos_academicos PeriodoAcademico? @relation(fields: [id_periodo], references: [id_periodo], onDelete: SetNull)
+  horarios            Horario[]
+  asistencias         Asistencia[]
+  calificaciones      Calificacion[]
+
+  @@map("asignaciones")
+}
+
+model Horario {
+  id_horario    Int      @id @default(autoincrement())
+  id_asignacion Int
+  /// Lunes | Martes | Miércoles | Jueves | Viernes | Sábado | Domingo
+  dia_semana    String
+  hora_inicio   DateTime @db.Time(0)
+  hora_fin      DateTime @db.Time(0)
+  aula          String?
+
+  asignaciones Asignacion @relation(fields: [id_asignacion], references: [id_asignacion], onDelete: Cascade)
+
+  @@map("horarios")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Alumnos
+// ─────────────────────────────────────────────────────────────
+
+model Alumno {
+  id_alumno                  Int      @id @default(autoincrement())
+  nombre                     String
+  apellido                   String
+  dni                        String   @unique
+  fecha_nacimiento           DateTime @db.Date
+  direccion                  String?
+  telefono_emergencia        String?
+  nombre_contacto_emergencia String?
+  obra_social                String?
+  nro_obra_social            String?
+  id_curso                   Int?
+  /// Usuario con el que el propio alumno inicia sesión
+  id_usuario                 String?  @db.Uuid
+  /// Usuario del padre/madre/tutor
+  id_usuario_padre           String?  @db.Uuid
+  activo                     Boolean  @default(true)
+  created_at                 DateTime @default(now()) @db.Timestamptz(6)
+
+  cursos                    Curso?                 @relation(fields: [id_curso], references: [id_curso], onDelete: SetNull)
+  usuarios                  Usuario?               @relation("AlumnoUsuario", fields: [id_usuario], references: [id_usuario], onDelete: SetNull)
+  padre                     Usuario?               @relation("AlumnoPadre", fields: [id_usuario_padre], references: [id_usuario], onDelete: SetNull)
+  asistencias               Asistencia[]
+  calificaciones            Calificacion[]
+  cuotas                    Cuota[]
+  amonestaciones            Amonestacion[]
+  becas                     Beca?
+  documentos_alumno         DocumentoAlumno[]
+  inscripciones_actividades InscripcionActividad[]
+  inscripciones             Inscripcion[]
+
+  @@index([id_curso])
+  @@index([id_usuario])
+  @@index([id_usuario_padre])
+  @@map("alumnos")
+}
+
+model Asistencia {
+  id_asistencia  Int      @id @default(autoincrement())
+  id_alumno      Int
+  id_asignacion  Int
+  fecha          DateTime @db.Date
+  /// Presente | Ausente | Tarde | Justificado
+  estado         String
+  observacion    String?
+  registrado_por String?  @db.Uuid
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  alumnos      Alumno     @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  asignaciones Asignacion @relation(fields: [id_asignacion], references: [id_asignacion], onDelete: Cascade)
+  usuarios     Usuario?   @relation(fields: [registrado_por], references: [id_usuario], onDelete: SetNull)
+
+  @@unique([id_alumno, id_asignacion, fecha])
+  @@map("asistencias")
+}
+
+model Calificacion {
+  id_calificacion Int      @id @default(autoincrement())
+  id_alumno       Int
+  id_asignacion   Int
+  id_periodo      Int?
+  trimestre       Int
+  tipo_evaluacion String?
+  nota            Decimal  @db.Decimal(4, 2)
+  descripcion     String?
+  fecha_carga     DateTime @default(now()) @db.Date
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  alumnos             Alumno            @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  asignaciones        Asignacion        @relation(fields: [id_asignacion], references: [id_asignacion], onDelete: Cascade)
+  periodos_academicos PeriodoAcademico? @relation(fields: [id_periodo], references: [id_periodo], onDelete: SetNull)
+
+  @@index([id_alumno])
+  @@index([id_asignacion])
+  @@map("calificaciones")
+}
+
+model Amonestacion {
+  id_amonestacion Int      @id @default(autoincrement())
+  id_alumno       Int
+  id_docente      Int?
+  /// Leve | Grave | ...
+  tipo            String
+  descripcion     String
+  fecha           DateTime @default(now()) @db.Date
+  estado          String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  alumnos  Alumno   @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  docentes Docente? @relation(fields: [id_docente], references: [id_docente], onDelete: SetNull)
+
+  @@map("amonestaciones")
+}
+
+model DocumentoAlumno {
+  id_documento Int      @id @default(autoincrement())
+  id_alumno    Int
+  nombre       String
+  tipo         String?
+  url_archivo  String
+  fecha_carga  DateTime @default(now()) @db.Timestamptz(6)
+
+  alumnos Alumno @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+
+  @@map("documentos_alumno")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Administración: cuotas, becas, sueldos, compras
+// ─────────────────────────────────────────────────────────────
+
+model Cuota {
+  id_cuota          Int       @id @default(autoincrement())
+  id_alumno         Int
+  mes               Int
+  anio              Int
+  monto_base        Decimal   @db.Decimal(12, 2)
+  recargo           Decimal?  @default(0) @db.Decimal(12, 2)
+  descuento         Decimal?  @default(0) @db.Decimal(12, 2)
+  fecha_vencimiento DateTime  @db.Date
+  /// Pendiente | Pagada | Vencida | En mora
+  estado            String    @default("Pendiente")
+  fecha_pago        DateTime? @db.Date
+  metodo_pago       String?
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+
+  alumnos Alumno @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  pagos   Pago[]
+
+  @@unique([id_alumno, mes, anio])
+  @@index([estado])
+  @@map("cuotas")
+}
+
+/// Historial de pagos de cuotas (existía en Supabase; el panel hoy registra
+/// el pago directamente en la cuota).
+model Pago {
+  id_pago             Int       @id @default(autoincrement())
+  id_cuota            Int?
+  fecha_pago          DateTime? @default(now()) @db.Timestamptz(6)
+  monto_pagado        Decimal   @db.Decimal(12, 2)
+  metodo_pago         String?
+  nro_comprobante     String?
+  id_usuario_registra String?   @db.Uuid
+  observaciones       String?
+
+  cuotas   Cuota?   @relation(fields: [id_cuota], references: [id_cuota], onDelete: SetNull)
+  usuarios Usuario? @relation(fields: [id_usuario_registra], references: [id_usuario], onDelete: SetNull)
+
+  @@map("pagos")
+}
+
+model Beca {
+  id_beca            Int      @id @default(autoincrement())
+  id_alumno          Int      @unique
+  porcentaje         Decimal  @db.Decimal(5, 2)
+  motivo             String?
+  activo             Boolean  @default(true)
+  fecha_otorgamiento DateTime @default(now()) @db.Date
+
+  alumnos Alumno @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+
+  @@map("becas")
+}
+
+model Sueldo {
+  id_sueldo      Int       @id @default(autoincrement())
+  id_usuario     String?   @db.Uuid
+  mes            Int
+  anio           Int
+  monto          Decimal   @db.Decimal(12, 2)
+  /// Pendiente | Pagado
+  estado         String    @default("Pendiente")
+  fecha_pago     DateTime? @db.Date
+  fecha_registro DateTime  @default(now()) @db.Timestamptz(6)
+
+  usuarios Usuario? @relation(fields: [id_usuario], references: [id_usuario], onDelete: SetNull)
+
+  @@map("sueldos")
+}
+
+model CompraInsumo {
+  id_compra      Int      @id @default(autoincrement())
+  descripcion    String
+  /// Laboratorio de computación | Laboratorio de física | Laboratorio de química | Enfermería
+  destino        String
+  cantidad       Int      @default(1)
+  monto          Decimal  @db.Decimal(12, 2)
+  proveedor      String?
+  fecha_compra   DateTime @default(now()) @db.Date
+  fecha_registro DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("compras_insumos")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Notificaciones
+// ─────────────────────────────────────────────────────────────
+
+model Notificacion {
+  id_notificacion    Int      @id @default(autoincrement())
+  id_usuario_destino String   @db.Uuid
+  titulo             String
+  mensaje            String
+  tipo               String
+  leida              Boolean  @default(false)
+  fecha_envio        DateTime @default(now()) @db.Timestamptz(6)
+
+  usuarios Usuario @relation(fields: [id_usuario_destino], references: [id_usuario], onDelete: Cascade)
+
+  @@index([id_usuario_destino])
+  @@map("notificaciones")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Extracurriculares e instalaciones
+// ─────────────────────────────────────────────────────────────
+
+model ActividadExtracurricular {
+  id_actividad Int     @id @default(autoincrement())
+  nombre       String
+  /// Idioma | Deporte
+  tipo         String
+  descripcion  String?
+  cupo_maximo  Int     @default(20)
+  activo       Boolean @default(true)
+
+  inscripciones_actividades InscripcionActividad[]
+
+  @@map("actividades_extracurriculares")
+}
+
+model InscripcionActividad {
+  id_inscripcion_act Int      @id @default(autoincrement())
+  id_actividad       Int
+  id_alumno          Int
+  fecha_inscripcion  DateTime @default(now()) @db.Timestamptz(6)
+
+  actividades_extracurriculares ActividadExtracurricular @relation(fields: [id_actividad], references: [id_actividad], onDelete: Cascade)
+  alumnos                       Alumno                   @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+
+  @@unique([id_actividad, id_alumno])
+  @@map("inscripciones_actividades")
+}
+
+model Instalacion {
+  id_instalacion Int     @id @default(autoincrement())
+  nombre         String
+  tipo           String?
+  descripcion    String?
+  activo         Boolean @default(true)
+
+  reservas_instalaciones ReservaInstalacion[]
+
+  @@map("instalaciones")
+}
+
+model ReservaInstalacion {
+  id_reserva     Int      @id @default(autoincrement())
+  id_instalacion Int
+  fecha          DateTime @db.Date
+  hora_inicio    DateTime @db.Time(0)
+  hora_fin       DateTime @db.Time(0)
+  motivo         String?
+  reservado_por  String?  @db.Uuid
+  fecha_registro DateTime @default(now()) @db.Timestamptz(6)
+
+  instalaciones Instalacion @relation(fields: [id_instalacion], references: [id_instalacion], onDelete: Cascade)
+  usuarios      Usuario?    @relation(fields: [reservado_por], references: [id_usuario], onDelete: SetNull)
+
+  @@index([id_instalacion, fecha])
+  @@map("reservas_instalaciones")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Sitio público: inscripciones, contacto, noticias, galería, empleos
+// ─────────────────────────────────────────────────────────────
+
+model Inscripcion {
+  id_inscripcion             Int       @id @default(autoincrement())
+  nombre_aspirante           String
+  apellido_aspirante         String?
+  fecha_nacimiento_aspirante DateTime? @db.Date
+  dni_aspirante              String
+  nombre_tutor               String
+  email_tutor                String
+  telefono_tutor             String?
+  nivel_solicitado           String
+  grado_anio_solicitado      String?
+  documentacion_completa     Boolean   @default(false)
+  observaciones              String?
+  /// Pendiente | En revisión | Aprobada | Rechazada | En lista de espera
+  estado                     String    @default("Pendiente")
+  fecha_solicitud            DateTime  @default(now()) @db.Timestamptz(6)
+  id_alumno_creado           Int?
+
+  alumnos Alumno? @relation(fields: [id_alumno_creado], references: [id_alumno], onDelete: SetNull)
+
+  @@map("inscripciones")
+}
+
+model MensajeContacto {
+  id_mensaje  Int      @id @default(autoincrement())
+  nombre      String
+  email       String
+  mensaje     String
+  leido       Boolean  @default(false)
+  fecha_envio DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("mensajes_contacto")
+}
+
+model Noticia {
+  id_noticia        Int      @id @default(autoincrement())
+  titulo            String
+  resumen           String?
+  contenido         String   @default("")
+  url_imagen        String?
+  fecha_publicacion DateTime @default(now()) @db.Date
+  activo            Boolean  @default(true)
+  destacada         Boolean  @default(false)
+  id_autor          String?  @db.Uuid
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  usuarios Usuario? @relation(fields: [id_autor], references: [id_usuario], onDelete: SetNull)
+
+  @@map("noticias")
+}
+
+model Galeria {
+  id_imagen    Int      @id @default(autoincrement())
+  titulo       String?
+  descripcion  String?
+  categoria    String?
+  url_imagen   String
+  activo       Boolean  @default(true)
+  id_autor     String?  @db.Uuid
+  fecha_subida DateTime @default(now()) @db.Timestamptz(6)
+
+  usuarios Usuario? @relation(fields: [id_autor], references: [id_usuario], onDelete: SetNull)
+
+  @@map("galeria")
+}
+
+model Empleo {
+  id_empleo         Int       @id @default(autoincrement())
+  titulo            String
+  descripcion       String    @default("")
+  area              String?
+  requisitos        String?
+  /// Full-time | Part-time | Pasantía | Suplencia | Temporal
+  tipo_contrato     String?
+  activo            Boolean   @default(true)
+  fecha_publicacion DateTime  @default(now()) @db.Date
+  fecha_cierre      DateTime? @db.Date
+  id_autor          String?   @db.Uuid
+
+  usuarios      Usuario?      @relation(fields: [id_autor], references: [id_usuario], onDelete: SetNull)
+  postulaciones Postulacion[]
+
+  @@map("empleos")
+}
+
+model Postulacion {
+  id_postulacion    Int      @id @default(autoincrement())
+  id_empleo         Int
+  nombre            String
+  apellido          String
+  email             String
+  telefono          String?
+  mensaje           String?
+  /// Recibida | En revisión | Entrevista | Seleccionada | Rechazada
+  estado            String   @default("Recibida")
+  fecha_postulacion DateTime @default(now()) @db.Timestamptz(6)
+
+  empleos Empleo @relation(fields: [id_empleo], references: [id_empleo], onDelete: Cascade)
+
+  @@map("postulaciones")
+}

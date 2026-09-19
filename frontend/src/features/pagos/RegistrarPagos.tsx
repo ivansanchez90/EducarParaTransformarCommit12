@@ -3,8 +3,8 @@
  * con registro del pago (fecha y método) directamente desde la tabla.
  */
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
-import type { Cuota } from '../../types'
+import { api, qs } from '../../lib/api'
+import type { Cuota, Pago } from '../../types'
 import { MESES, METODOS_PAGO, CUOTA_ESTADO_COLOR } from '../../constants'
 import {
   btnPrimary,
@@ -19,6 +19,7 @@ import {
 
 export function RegistrarPagos() {
   const [cuotas, setCuotas] = useState<Cuota[]>([])
+  const [pagos, setPagos] = useState<Pago[]>([])
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [busqueda, setBusqueda] = useState('')
@@ -26,40 +27,50 @@ export function RegistrarPagos() {
   const [filtroAnio, setFiltroAnio] = useState(String(new Date().getFullYear()))
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [selCuota, setSelCuota] = useState<number | null>(null)
-  const [formPago, setFormPago] = useState({
+  const FORM_PAGO_VACIO = {
     fecha_pago: new Date().toISOString().split('T')[0],
     metodo_pago: 'Efectivo',
-  })
+    nro_comprobante: '',
+    observaciones: '',
+  }
+  const [formPago, setFormPago] = useState(FORM_PAGO_VACIO)
 
   const load = useCallback(async () => {
-    let q = supabase
-      .from('cuotas')
-      .select('*, alumnos(nombre, apellido)')
-      .in('estado', ['Pendiente', 'Vencida', 'En mora'])
-      .order('fecha_vencimiento', { ascending: true })
-
-    if (filtroAnio) q = q.eq('anio', Number(filtroAnio))
-    if (filtroMes) q = q.eq('mes', Number(filtroMes))
-
-    const { data } = await q
-    if (data) setCuotas(data as unknown as Cuota[])
+    const { data } = await api.get<Cuota[]>(
+      `/cuotas${qs({
+        estado: 'Pendiente,Vencida,En mora',
+        anio: filtroAnio,
+        mes: filtroMes,
+        orden: 'asc',
+      })}`,
+    )
+    if (data) setCuotas(data)
   }, [filtroAnio, filtroMes])
 
   useEffect(() => {
     load()
   }, [load])
 
+  // Historial: últimos pagos registrados (más recientes primero).
+  const loadPagos = useCallback(async () => {
+    const { data } = await api.get<Pago[]>('/cuotas/pagos')
+    if (data) setPagos(data)
+  }, [])
+
+  useEffect(() => {
+    loadPagos()
+  }, [loadPagos])
+
   const registrarPago = async (c: Cuota) => {
     setLoading(true)
     setMsg('')
-    const { error } = await supabase
-      .from('cuotas')
-      .update({
-        estado: 'Pagada',
-        fecha_pago: formPago.fecha_pago,
-        metodo_pago: formPago.metodo_pago,
-      })
-      .eq('id_cuota', c.id_cuota)
+    // El backend marca la cuota como pagada y guarda el movimiento en el historial.
+    const { error } = await api.patch(`/cuotas/${c.id_cuota}/pago`, {
+      fecha_pago: formPago.fecha_pago,
+      metodo_pago: formPago.metodo_pago,
+      nro_comprobante: formPago.nro_comprobante || null,
+      observaciones: formPago.observaciones || null,
+    })
     if (error) {
       setMsg('❌ Error al registrar: ' + error.message)
     } else {
@@ -67,7 +78,9 @@ export function RegistrarPagos() {
         `✅ Pago de ${c.alumnos?.apellido}, ${c.alumnos?.nombre} registrado correctamente.`,
       )
       setSelCuota(null)
+      setFormPago(FORM_PAGO_VACIO)
       load()
+      loadPagos()
     }
     setLoading(false)
   }
@@ -82,10 +95,22 @@ export function RegistrarPagos() {
     return true
   })
 
+  // Neto = base + recargo − descuento (lo mismo que registra el backend como monto pagado).
+  const netoCuota = (c: Cuota) =>
+    c.monto_base + (c.recargo ?? 0) - (c.descuento ?? 0)
+
   const totalPendiente = cuotasFiltradas.reduce(
-    (acc, c) => acc + c.monto_base - (c.descuento ?? 0),
+    (acc, c) => acc + netoCuota(c),
     0,
   )
+
+  const pagosFiltrados = pagos.filter((p) => {
+    if (!busqueda) return true
+    const al = p.cuotas?.alumnos
+    return `${al?.apellido} ${al?.nombre}`
+      .toLowerCase()
+      .includes(busqueda.toLowerCase())
+  })
 
   return (
     <div className='flex flex-col gap-6'>
@@ -240,7 +265,7 @@ export function RegistrarPagos() {
             </thead>
             <tbody>
               {cuotasFiltradas.map((c) => {
-                const neto = c.monto_base - (c.descuento ?? 0)
+                const neto = netoCuota(c)
                 const isSelected = selCuota === c.id_cuota
                 const color = CUOTA_ESTADO_COLOR[c.estado] ?? '#6B6B8A'
                 return (
@@ -326,6 +351,38 @@ export function RegistrarPagos() {
                                 ))}
                               </select>
                             </div>
+                            <div>
+                              <span className={fieldLabel}>
+                                N° de comprobante
+                              </span>
+                              <input
+                                className='w-[150px] px-[14px] py-[10px] rounded-input border-2 border-border text-[13px] text-text outline-none box-border'
+                                placeholder='Opcional'
+                                value={formPago.nro_comprobante}
+                                onChange={(e) =>
+                                  setFormPago((p) => ({
+                                    ...p,
+                                    nro_comprobante: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className='flex-1' style={{ minWidth: 180 }}>
+                              <span className={fieldLabel}>
+                                Observaciones
+                              </span>
+                              <input
+                                className={inputField}
+                                placeholder='Opcional'
+                                value={formPago.observaciones}
+                                onChange={(e) =>
+                                  setFormPago((p) => ({
+                                    ...p,
+                                    observaciones: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
                             <div className='flex items-end'>
                               <button
                                 disabled={loading}
@@ -350,6 +407,72 @@ export function RegistrarPagos() {
                   </>
                 )
               })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Historial de pagos */}
+      <div className={card}>
+        <div className='text-[15px] font-extrabold text-text mb-5'>
+          🧾 Historial de pagos
+          {pagosFiltrados.length > 0 && (
+            <span className='ml-2 text-[12px] font-bold text-textMuted'>
+              (últimos {pagosFiltrados.length})
+            </span>
+          )}
+        </div>
+
+        {pagosFiltrados.length === 0 ? (
+          <div className='text-center text-textMuted py-10 text-[14px]'>
+            Todavía no hay pagos registrados.
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th className={thCell}>Fecha</th>
+                <th className={thCell}>Alumno</th>
+                <th className={thCell}>Período</th>
+                <th className={thCell}>Monto</th>
+                <th className={thCell}>Método</th>
+                <th className={thCell}>Comprobante</th>
+                <th className={thCell}>Registró</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagosFiltrados.map((p) => (
+                <tr key={p.id_pago}>
+                  <td className={`${tdCell} text-textMuted`}>
+                    {p.fecha_pago
+                      ? new Date(p.fecha_pago).toLocaleDateString('es-AR')
+                      : '—'}
+                  </td>
+                  <td className={`${tdCell} font-bold`}>
+                    {p.cuotas?.alumnos
+                      ? `${p.cuotas.alumnos.apellido}, ${p.cuotas.alumnos.nombre}`
+                      : '—'}
+                  </td>
+                  <td className={tdCell}>
+                    {p.cuotas ? `${MESES[p.cuotas.mes - 1]} ${p.cuotas.anio}` : '—'}
+                  </td>
+                  <td className={`${tdCell} font-extrabold text-purple-700`}>
+                    ${p.monto_pagado.toLocaleString('es-AR')}
+                  </td>
+                  <td className={tdCell}>{p.metodo_pago ?? '—'}</td>
+                  <td className={tdCell} title={p.observaciones ?? undefined}>
+                    {p.nro_comprobante ?? '—'}
+                    {p.observaciones && (
+                      <span className='ml-1 text-textMuted'>📝</span>
+                    )}
+                  </td>
+                  <td className={`${tdCell} text-textMuted`}>
+                    {p.usuarios
+                      ? `${p.usuarios.nombre} ${p.usuarios.apellido}`
+                      : '—'}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}

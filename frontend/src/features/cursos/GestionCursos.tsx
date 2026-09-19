@@ -4,7 +4,7 @@
  */
 import type { FormEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Curso } from '../../types'
 import {
   badge,
@@ -30,12 +30,8 @@ export function GestionCursos() {
   })
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('cursos')
-      .select('*')
-      .eq('activo', true)
-      .order('nivel')
-    if (data) setCursos(data as Curso[])
+    const { data } = await api.get<Curso[]>('/cursos')
+    if (data) setCursos(data)
   }, [])
 
   useEffect(() => {
@@ -46,21 +42,13 @@ export function GestionCursos() {
     e.preventDefault()
     setLoading(true)
     setMsg('')
-    // Obtener período activo
-    const { data: periodo } = await supabase
-      .from('periodos_academicos')
-      .select('id_periodo')
-      .eq('activo', true)
-      .single()
-    const { error } = await supabase.from('cursos').insert([
-      {
-        nivel: form.nivel,
-        grado_anio: form.grado_anio,
-        division: form.division,
-        capacidad_maxima: Number(form.capacidad_maxima),
-        id_periodo: periodo?.id_periodo ?? null,
-      },
-    ])
+    // El backend asigna el período académico activo.
+    const { error } = await api.post('/cursos', {
+      nivel: form.nivel,
+      grado_anio: form.grado_anio,
+      division: form.division,
+      capacidad_maxima: Number(form.capacidad_maxima),
+    })
     if (error) setMsg('Error: ' + error.message)
     else {
       setMsg('✅ Curso creado.')

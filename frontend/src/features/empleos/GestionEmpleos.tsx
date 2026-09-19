@@ -2,7 +2,7 @@
 // Extraído de AdminPanel.tsx sin cambios de lógica.
 import { useState, useCallback, useEffect } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Empleo } from '../../types'
 import { TIPOS_CONTRATO } from '../../constants'
 import {
@@ -30,11 +30,8 @@ export function GestionEmpleos() {
   const [form, setForm] = useState(FORM_VACIO)
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('empleos')
-      .select('*')
-      .order('fecha_publicacion', { ascending: false })
-    if (data) setEmpleos(data as Empleo[])
+    const { data } = await api.get<Empleo[]>('/empleos')
+    if (data) setEmpleos(data)
   }, [])
 
   useEffect(() => {
@@ -45,12 +42,10 @@ export function GestionEmpleos() {
     e.preventDefault()
     setLoading(true)
     setMsg('')
-    const { error } = await supabase.from('empleos').insert([
-      {
-        ...form,
-        fecha_cierre: form.fecha_cierre || null,
-      },
-    ])
+    const { error } = await api.post('/empleos', {
+      ...form,
+      fecha_cierre: form.fecha_cierre || null,
+    })
     if (error) {
       setMsg('❌ Error: ' + error.message)
     } else {
@@ -63,16 +58,13 @@ export function GestionEmpleos() {
   }
 
   const toggleActivo = async (id: number, activo: boolean) => {
-    await supabase
-      .from('empleos')
-      .update({ activo: !activo })
-      .eq('id_empleo', id)
+    await api.patch(`/empleos/${id}`, { activo: !activo })
     load()
   }
 
   const eliminar = async (id: number) => {
     if (!confirm('¿Eliminar esta oferta?')) return
-    await supabase.from('empleos').delete().eq('id_empleo', id)
+    await api.delete(`/empleos/${id}`)
     load()
   }
 

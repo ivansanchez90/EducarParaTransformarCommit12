@@ -5,8 +5,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
-import { notificarFamilias } from '../../lib/notificaciones'
+import { api } from '../../lib/api'
 import type { Cuota } from '../../types'
 import { MESES } from '../../constants'
 import {
@@ -32,70 +31,30 @@ export function GestionCuotas() {
   })
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('cuotas')
-      .select('*, alumnos(nombre, apellido)')
-      .order('fecha_vencimiento', { ascending: false })
-      .limit(50)
-    if (data) setCuotas(data as unknown as Cuota[])
+    const { data } = await api.get<Cuota[]>('/cuotas?limit=50')
+    if (data) setCuotas(data)
   }, [])
 
   useEffect(() => {
     load()
   }, [load])
 
+  // Genera la cuota del mes para todos los alumnos activos. El backend aplica
+  // el descuento de las becas activas y no duplica cuotas ya existentes.
   const generarCuotas = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMsg('')
-    // Traer todos los alumnos activos
-    const { data: alumnos } = await supabase
-      .from('alumnos')
-      .select('id_alumno')
-      .eq('activo', true)
-    if (!alumnos || alumnos.length === 0) {
-      setMsg('No hay alumnos activos.')
-      setLoading(false)
-      return
-    }
-
     const mes = Number(form.mes)
     const anio = Number(form.anio)
-    const vencimiento = new Date(anio, mes - 1, 10) // vence el 10 de cada mes
-    const montoBase = Number(form.monto_base)
-
-    // Becas activas → mapa id_alumno → porcentaje de descuento
-    const { data: becas } = await supabase
-      .from('becas')
-      .select('id_alumno, porcentaje')
-      .eq('activo', true)
-    const becaPorAlumno: Record<number, number> = {}
-    ;(becas ?? []).forEach((b: { id_alumno: number; porcentaje: number }) => {
-      becaPorAlumno[b.id_alumno] = Number(b.porcentaje)
-    })
-
-    const cuotasNuevas = alumnos.map((a) => {
-      const pct = becaPorAlumno[a.id_alumno] ?? 0
-      return {
-        id_alumno: a.id_alumno,
-        mes,
-        anio,
-        monto_base: montoBase,
-        recargo: 0,
-        descuento: Math.round((montoBase * pct) / 100),
-        fecha_vencimiento: vencimiento.toISOString().split('T')[0],
-        estado: 'Pendiente',
-      }
-    })
-
-    // upsert para no duplicar si ya existen
-    const { error } = await supabase
-      .from('cuotas')
-      .upsert(cuotasNuevas, { onConflict: 'id_alumno,mes,anio' })
+    const { data, error } = await api.post<{ generadas: number }>(
+      '/cuotas/generar',
+      { mes, anio, monto_base: Number(form.monto_base) },
+    )
     if (error) setMsg('Error: ' + error.message)
     else {
       setMsg(
-        `✅ ${alumnos.length} cuotas generadas para ${MESES[mes - 1]} ${anio}.`,
+        `✅ ${data.generadas} cuotas generadas para ${MESES[mes - 1]} ${anio}.`,
       )
       load()
     }
@@ -103,40 +62,22 @@ export function GestionCuotas() {
   }
 
   // R6 · Marca como vencidas las cuotas impagas pasadas de fecha
-  //       y notifica automáticamente a las familias.
+  //       y notifica automáticamente a las familias (lo hace el backend).
   const procesarVencimientos = async () => {
     setLoading(true)
     setMsg('')
-    const hoy = new Date().toISOString().slice(0, 10)
-    const { data: vencidas } = await supabase
-      .from('cuotas')
-      .select('id_cuota, id_alumno, mes, anio')
-      .eq('estado', 'Pendiente')
-      .lt('fecha_vencimiento', hoy)
-    if (!vencidas || vencidas.length === 0) {
+    const { data, error } = await api.post<{ vencidas: number }>(
+      '/cuotas/procesar-vencimientos',
+    )
+    if (error) setMsg('Error: ' + error.message)
+    else if (data.vencidas === 0)
       setMsg('No hay cuotas pendientes que hayan vencido.')
-      setLoading(false)
-      return
-    }
-    await supabase
-      .from('cuotas')
-      .update({ estado: 'Vencida' })
-      .in(
-        'id_cuota',
-        vencidas.map((c) => c.id_cuota),
+    else {
+      setMsg(
+        `✅ ${data.vencidas} cuota(s) marcadas como vencidas y familias notificadas.`,
       )
-    await notificarFamilias(
-      vencidas.map((c) => ({
-        id_alumno: c.id_alumno,
-        titulo: 'Cuota vencida',
-        mensaje: `La cuota de ${MESES[c.mes - 1]} ${c.anio} se encuentra vencida. Te pedimos regularizar el pago.`,
-      })),
-      'Cuota',
-    )
-    setMsg(
-      `✅ ${vencidas.length} cuota(s) marcadas como vencidas y familias notificadas.`,
-    )
-    load()
+      load()
+    }
     setLoading(false)
   }
 

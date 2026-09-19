@@ -7,7 +7,7 @@
  * responsabilidades (acceso a datos ↔ presentación).
  */
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Alumno, Curso } from '../../types'
 
 export interface NuevoAlumno {
@@ -26,39 +26,29 @@ export function useAlumnos() {
 
   const load = useCallback(async () => {
     const [{ data: al }, { data: cu }] = await Promise.all([
-      supabase
-        .from('alumnos')
-        .select('*, cursos(nivel, grado_anio, division)')
-        .order('apellido'),
-      supabase.from('cursos').select('*').eq('activo', true),
+      api.get<Alumno[]>('/alumnos'),
+      api.get<Curso[]>('/cursos'),
     ])
-    if (al) setAlumnos(al as unknown as Alumno[])
-    if (cu) setCursos(cu as Curso[])
+    if (al) setAlumnos(al)
+    if (cu) setCursos(cu)
   }, [])
 
   useEffect(() => {
     load()
   }, [load])
 
-  /** Crea un alumno resolviendo el usuario padre por email. Devuelve el error si lo hay. */
+  /** Crea un alumno (el backend vincula al padre por email). Devuelve el error si lo hay. */
   const crearAlumno = useCallback(
     async (form: NuevoAlumno): Promise<string | null> => {
-      const { data: padre } = await supabase
-        .from('usuarios')
-        .select('id_usuario')
-        .eq('email', form.email_padre)
-        .single()
-      const { error } = await supabase.from('alumnos').insert([
-        {
-          nombre: form.nombre,
-          apellido: form.apellido,
-          dni: form.dni,
-          fecha_nacimiento: form.fecha_nacimiento,
-          id_curso: form.id_curso ? Number(form.id_curso) : null,
-          id_usuario_padre: padre?.id_usuario ?? null,
-          obra_social: form.obra_social || null,
-        },
-      ])
+      const { error } = await api.post('/alumnos', {
+        nombre: form.nombre,
+        apellido: form.apellido,
+        dni: form.dni,
+        fecha_nacimiento: form.fecha_nacimiento,
+        id_curso: form.id_curso ? Number(form.id_curso) : null,
+        email_padre: form.email_padre || null,
+        obra_social: form.obra_social || null,
+      })
       if (error) return error.message
       await load()
       return null
@@ -67,12 +57,12 @@ export function useAlumnos() {
   )
 
   const cambiarCurso = useCallback(
-    async (idAlumno: number, idCurso: string) => {
-      await supabase
-        .from('alumnos')
-        .update({ id_curso: idCurso ? Number(idCurso) : null })
-        .eq('id_alumno', idAlumno)
+    async (idAlumno: number, idCurso: string): Promise<string | null> => {
+      const { error } = await api.patch(`/alumnos/${idAlumno}`, {
+        id_curso: idCurso ? Number(idCurso) : null,
+      })
       await load()
+      return error?.message ?? null
     },
     [load],
   )

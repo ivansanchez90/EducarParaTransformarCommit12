@@ -1,13 +1,13 @@
 /**
  * GestionGaleria — administración de la galería institucional: alta de imágenes
- * (archivo local a Storage o URL remota), visibilidad y borrado.
+ * (archivo subido al servidor o URL remota), visibilidad y borrado.
  */
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import { badge, btnPrimary, card, fieldLabel, inputField, selectField, thCell } from '../../ui/styles'
 
-export function GestionGaleria({ userId }: { userId: string }) {
+export function GestionGaleria() {
   const [imagenes, setImagenes] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -21,10 +21,7 @@ export function GestionGaleria({ userId }: { userId: string }) {
   })
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('galeria')
-      .select('*')
-      .order('fecha_subida', { ascending: false })
+    const { data } = await api.get<any[]>('/galeria')
     if (data) setImagenes(data)
   }, [])
 
@@ -38,46 +35,23 @@ export function GestionGaleria({ userId }: { userId: string }) {
     setMsg('')
 
     try {
-      let finalUrl = form.url_imagen
-
-      // Si el usuario adjuntó un archivo local, procesamos la subida a Supabase Storage
-      if (file) {
-        const fileExt = file.name.split('.').pop()
-        const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
-
-        const { error: uploadError } = await supabase.storage
-          .from('galeria-imagenes')
-          .upload(uniqueFileName, file)
-
-        if (uploadError)
-          throw new Error('Error en Storage: ' + uploadError.message)
-
-        // Recuperar URL pública del archivo cargado
-        const { data } = supabase.storage
-          .from('galeria-imagenes')
-          .getPublicUrl(uniqueFileName)
-
-        finalUrl = data.publicUrl
-      }
-
-      if (!finalUrl) {
+      if (!file && !form.url_imagen) {
         throw new Error(
           'Debes seleccionar un archivo de imagen o ingresar una URL externa.',
         )
       }
 
-      // Persistir registro meta en la base de datos relacional
-      const { error } = await supabase.from('galeria').insert([
-        {
-          titulo: form.titulo || null,
-          descripcion: form.descripcion || null,
-          categoria: form.categoria || null,
-          url_imagen: finalUrl,
-          id_autor: userId,
-        },
-      ])
+      // Se envía el archivo (si lo hay) junto con los datos; el backend lo
+      // guarda y usa su URL pública, o si no, la URL externa escrita a mano.
+      const body = new FormData()
+      body.append('titulo', form.titulo)
+      body.append('descripcion', form.descripcion)
+      body.append('categoria', form.categoria)
+      if (file) body.append('imagen', file)
+      else body.append('url_imagen', form.url_imagen)
+      const { error } = await api.post('/galeria', body)
 
-      if (error) throw error
+      if (error) throw new Error(error.message)
 
       setMsg('✅ Imagen incorporada a la galería correctamente.')
       setForm({
@@ -97,14 +71,11 @@ export function GestionGaleria({ userId }: { userId: string }) {
   }
 
   const toggleActivo = async (id: number, activo: boolean) => {
-    await supabase
-      .from('galeria')
-      .update({ activo: !activo })
-      .eq('id_imagen', id)
+    await api.patch(`/galeria/${id}`, { activo: !activo })
     load()
   }
 
-  const eliminarImagen = async (id: number, urlImagen: string) => {
+  const eliminarImagen = async (id: number) => {
     if (
       !window.confirm(
         '¿Confirmás la eliminación permanente de esta fotografía?',
@@ -113,18 +84,9 @@ export function GestionGaleria({ userId }: { userId: string }) {
       return
 
     try {
-      // Si la imagen pertenece al storage propio, borramos el binario para evitar archivos huérfanos
-      if (urlImagen.includes('galeria-imagenes')) {
-        const parts = urlImagen.split('/')
-        const fileName = parts[parts.length - 1]
-        await supabase.storage.from('galeria-imagenes').remove([fileName])
-      }
-
-      const { error } = await supabase
-        .from('galeria')
-        .delete()
-        .eq('id_imagen', id)
-      if (error) throw error
+      // El backend borra también el archivo si estaba guardado en el servidor.
+      const { error } = await api.delete(`/galeria/${id}`)
+      if (error) throw new Error(error.message)
 
       setMsg('✅ Registro fotográfico purgado con éxito.')
       load()
@@ -352,7 +314,7 @@ export function GestionGaleria({ userId }: { userId: string }) {
                     <button
                       className='bg-[#E74C3C26] text-red border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
                       onClick={() =>
-                        eliminarImagen(img.id_imagen, img.url_imagen)
+                        eliminarImagen(img.id_imagen)
                       }
                     >
                       Eliminar permanentemente

@@ -76,7 +76,8 @@ export function GestionAlumnos() {
   const guardarCurso = async () => {
     if (editCursoId === null) return
     setSavingCurso(true)
-    await cambiarCurso(editCursoId, editCursoVal)
+    const error = await cambiarCurso(editCursoId, editCursoVal)
+    if (error) setMsg('Error: ' + error)
     setSavingCurso(false)
     setEditCursoId(null)
   }

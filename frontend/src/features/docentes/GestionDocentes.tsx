@@ -3,7 +3,7 @@
  * Extraído verbatim desde AdminPanel.tsx.
  */
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Docente } from '../../types'
 import { badge, card, tdCell, thCell } from '../../ui/styles'
 
@@ -11,13 +11,9 @@ export function GestionDocentes() {
   const [docentes, setDocentes] = useState<Docente[]>([])
 
   useEffect(() => {
-    supabase
-      .from('docentes')
-      .select('*, usuarios(nombre, apellido, email)')
-      .order('id_docente')
-      .then(({ data }) => {
-        if (data) setDocentes(data as unknown as Docente[])
-      })
+    api.get<Docente[]>('/docentes').then(({ data }) => {
+      if (data) setDocentes(data)
+    })
   }, [])
 
   return (

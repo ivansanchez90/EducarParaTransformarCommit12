@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from './lib/supabaseClient'
+import { api } from './lib/api'
 
 // ═══════════════════════════════════════════════════════════════
 //  TIPOS
@@ -151,36 +151,18 @@ export default function Home() {
 
 
   async function loadNoticias() {
-    const { data } = await supabase
-      .from('noticias')
-      .select(
-        'id_noticia, titulo, resumen, url_imagen, fecha_publicacion, destacada',
-      )
-      .eq('activo', true)
-      .order('fecha_publicacion', { ascending: false })
-      .limit(6)
-    if (data) setNoticias(data as Noticia[])
+    const { data } = await api.get<Noticia[]>('/noticias/publicas?limit=6')
+    if (data) setNoticias(data)
   }
 
   async function loadGaleria() {
-    const { data } = await supabase
-      .from('galeria')
-      .select('id_imagen, titulo, url_imagen, categoria')
-      .eq('activo', true)
-      .limit(8)
-    if (data) setGaleria(data as ImagenGaleria[])
+    const { data } = await api.get<ImagenGaleria[]>('/galeria/publica?limit=8')
+    if (data) setGaleria(data)
   }
 
   async function loadEmpleos() {
-    const { data } = await supabase
-      .from('empleos')
-      .select(
-        'id_empleo, titulo, descripcion, area, requisitos, tipo_contrato, fecha_publicacion, fecha_cierre',
-      )
-      .eq('activo', true)
-      .order('fecha_publicacion', { ascending: false })
-      .limit(6)
-    if (data) setEmpleos(data as Empleo[])
+    const { data } = await api.get<Empleo[]>('/empleos/publicos?limit=6')
+    if (data) setEmpleos(data)
   }
 
   const prevCarousel = () =>
@@ -1120,7 +1102,7 @@ function InscripcionForm() {
     }
     setLoading(true)
     setError('')
-    const { error: err } = await supabase.from('inscripciones').insert([form])
+    const { error: err } = await api.post('/inscripciones', form)
     if (err) {
       setError('Hubo un error al enviar. Intentá de nuevo.')
     } else {
@@ -1316,9 +1298,7 @@ function ContactoForm() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error: err } = await supabase
-      .from('mensajes_contacto')
-      .insert([form])
+    const { error: err } = await api.post('/mensajes', form)
     if (err) {
       setError('Hubo un error al enviar. Intentá de nuevo.')
     } else {
@@ -1431,16 +1411,14 @@ function PostulacionModal({
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error: err } = await supabase.from('postulaciones').insert([
-      {
-        id_empleo: empleo.id_empleo,
-        nombre: form.nombre,
-        apellido: form.apellido,
-        email: form.email,
-        telefono: form.telefono || null,
-        mensaje: form.mensaje || null,
-      },
-    ])
+    const { error: err } = await api.post('/postulaciones', {
+      id_empleo: empleo.id_empleo,
+      nombre: form.nombre,
+      apellido: form.apellido,
+      email: form.email,
+      telefono: form.telefono || null,
+      mensaje: form.mensaje || null,
+    })
     if (err) {
       setError('Hubo un error al enviar. Intentá de nuevo.')
     } else {

@@ -4,7 +4,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Alumno, Beca } from '../../types'
 import {
   btnPrimary,
@@ -30,20 +30,11 @@ export function GestionBecas() {
   })
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('becas')
-      .select('*, alumnos(nombre, apellido)')
-      .order('fecha_otorgamiento', { ascending: false })
-    if (data) setBecas(data as unknown as Beca[])
+    const { data } = await api.get<Beca[]>('/becas')
+    if (data) setBecas(data)
 
-    const { data: al } = await supabase
-      .from('alumnos')
-      .select(
-        'id_alumno, nombre, apellido, dni, activo, cursos(nivel, grado_anio, division)',
-      )
-      .eq('activo', true)
-      .order('apellido', { ascending: true })
-    if (al) setAlumnos(al as unknown as Alumno[])
+    const { data: al } = await api.get<Alumno[]>('/alumnos?activo=true')
+    if (al) setAlumnos(al)
   }, [])
 
   useEffect(() => {
@@ -58,18 +49,12 @@ export function GestionBecas() {
       setMsg('El porcentaje debe estar entre 1 y 100.')
       return
     }
-    // upsert: una beca por alumno (unique id_alumno)
-    const { error } = await supabase.from('becas').upsert(
-      [
-        {
-          id_alumno: Number(form.id_alumno),
-          porcentaje: pct,
-          motivo: form.motivo || null,
-          activo: true,
-        },
-      ],
-      { onConflict: 'id_alumno' },
-    )
+    // PUT = upsert: una beca por alumno (si ya tiene, se actualiza)
+    const { error } = await api.put('/becas', {
+      id_alumno: Number(form.id_alumno),
+      porcentaje: pct,
+      motivo: form.motivo || null,
+    })
     if (error) setMsg('Error: ' + error.message)
     else {
       setForm({ id_alumno: '', porcentaje: '', motivo: '' })
@@ -78,15 +63,12 @@ export function GestionBecas() {
   }
 
   const toggleActivo = async (b: Beca) => {
-    await supabase
-      .from('becas')
-      .update({ activo: !b.activo })
-      .eq('id_beca', b.id_beca)
+    await api.patch(`/becas/${b.id_beca}`, { activo: !b.activo })
     load()
   }
 
   const eliminar = async (id: number) => {
-    await supabase.from('becas').delete().eq('id_beca', id)
+    await api.delete(`/becas/${id}`)
     load()
   }
 

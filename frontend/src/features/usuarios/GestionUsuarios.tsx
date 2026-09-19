@@ -1,11 +1,11 @@
 /**
  * Gestión de usuarios del panel: alta de directivos, docentes, alumnos y
- * tutores (creando también sus registros asociados vía edge function) y
+ * tutores (el backend crea también sus registros asociados) y
  * activación/desactivación según la jerarquía del rol del actor.
  */
 import { useState, useEffect, useCallback } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { UsuarioPanel, PrefillUsuario, Curso } from '../../types'
 import {
   btnPrimary,
@@ -57,11 +57,11 @@ export function GestionUsuarios({
 
   const load = useCallback(async () => {
     const [{ data: us }, { data: cu }] = await Promise.all([
-      supabase.from('usuarios').select('*').order('apellido'),
-      supabase.from('cursos').select('*').eq('activo', true),
+      api.get<UsuarioPanel[]>('/usuarios'),
+      api.get<Curso[]>('/cursos'),
     ])
-    if (us) setUsuarios(us as UsuarioPanel[])
-    if (cu) setCursos(cu as Curso[])
+    if (us) setUsuarios(us)
+    if (cu) setCursos(cu)
   }, [])
 
   useEffect(() => {
@@ -95,133 +95,22 @@ export function GestionUsuarios({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill, onPrefillConsumed])
 
-  // Crea el usuario vía edge function y luego fuerza nombre/apellido/rol en la
-  // fila de `usuarios`, porque el backend desplegado no respeta esos valores
-  // (los crea sin nombre y con un rol por defecto). Devuelve el id_usuario.
-  const crearUsuario = async (datos: {
-    email: string
-    password: string
-    nombre: string
-    apellido: string
-    rol: string
-  }): Promise<{ error: string | null; id: string | null }> => {
-    const { error } = await supabase.functions.invoke('crear-usuario', {
-      body: datos,
-    })
-    if (error) return { error: error.message, id: null }
-
-    const { data: u } = await supabase
-      .from('usuarios')
-      .select('id_usuario')
-      .eq('email', datos.email)
-      .single()
-    if (!u?.id_usuario) {
-      return {
-        error:
-          'No se encontró el usuario recién creado para completar sus datos.',
-        id: null,
-      }
-    }
-    const { error: updErr } = await supabase
-      .from('usuarios')
-      .update({
-        nombre: datos.nombre,
-        apellido: datos.apellido,
-        rol: datos.rol,
-      })
-      .eq('id_usuario', u.id_usuario)
-    if (updErr) {
-      return {
-        error: 'no se pudo guardar nombre/rol del usuario: ' + updErr.message,
-        id: u.id_usuario,
-      }
-    }
-    return { error: null, id: u.id_usuario }
-  }
-
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMsg('')
 
-    const { error: errUser, id: idUsuario } = await crearUsuario({
-      email: form.email,
-      password: form.password,
-      nombre: form.nombre,
-      apellido: form.apellido,
-      rol: form.rol,
+    // Si es Tutor, el backend crea también el usuario del alumno (email
+    // `<dni>@alumno.local`, contraseña = DNI) y su registro en `alumnos`.
+    // Si es Docente, crea su registro en `docentes`. Todo en una transacción.
+    const { error } = await api.post('/usuarios', {
+      ...form,
+      alumno: form.rol === 'Padre' ? alumnoForm : undefined,
     })
-    if (errUser) {
-      setMsg('Error: ' + errUser)
+    if (error) {
+      setMsg('Error: ' + error.message)
       setLoading(false)
       return
-    }
-
-    // Si es Tutor: crear también el usuario del alumno (email generado desde el
-    // DNI) y el registro en `alumnos` vinculado al alumno y al tutor.
-    if (form.rol === 'Padre') {
-      const emailAlumno = `${alumnoForm.dni}@alumno.local`
-      const { error: errAlumno, id: idAlumno } = await crearUsuario({
-        email: emailAlumno,
-        password: alumnoForm.dni,
-        nombre: alumnoForm.nombre,
-        apellido: alumnoForm.apellido,
-        rol: 'Alumno',
-      })
-      if (errAlumno) {
-        setMsg(
-          '⚠️ Tutor creado, pero hubo un error al crear el usuario del alumno: ' +
-            errAlumno,
-        )
-        setLoading(false)
-        load()
-        return
-      }
-
-      const { error: alErr } = await supabase.from('alumnos').insert([
-        {
-          nombre: alumnoForm.nombre,
-          apellido: alumnoForm.apellido,
-          dni: alumnoForm.dni,
-          fecha_nacimiento: alumnoForm.fecha_nacimiento || null,
-          id_curso: alumnoForm.id_curso ? Number(alumnoForm.id_curso) : null,
-          id_usuario: idAlumno,
-          id_usuario_padre: idUsuario,
-          obra_social: alumnoForm.obra_social || null,
-        },
-      ])
-      if (alErr) {
-        setMsg(
-          '⚠️ Usuarios creados, pero hubo un error al registrar el alumno: ' +
-            alErr.message,
-        )
-        setLoading(false)
-        load()
-        return
-      }
-    }
-
-    // Si es Docente: crear también su registro en `docentes` para que aparezca
-    // en el panel de Docentes (la fila no se crea sola desde el backend).
-    if (form.rol === 'Docente') {
-      const { error: docErr } = await supabase.from('docentes').insert([
-        {
-          id_usuario: idUsuario,
-          // dni va NULL (no ''): la columna es UNIQUE y '' chocaría entre
-          // docentes sin DNI cargado.
-          dni: null,
-          activo: true,
-        },
-      ])
-      if (docErr) {
-        setMsg(
-          '⚠️ Usuario creado, pero no se pudo registrar en Docentes: ' +
-            docErr.message,
-        )
-        setLoading(false)
-        load()
-        return
-      }
     }
 
     setMsg(
@@ -243,10 +132,8 @@ export function GestionUsuarios({
   }
 
   const toggleActivo = async (id: string, activo: boolean) => {
-    await supabase
-      .from('usuarios')
-      .update({ activo: !activo })
-      .eq('id_usuario', id)
+    const { error } = await api.patch(`/usuarios/${id}`, { activo: !activo })
+    if (error) setMsg('Error: ' + error.message)
     load()
   }
 
@@ -422,6 +309,7 @@ export function GestionUsuarios({
                     </span>
                     <input
                       type='date'
+                      required
                       className={inputField}
                       value={alumnoForm.fecha_nacimiento}
                       onChange={(e) =>

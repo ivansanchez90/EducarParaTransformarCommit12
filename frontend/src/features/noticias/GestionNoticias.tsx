@@ -4,8 +4,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
-import { notificarFamilias } from '../../lib/notificaciones'
+import { api } from '../../lib/api'
 import type { Noticia } from '../../types'
 import {
   badge,
@@ -17,7 +16,7 @@ import {
 } from '../../ui/styles'
 
 // Helper local: registra notificaciones in-app para las familias.
-export function GestionNoticias({ userId }: { userId: string }) {
+export function GestionNoticias() {
   const [noticias, setNoticias] = useState<Noticia[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -33,11 +32,8 @@ export function GestionNoticias({ userId }: { userId: string }) {
   })
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('noticias')
-      .select('*')
-      .order('fecha_publicacion', { ascending: false })
-    if (data) setNoticias(data as Noticia[])
+    const { data } = await api.get<Noticia[]>('/noticias')
+    if (data) setNoticias(data)
   }, [])
 
   useEffect(() => {
@@ -49,48 +45,26 @@ export function GestionNoticias({ userId }: { userId: string }) {
     setLoading(true)
     setMsg('')
 
-    // Si se adjuntó un archivo, se sube al Storage y se usa su URL pública.
+    // Si se adjuntó un archivo, el backend lo guarda y usa su URL pública.
     // Si no, se usa la URL escrita a mano (ambas opciones siguen disponibles).
-    let urlImagen = form.url_imagen
-    if (file) {
-      const ext = file.name.split('.').pop()
-      const nombre = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${ext}`
-      const { error: upErr } = await supabase.storage
-        .from('noticias-imagenes')
-        .upload(nombre, file)
-      if (upErr) {
-        setMsg('Error al subir la imagen: ' + upErr.message)
-        setLoading(false)
-        return
-      }
-      urlImagen = supabase.storage
-        .from('noticias-imagenes')
-        .getPublicUrl(nombre).data.publicUrl
-    }
+    // Con `notificar`, el backend envía el comunicado a las familias (R6).
+    const body = new FormData()
+    body.append('titulo', form.titulo)
+    body.append('resumen', form.resumen)
+    body.append('contenido', form.contenido)
+    body.append('destacada', String(form.destacada))
+    body.append('notificar', String(notificar))
+    if (file) body.append('imagen', file)
+    else body.append('url_imagen', form.url_imagen)
 
-    const { error } = await supabase
-      .from('noticias')
-      .insert([{ ...form, url_imagen: urlImagen, id_autor: userId }])
+    const { error } = await api.post('/noticias', body)
     if (error) setMsg('Error: ' + error.message)
     else {
-      let aviso = '✅ Noticia publicada.'
-      // R6 · Comunicado institucional a las familias
-      if (notificar) {
-        const { data: todos } = await supabase
-          .from('alumnos')
-          .select('id_alumno')
-          .eq('activo', true)
-        await notificarFamilias(
-          (todos ?? []).map((a: { id_alumno: number }) => ({
-            id_alumno: a.id_alumno,
-            titulo: 'Comunicado institucional',
-            mensaje: form.titulo,
-          })),
-          'Novedad',
-        )
-        aviso = '✅ Noticia publicada y familias notificadas.'
-      }
-      setMsg(aviso)
+      setMsg(
+        notificar
+          ? '✅ Noticia publicada y familias notificadas.'
+          : '✅ Noticia publicada.',
+      )
       setShowForm(false)
       setFile(null)
       setForm({
@@ -106,10 +80,7 @@ export function GestionNoticias({ userId }: { userId: string }) {
   }
 
   const toggleActivo = async (id: number, activo: boolean) => {
-    await supabase
-      .from('noticias')
-      .update({ activo: !activo })
-      .eq('id_noticia', id)
+    await api.patch(`/noticias/${id}`, { activo: !activo })
     load()
   }
 
@@ -120,10 +91,7 @@ export function GestionNoticias({ userId }: { userId: string }) {
       )
     )
       return
-    const { error } = await supabase
-      .from('noticias')
-      .delete()
-      .eq('id_noticia', id)
+    const { error } = await api.delete(`/noticias/${id}`)
     if (error) setMsg('Error al eliminar: ' + error.message)
     else {
       setMsg('🗑️ Noticia eliminada.')

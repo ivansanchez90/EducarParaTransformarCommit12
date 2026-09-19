@@ -3,12 +3,12 @@
  * los cursos que tiene asignados.
  */
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Asignacion } from '../../types'
 import { card, fieldLabel, tdCell, thCell } from '../../ui/styles'
 import { LegajoAlumno } from '../alumnos/LegajoAlumno'
 
-export function LegajosDocente({ userId }: { userId: string }) {
+export function LegajosDocente() {
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
   const [selAsignacion, setSelAsignacion] = useState<number | null>(null)
   const [alumnos, setAlumnos] = useState<
@@ -18,23 +18,10 @@ export function LegajosDocente({ userId }: { userId: string }) {
 
   // Asignaciones del docente logueado
   useEffect(() => {
-    supabase
-      .from('docentes')
-      .select('id_docente')
-      .eq('id_usuario', userId)
-      .single()
-      .then(({ data: doc }) => {
-        if (!doc) return
-        supabase
-          .from('asignaciones')
-          .select('*, materias(nombre), cursos(nivel, grado_anio, division)')
-          .eq('id_docente', doc.id_docente)
-          .eq('activo', true)
-          .then(({ data }) => {
-            if (data) setAsignaciones(data as unknown as Asignacion[])
-          })
-      })
-  }, [userId])
+    api.get<Asignacion[]>('/asignaciones/mias').then(({ data }) => {
+      if (data) setAsignaciones(data)
+    })
+  }, [])
 
   // Alumnos del curso de la asignación seleccionada
   useEffect(() => {
@@ -42,25 +29,10 @@ export function LegajosDocente({ userId }: { userId: string }) {
       setAlumnos([])
       return
     }
-    supabase
-      .from('asignaciones')
-      .select('id_curso')
-      .eq('id_asignacion', selAsignacion)
-      .single()
-      .then(({ data: a }) => {
-        if (!a) return
-        supabase
-          .from('alumnos')
-          .select('id_alumno, nombre, apellido')
-          .eq('id_curso', a.id_curso)
-          .eq('activo', true)
-          .order('apellido')
-          .then(({ data: al }) => {
-            if (al)
-              setAlumnos(
-                al as { id_alumno: number; nombre: string; apellido: string }[],
-              )
-          })
+    api
+      .get<typeof alumnos>(`/asignaciones/${selAsignacion}/alumnos`)
+      .then(({ data: al }) => {
+        if (al) setAlumnos(al)
       })
   }, [selAsignacion])
 

@@ -1,7 +1,7 @@
 // Gestión de compras de insumos — extraído de AdminPanel.tsx
 import { useState, useEffect, useCallback } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Compra } from '../../types'
 import { DESTINOS_INSUMO } from '../../constants'
 import {
@@ -29,11 +29,8 @@ export function GestionCompras() {
   const [form, setForm] = useState(FORM_VACIO)
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('compras_insumos')
-      .select('*')
-      .order('fecha_compra', { ascending: false })
-    if (data) setCompras(data as Compra[])
+    const { data } = await api.get<Compra[]>('/compras')
+    if (data) setCompras(data)
   }, [])
 
   useEffect(() => {
@@ -43,16 +40,14 @@ export function GestionCompras() {
   const registrar = async (e: FormEvent) => {
     e.preventDefault()
     setMsg('')
-    const { error } = await supabase.from('compras_insumos').insert([
-      {
-        descripcion: form.descripcion,
-        destino: form.destino,
-        cantidad: Number(form.cantidad),
-        monto: Number(form.monto),
-        proveedor: form.proveedor || null,
-        fecha_compra: form.fecha_compra,
-      },
-    ])
+    const { error } = await api.post('/compras', {
+      descripcion: form.descripcion,
+      destino: form.destino,
+      cantidad: Number(form.cantidad),
+      monto: Number(form.monto),
+      proveedor: form.proveedor || null,
+      fecha_compra: form.fecha_compra,
+    })
     if (error) setMsg('Error: ' + error.message)
     else {
       setForm(FORM_VACIO)
@@ -61,7 +56,7 @@ export function GestionCompras() {
   }
 
   const eliminar = async (id: number) => {
-    await supabase.from('compras_insumos').delete().eq('id_compra', id)
+    await api.delete(`/compras/${id}`)
     load()
   }
 

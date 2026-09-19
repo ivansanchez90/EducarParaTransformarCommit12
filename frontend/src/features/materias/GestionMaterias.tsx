@@ -4,7 +4,7 @@
  */
 import type { FormEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Materia } from '../../types'
 import {
   badge,
@@ -23,8 +23,8 @@ export function GestionMaterias() {
   const [msg, setMsg] = useState('')
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('materias').select('*').order('nombre')
-    if (data) setMaterias(data as Materia[])
+    const { data } = await api.get<Materia[]>('/materias')
+    if (data) setMaterias(data)
   }, [])
 
   useEffect(() => {
@@ -34,11 +34,10 @@ export function GestionMaterias() {
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
     setMsg('')
-    const { error } = await supabase
-      .from('materias')
-      .insert([
-        { nombre: form.nombre, horas_semanales: Number(form.horas_semanales) },
-      ])
+    const { error } = await api.post('/materias', {
+      nombre: form.nombre,
+      horas_semanales: Number(form.horas_semanales),
+    })
     if (error) setMsg('Error: ' + error.message)
     else {
       setMsg('✅ Materia creada.')

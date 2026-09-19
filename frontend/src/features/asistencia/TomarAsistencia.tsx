@@ -3,12 +3,11 @@
  * Extraído verbatim de AdminPanel.tsx (sin cambios de lógica).
  */
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
-import { notificarFamilias } from '../../lib/notificaciones'
+import { api } from '../../lib/api'
 import type { Asignacion, AlumnoAsistencia } from '../../types'
 import { card, inputField, selectField, fieldLabel, btnPrimary, badge } from '../../ui/styles'
 
-export function TomarAsistencia({ userId }: { userId: string }) {
+export function TomarAsistencia() {
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
   const [selAsignacion, setSelAsignacion] = useState<number | null>(null)
   const [alumnos, setAlumnos] = useState<AlumnoAsistencia[]>([])
@@ -17,47 +16,22 @@ export function TomarAsistencia({ userId }: { userId: string }) {
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
-    supabase
-      .from('docentes')
-      .select('id_docente')
-      .eq('id_usuario', userId)
-      .single()
-      .then(({ data: doc }) => {
-        if (!doc) return
-        supabase
-          .from('asignaciones')
-          .select('*, materias(nombre), cursos(nivel, grado_anio, division)')
-          .eq('id_docente', doc.id_docente)
-          .eq('activo', true)
-          .then(({ data }) => {
-            if (data) setAsignaciones(data as unknown as Asignacion[])
-          })
-      })
-  }, [userId])
+    api.get<Asignacion[]>('/asignaciones/mias').then(({ data }) => {
+      if (data) setAsignaciones(data)
+    })
+  }, [])
 
   useEffect(() => {
     if (!selAsignacion) return
     // Cargar alumnos del curso de la asignación
     const asig = asignaciones.find((a) => a.id_asignacion === selAsignacion)
     if (!asig) return
-    // Obtener el id_curso de la asignación
-    supabase
-      .from('asignaciones')
-      .select('id_curso')
-      .eq('id_asignacion', selAsignacion)
-      .single()
-      .then(({ data: a }) => {
-        if (!a) return
-        supabase
-          .from('alumnos')
-          .select('id_alumno, nombre, apellido')
-          .eq('id_curso', a.id_curso)
-          .eq('activo', true)
-          .order('apellido')
-          .then(({ data: al }) => {
-            if (al)
-              setAlumnos(al.map((a) => ({ ...a, estado: 'Presente' as const })))
-          })
+    api
+      .get<Omit<AlumnoAsistencia, 'estado'>[]>(
+        `/asignaciones/${selAsignacion}/alumnos`,
+      )
+      .then(({ data: al }) => {
+        if (al) setAlumnos(al.map((a) => ({ ...a, estado: 'Presente' as const })))
       })
   }, [selAsignacion, asignaciones])
 
@@ -81,34 +55,18 @@ export function TomarAsistencia({ userId }: { userId: string }) {
     if (!selAsignacion || alumnos.length === 0) return
     setLoading(true)
     setMsg('')
-    const registros = alumnos.map((a) => ({
-      id_alumno: a.id_alumno,
+    // R6 · El backend guarda (upsert por alumno/fecha) y notifica las inasistencias.
+    const { data, error } = await api.post<{ ausentes: number }>('/asistencias', {
       id_asignacion: selAsignacion,
       fecha,
-      estado: a.estado,
-      registrado_por: userId,
-    }))
-    const { error } = await supabase
-      .from('asistencias')
-      .upsert(registros, { onConflict: 'id_alumno,id_asignacion,fecha' })
+      registros: alumnos.map((a) => ({ id_alumno: a.id_alumno, estado: a.estado })),
+    })
     if (error) {
       setMsg('Error: ' + error.message)
     } else {
-      // R6 · Notificación automática por inasistencia
-      const ausentes = alumnos.filter((a) => a.estado === 'Ausente')
-      await notificarFamilias(
-        ausentes.map((a) => ({
-          id_alumno: a.id_alumno,
-          titulo: 'Inasistencia registrada',
-          mensaje: `${a.nombre} ${a.apellido} fue registrado/a como ausente el ${new Date(
-            fecha + 'T00:00:00',
-          ).toLocaleDateString('es-AR')}.`,
-        })),
-        'Asistencia',
-      )
       setMsg(
-        ausentes.length > 0
-          ? `✅ Asistencia guardada. Se notificó a ${ausentes.length} familia(s) por inasistencia.`
+        data.ausentes > 0
+          ? `✅ Asistencia guardada. Se notificó a ${data.ausentes} familia(s) por inasistencia.`
           : '✅ Asistencia guardada correctamente.',
       )
     }

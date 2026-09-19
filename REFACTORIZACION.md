@@ -1,5 +1,8 @@
 # Documentación de la refactorización
 
+> Registro histórico: describe cambios hechos cuando el proyecto usaba Supabase.
+> Hoy el backend es Node + Express + Prisma (ver `README.md` y `backend/`).
+
 **Proyecto:** Educar Para Transformar
 **Alcance:** aplicación de 5 mejoras de calidad de código detectadas sobre el frontend
 (`frontend/src`) y una Edge Function de Supabase.

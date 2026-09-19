@@ -2,14 +2,13 @@
  * CargarCalificaciones — Carga y listado de notas por clase (rol Docente).
  * Extraído verbatim de AdminPanel.tsx (sin cambios de lógica).
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
-import { notificarFamilias } from '../../lib/notificaciones'
+import { api } from '../../lib/api'
 import type { Asignacion, Calificacion } from '../../types'
 import { card, selectField, inputField, fieldLabel, thCell, tdCell, btnPrimary } from '../../ui/styles'
 
-export function CargarCalificaciones({ userId }: { userId: string }) {
+export function CargarCalificaciones() {
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
   const [selAsignacion, setSelAsig] = useState<number | null>(null)
   const [calificaciones, setCals] = useState<Calificacion[]>([])
@@ -26,102 +25,45 @@ export function CargarCalificaciones({ userId }: { userId: string }) {
   })
 
   useEffect(() => {
-    supabase
-      .from('docentes')
-      .select('id_docente')
-      .eq('id_usuario', userId)
-      .single()
-      .then(({ data: doc }) => {
-        if (!doc) return
-        supabase
-          .from('asignaciones')
-          .select('*, materias(nombre), cursos(nivel, grado_anio, division)')
-          .eq('id_docente', doc.id_docente)
-          .eq('activo', true)
-          .then(({ data }) => {
-            if (data) setAsignaciones(data as unknown as Asignacion[])
-          })
-      })
-  }, [userId])
+    api.get<Asignacion[]>('/asignaciones/mias').then(({ data }) => {
+      if (data) setAsignaciones(data)
+    })
+  }, [])
+
+  const loadCalificaciones = useCallback(async (idAsignacion: number) => {
+    const { data } = await api.get<Calificacion[]>(
+      `/calificaciones?id_asignacion=${idAsignacion}`,
+    )
+    if (data) setCals(data)
+  }, [])
 
   useEffect(() => {
     if (!selAsignacion) return
-    supabase
-      .from('asignaciones')
-      .select('id_curso')
-      .eq('id_asignacion', selAsignacion)
-      .single()
-      .then(({ data: a }) => {
-        if (!a) return
-        supabase
-          .from('alumnos')
-          .select('id_alumno, nombre, apellido')
-          .eq('id_curso', a.id_curso)
-          .eq('activo', true)
-          .order('apellido')
-          .then(({ data: al }) => {
-            if (al) setAlumnos(al)
-          })
+    api
+      .get<typeof alumnos>(`/asignaciones/${selAsignacion}/alumnos`)
+      .then(({ data: al }) => {
+        if (al) setAlumnos(al)
       })
-    supabase
-      .from('calificaciones')
-      .select('*, alumnos(nombre, apellido), asignaciones(materias(nombre))')
-      .eq('id_asignacion', selAsignacion)
-      .order('fecha_carga', { ascending: false })
-      .then(({ data }) => {
-        if (data) setCals(data as unknown as Calificacion[])
-      })
-  }, [selAsignacion])
+    loadCalificaciones(selAsignacion)
+  }, [selAsignacion, loadCalificaciones])
 
   const handleCargar = async (e: FormEvent) => {
     e.preventDefault()
     setMsg('')
-    const { data: periodo } = await supabase
-      .from('periodos_academicos')
-      .select('id_periodo')
-      .eq('activo', true)
-      .single()
-    const { error } = await supabase.from('calificaciones').insert([
-      {
-        id_alumno: Number(form.id_alumno),
-        id_asignacion: selAsignacion,
-        id_periodo: periodo?.id_periodo ?? null,
-        trimestre: Number(form.trimestre),
-        tipo_evaluacion: form.tipo_evaluacion,
-        nota: Number(form.nota),
-        descripcion: form.descripcion || null,
-      },
-    ])
+    // El backend asigna el período activo y notifica a la familia (R6).
+    const { error } = await api.post('/calificaciones', {
+      id_alumno: Number(form.id_alumno),
+      id_asignacion: selAsignacion,
+      trimestre: Number(form.trimestre),
+      tipo_evaluacion: form.tipo_evaluacion,
+      nota: Number(form.nota),
+      descripcion: form.descripcion || null,
+    })
     if (error) setMsg('Error: ' + error.message)
     else {
-      // R6 · Notificación automática por publicación de calificación
-      const asig = asignaciones.find((a) => a.id_asignacion === selAsignacion)
-      const materia = asig?.materias?.nombre ?? 'una materia'
-      await notificarFamilias(
-        [
-          {
-            id_alumno: Number(form.id_alumno),
-            titulo: 'Nueva calificación publicada',
-            mensaje: `Se publicó una nota de ${materia}: ${form.nota} (${form.tipo_evaluacion}, ${form.trimestre}° trimestre).`,
-          },
-        ],
-        'Calificación',
-      )
       setMsg('✅ Nota cargada y familia notificada.')
       setForm((p) => ({ ...p, id_alumno: '', nota: '', descripcion: '' }))
-      // Recargar calificaciones
-      if (selAsignacion) {
-        supabase
-          .from('calificaciones')
-          .select(
-            '*, alumnos(nombre, apellido), asignaciones(materias(nombre))',
-          )
-          .eq('id_asignacion', selAsignacion)
-          .order('fecha_carga', { ascending: false })
-          .then(({ data }) => {
-            if (data) setCals(data as unknown as Calificacion[])
-          })
-      }
+      if (selAsignacion) loadCalificaciones(selAsignacion)
     }
   }
 

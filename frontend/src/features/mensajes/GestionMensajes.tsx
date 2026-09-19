@@ -1,7 +1,7 @@
 // GestionMensajes — bandeja de mensajes de contacto.
 // Extraído de AdminPanel.tsx sin cambios de lógica.
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { MensajeContacto } from '../../types'
 import { btnSecondary, card, badge } from '../../ui/styles'
 
@@ -10,11 +10,8 @@ export function GestionMensajes() {
   const [abierto, setAbierto] = useState<number | null>(null)
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('mensajes_contacto')
-      .select('*')
-      .order('fecha_envio', { ascending: false })
-    if (data) setMensajes(data as MensajeContacto[])
+    const { data } = await api.get<MensajeContacto[]>('/mensajes')
+    if (data) setMensajes(data)
   }, [])
 
   useEffect(() => {
@@ -22,10 +19,7 @@ export function GestionMensajes() {
   }, [load])
 
   const marcarLeido = async (id: number, leido: boolean) => {
-    await supabase
-      .from('mensajes_contacto')
-      .update({ leido })
-      .eq('id_mensaje', id)
+    await api.patch(`/mensajes/${id}`, { leido })
     load()
   }
 

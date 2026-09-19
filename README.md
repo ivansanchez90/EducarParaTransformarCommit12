@@ -10,46 +10,104 @@ mensajería interna y demás procesos administrativos y académicos del centro,
 con un panel diferenciado según el rol del usuario (Admin, Docente, Alumno,
 Familia).
 
-Frontend en React + TypeScript + Tailwind, con Supabase (PostgreSQL + Auth +
-Edge Functions) como backend.
+Frontend en React + TypeScript + Tailwind. Backend en Node.js + Express +
+Prisma sobre PostgreSQL (el proyecto usaba Supabase y se migró a un backend
+propio).
+
+## Estructura
+
+```
+backend/    API REST (Express 5 + Prisma 7) y docker-compose de PostgreSQL
+frontend/   SPA React (Vite)
+Dockerfile  imagen única de producción (backend + frontend compilado)
+```
 
 ## Cómo ejecutar el programa
 
-1. Clonar el repositorio y ubicarse en la carpeta `frontend`:
+Requisitos: Node.js 20+ y Docker.
 
-   ```bash
-   cd frontend
-   ```
+### 1. Base de datos y backend
 
-2. Instalar las dependencias:
+```bash
+cd backend
+cp .env.example .env          # completar JWT_SECRET con un valor largo y aleatorio
+npm install
+npm run db:up                 # levanta PostgreSQL con docker compose
+npx prisma migrate deploy     # crea las tablas
+npx prisma generate           # genera el cliente de Prisma
+npm run seed                  # admin inicial, período activo, actividades e instalaciones
+                              # (en Prisma 7, `migrate reset` ya no corre el seed solo)
+npm run dev                   # API en http://localhost:4000
+```
 
-   ```bash
-   npm install
-   ```
+El seed crea el usuario `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` del `.env`
+(por defecto `admin@educar.local` / `admin1234`). Cambiá esa contraseña en
+producción.
 
-3. Crear un archivo `.env` en `frontend/` con las credenciales del proyecto
-   de Supabase:
+Otros comandos útiles del backend:
 
-   ```
-   VITE_SUPABASE_URL=<url-del-proyecto>
-   VITE_SUPABASE_ANON_KEY=<clave-anon-publica>
-   ```
+| Comando | Qué hace |
+|---|---|
+| `npm run db:sync` | Después de un `git pull`: aplica las migraciones nuevas del repo en tu base local y regenera el cliente de Prisma |
+| `npm run prisma:migrate` | Crea una migración nueva después de editar `prisma/schema.prisma` |
+| `npm run prisma:studio` | Abre Prisma Studio para ver/editar los datos |
+| `npm run db:down` | Detiene el contenedor de PostgreSQL (los datos quedan en el volumen) |
+| `npm run build && npm start` | Compila y corre la API en modo producción |
 
-4. Levantar el entorno de desarrollo:
+Los archivos subidos (galería, imágenes de noticias y documentos de legajo) se
+guardan en `backend/uploads/` y se sirven en `/uploads`.
 
-   ```bash
-   npm run dev
-   ```
+### 2. Frontend
 
-5. Para generar el build de producción:
+```bash
+cd frontend
+pnpm install
+pnpm dev                      # http://localhost:5173
+```
 
-   ```bash
-   npm run build
-   ```
+No hace falta configurar la URL de la API: Vite reenvía `/api` y `/uploads`
+al backend en `localhost:4000`, igual que en producción, donde todo comparte
+dominio.
 
-> Las Edge Functions (por ejemplo `crear-usuario`) se despliegan aparte con
-> la CLI de Supabase (`supabase functions deploy <nombre>`) y requieren que
-> las variables de entorno del proyecto Supabase estén configuradas.
+Para generar el build de producción: `npm run build`.
+
+## Despliegue (Coolify)
+
+La app se despliega como **un solo contenedor** con el `Dockerfile` de la raíz:
+el backend (Express) sirve la API en `/api`, los archivos subidos en
+`/uploads` y el frontend compilado en el resto de las rutas. Un solo dominio,
+sin CORS. La base es un recurso PostgreSQL de Coolify (el `docker-compose.yml`
+de `backend/` es solo para desarrollo local).
+
+En Coolify: Application → Build Pack **Dockerfile**, Base Directory `/`,
+puerto **4000**.
+
+| Variable | Valor |
+|---|---|
+| `DATABASE_URL` | URL interna del Postgres de Coolify (con `?schema=public`) |
+| `JWT_SECRET` | valor largo y aleatorio (`openssl rand -hex 32`) |
+| `JWT_EXPIRES_IN` | opcional, por defecto `8h` |
+
+Montar un **volumen persistente en `/app/uploads`** (si no, los archivos
+subidos se pierden en cada deploy). Seed inicial, una sola vez, desde la
+terminal del contenedor: `npx prisma db seed`.
+
+**Migraciones:** el contenedor ejecuta `prisma migrate deploy` al arrancar,
+antes de levantar la app. En cada deploy se aplican las migraciones nuevas de
+`backend/prisma/migrations/` (si no hay ninguna, no hace nada). Si una
+migración falla, el contenedor nuevo no arranca y Coolify mantiene el
+anterior. Para cambiar el esquema:
+
+```bash
+cd backend
+# editar prisma/schema.prisma
+npm run prisma:migrate -- --name descripcion_del_cambio   # crea la migración y la aplica en local
+git add prisma && git commit && git push                  # Coolify despliega y la aplica
+```
+
+> Si en algún momento el frontend se aloja en otro dominio, basta con definir
+> `VITE_API_URL` (al compilar el frontend) y `CORS_ORIGIN` / `PUBLIC_URL` en el
+> backend.
 
 ## Funcionalidades principales
 
@@ -67,6 +125,12 @@ Edge Functions) como backend.
 
 
 # Documentación de la refactorización
+
+> Registro histórico: esta refactorización se hizo cuando el proyecto todavía
+> usaba Supabase. Las referencias a `supabaseClient.ts` y a las Edge Functions
+> ya no aplican; hoy el frontend usa `lib/api.ts` y `lib/auth.ts` contra el
+> backend de `backend/`.
+
 **Proyecto:** Educar Para Transformar
 **Alcance:** aplicación de 5 mejoras de calidad de código detectadas sobre el frontend
 (`frontend/src`) y una Edge Function de Supabase.

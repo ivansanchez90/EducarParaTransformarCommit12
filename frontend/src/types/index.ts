@@ -92,12 +92,30 @@ export interface Cuota {
   mes: number
   anio: number
   monto_base: number
-  descuento: number
+  recargo: number | null
+  descuento: number | null
   estado: string
   fecha_vencimiento: string
   fecha_pago: string | null
   metodo_pago: string | null
   alumnos: { nombre: string; apellido: string } | null
+}
+
+/** Movimiento del historial de pagos de cuotas. */
+export interface Pago {
+  id_pago: number
+  id_cuota: number | null
+  fecha_pago: string | null
+  monto_pagado: number
+  metodo_pago: string | null
+  nro_comprobante: string | null
+  observaciones: string | null
+  cuotas: {
+    mes: number
+    anio: number
+    alumnos: { nombre: string; apellido: string } | null
+  } | null
+  usuarios: { nombre: string; apellido: string } | null
 }
 
 export interface ActividadEx {

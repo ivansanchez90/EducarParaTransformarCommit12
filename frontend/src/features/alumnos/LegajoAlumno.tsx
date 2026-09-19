@@ -4,7 +4,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { AlumnoLegajo, Calificacion, DocumentoAlumno } from '../../types'
 import { TIPOS_DOC } from '../../constants'
 import {
@@ -46,41 +46,19 @@ export function LegajoAlumno({
   const [msg, setMsg] = useState('')
 
   const load = useCallback(async () => {
-    const { data: al } = await supabase
-      .from('alumnos')
-      .select(
-        'id_alumno, nombre, apellido, dni, fecha_nacimiento, obra_social, activo, cursos(nivel, grado_anio, division)',
-      )
-      .eq('id_alumno', idAlumno)
-      .single()
-    if (al) setAlumno(al as unknown as AlumnoLegajo)
-
-    const { data: ca } = await supabase
-      .from('calificaciones')
-      .select('*, asignaciones(materias(nombre))')
-      .eq('id_alumno', idAlumno)
-      .order('fecha_carga', { ascending: false })
-    if (ca) setCalifs(ca as unknown as Calificacion[])
-
-    const { data: as } = await supabase
-      .from('asistencias')
-      .select('estado')
-      .eq('id_alumno', idAlumno)
-    if (as) setAsist(as as { estado: string }[])
-
-    const { data: am } = await supabase
-      .from('amonestaciones')
-      .select('id_amonestacion, tipo, descripcion, fecha')
-      .eq('id_alumno', idAlumno)
-      .order('fecha', { ascending: false })
-    if (am) setAmonest(am as typeof amonest)
-
-    const { data: doc } = await supabase
-      .from('documentos_alumno')
-      .select('*')
-      .eq('id_alumno', idAlumno)
-      .order('fecha_carga', { ascending: false })
-    if (doc) setDocumentos(doc as DocumentoAlumno[])
+    const base = `/alumnos/${idAlumno}`
+    const [al, ca, as, am, doc] = await Promise.all([
+      api.get<AlumnoLegajo>(base),
+      api.get<Calificacion[]>(`${base}/calificaciones`),
+      api.get<{ estado: string }[]>(`${base}/asistencias`),
+      api.get<typeof amonest>(`${base}/amonestaciones`),
+      api.get<DocumentoAlumno[]>(`${base}/documentos`),
+    ])
+    if (al.data) setAlumno(al.data)
+    if (ca.data) setCalifs(ca.data)
+    if (as.data) setAsist(as.data)
+    if (am.data) setAmonest(am.data)
+    if (doc.data) setDocumentos(doc.data)
   }, [idAlumno])
 
   useEffect(() => {
@@ -96,25 +74,11 @@ export function LegajoAlumno({
     }
     setSubiendo(true)
     try {
-      const ext = file.name.split('.').pop()
-      const fileName = `${idAlumno}/${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 9)}.${ext}`
-      const { error: upErr } = await supabase.storage
-        .from('documentos-alumnos')
-        .upload(fileName, file)
-      if (upErr) throw new Error(upErr.message)
-      const { data } = supabase.storage
-        .from('documentos-alumnos')
-        .getPublicUrl(fileName)
-      const { error } = await supabase.from('documentos_alumno').insert([
-        {
-          id_alumno: idAlumno,
-          nombre: docNombre || file.name,
-          tipo: docTipo,
-          url_archivo: data.publicUrl,
-        },
-      ])
+      const body = new FormData()
+      body.append('archivo', file)
+      body.append('nombre', docNombre || file.name)
+      body.append('tipo', docTipo)
+      const { error } = await api.post(`/alumnos/${idAlumno}/documentos`, body)
       if (error) throw new Error(error.message)
       setMsg('✅ Documento cargado.')
       setFile(null)
@@ -129,15 +93,8 @@ export function LegajoAlumno({
 
   const eliminarDocumento = async (d: DocumentoAlumno) => {
     if (!window.confirm('¿Eliminar este documento?')) return
-    if (d.url_archivo.includes('documentos-alumnos')) {
-      const idx = d.url_archivo.indexOf('documentos-alumnos/')
-      const path = d.url_archivo.slice(idx + 'documentos-alumnos/'.length)
-      await supabase.storage.from('documentos-alumnos').remove([path])
-    }
-    await supabase
-      .from('documentos_alumno')
-      .delete()
-      .eq('id_documento', d.id_documento)
+    // El backend borra también el archivo guardado.
+    await api.delete(`/alumnos/documentos/${d.id_documento}`)
     load()
   }
 

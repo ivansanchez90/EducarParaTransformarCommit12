@@ -10,8 +10,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { User } from '@supabase/supabase-js'
-import { supabase } from './lib/supabaseClient'
+import { getSession, logout, onAuthChange } from './lib/auth'
 import type { UsuarioPanel, PrefillUsuario } from './types'
 import { NAV_ADMIN, NAV_DOCENTE } from './constants'
 
@@ -45,11 +44,9 @@ import { LegajosDocente } from './features/legajos-docente/LegajosDocente'
 // ═══════════════════════════════════════════════════════════════
 export default function AdminPanel() {
   const navigate = useNavigate()
-  const [user, setUser] = useState<User | null>(null)
-  const [authChecked, setAuthChecked] = useState(false)
   const [perfil, setPerfil] = useState<UsuarioPanel | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
   const [activeNav, setActiveNav] = useState('dashboard')
-  const [loading, setLoading] = useState(true)
   const [prefillUsuario, setPrefillUsuario] = useState<PrefillUsuario | null>(
     null,
   )
@@ -59,53 +56,21 @@ export default function AdminPanel() {
     setActiveNav('usuarios')
   }, [])
 
+  // La sesión devuelve el perfil completo (el backend ya rechaza a los
+  // usuarios desactivados), así que no hace falta una segunda consulta.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    getSession().then((p) => {
+      setPerfil(p)
       setAuthChecked(true)
     })
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ?? null)
-    })
-    return () => subscription.unsubscribe()
+    return onAuthChange(setPerfil)
   }, [])
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false)
-      return
-    }
-    supabase
-      .from('usuarios')
-      .select('*')
-      .eq('id_usuario', user.id)
-      .single()
-      .then(async ({ data }) => {
-        if (data && data.activo === false) {
-          await supabase.auth.signOut()
-          navigate('/login', { replace: true })
-          return
-        }
-        if (data) setPerfil(data as UsuarioPanel)
-        setLoading(false)
-      })
-  }, [user, navigate])
+    if (authChecked && !perfil) navigate('/login', { replace: true })
+  }, [authChecked, perfil, navigate])
 
-  if (!authChecked) return null
-
-  if (!user) {
-    navigate('/login', { replace: true })
-    return null
-  }
-
-  if (loading || !perfil)
-    return (
-      <div className='min-h-screen bg-bg flex items-center justify-center'>
-        <p className='text-purple-700 font-extrabold'>Cargando...</p>
-      </div>
-    )
+  if (!authChecked || !perfil) return null
 
   if (!['Admin', 'Directivo', 'Docente'].includes(perfil.rol)) {
     return (
@@ -128,7 +93,7 @@ export default function AdminPanel() {
           </p>
           <button
             className='bg-gradient-to-br from-purple-700 to-purpleMid text-white border-0 rounded-btn py-[10px] px-5 text-[13px] font-extrabold cursor-pointer'
-            onClick={() => supabase.auth.signOut()}
+            onClick={logout}
           >
             Salir
           </button>
@@ -223,7 +188,7 @@ export default function AdminPanel() {
           </button>
           <button
             className='bg-purpleLight text-purple-700 border-0 rounded-btn py-[10px] px-5 text-[13px] font-extrabold cursor-pointer !py-[7px] !px-[14px] !text-xs'
-            onClick={() => supabase.auth.signOut()}
+            onClick={logout}
           >
             Salir
           </button>
@@ -313,26 +278,26 @@ export default function AdminPanel() {
           )}
           {activeNav === 'mensajes' && esAdmin && <GestionMensajes />}
           {activeNav === 'actividades' && esAdmin && <GestionActividades />}
-          {activeNav === 'reservas' && <GestionReservas userId={user.id} />}
+          {activeNav === 'reservas' && <GestionReservas />}
           {activeNav === 'noticias' && esAdmin && (
-            <GestionNoticias userId={user.id} />
+            <GestionNoticias />
           )}
           {activeNav === 'empleos' && esAdmin && <GestionEmpleos />}
           {activeNav === 'postulaciones' && esAdmin && <GestionPostulaciones />}
           {activeNav === 'galeria' && esAdmin && (
-            <GestionGaleria userId={user.id} />
+            <GestionGaleria />
           )}
           {activeNav === 'asistencia' && !esAdmin && (
-            <TomarAsistencia userId={user.id} />
+            <TomarAsistencia />
           )}
           {activeNav === 'calificaciones' && !esAdmin && (
-            <CargarCalificaciones userId={user.id} />
+            <CargarCalificaciones />
           )}
           {activeNav === 'amonestaciones' && !esAdmin && (
-            <GestionAmonestaciones userId={user.id} />
+            <GestionAmonestaciones />
           )}
           {activeNav === 'legajos' && !esAdmin && (
-            <LegajosDocente userId={user.id} />
+            <LegajosDocente />
           )}
         </main>
       </div>

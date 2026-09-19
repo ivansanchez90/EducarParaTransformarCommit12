@@ -2,14 +2,13 @@
  * GestionAmonestaciones — Registro e historial de amonestaciones (rol Docente).
  * Extraído verbatim de AdminPanel.tsx (sin cambios de lógica).
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Asignacion } from '../../types'
 import { card, inputField, selectField, fieldLabel, thCell, tdCell, btnPrimary, btnSecondary, badge } from '../../ui/styles'
 
-export function GestionAmonestaciones({ userId }: { userId: string }) {
-  const [idDocente, setIdDocente] = useState<number | null>(null)
+export function GestionAmonestaciones() {
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
   const [alumnos, setAlumnos] = useState<
     { id_alumno: number; nombre: string; apellido: string }[]
@@ -31,44 +30,22 @@ export function GestionAmonestaciones({ userId }: { userId: string }) {
   })
   const [msg, setMsg] = useState('')
 
+  const loadAmonestaciones = useCallback(async () => {
+    const { data } = await api.get<typeof amonestaciones>('/amonestaciones/mias')
+    if (data) setAmonest(data)
+  }, [])
+
   useEffect(() => {
-    supabase
-      .from('docentes')
-      .select('id_docente')
-      .eq('id_usuario', userId)
-      .single()
-      .then(({ data: doc }) => {
-        if (!doc) return
-        setIdDocente(doc.id_docente)
-        supabase
-          .from('asignaciones')
-          .select(
-            '*, materias(nombre), cursos(id_curso, nivel, grado_anio, division)',
-          )
-          .eq('id_docente', doc.id_docente)
-          .eq('activo', true)
-          .then(({ data }) => {
-            if (data) setAsignaciones(data as unknown as Asignacion[])
-          })
-        supabase
-          .from('amonestaciones')
-          .select('*, alumnos(nombre, apellido)')
-          .eq('id_docente', doc.id_docente)
-          .order('fecha', { ascending: false })
-          .then(({ data }) => {
-            if (data) setAmonest(data as any)
-          })
-      })
-  }, [userId])
+    api.get<Asignacion[]>('/asignaciones/mias').then(({ data }) => {
+      if (data) setAsignaciones(data)
+    })
+    loadAmonestaciones()
+  }, [loadAmonestaciones])
 
   const handleSelCurso = (idCurso: number) => {
     setSelCurso(idCurso)
-    supabase
-      .from('alumnos')
-      .select('id_alumno, nombre, apellido')
-      .eq('id_curso', idCurso)
-      .eq('activo', true)
-      .order('apellido')
+    api
+      .get<typeof alumnos>(`/alumnos?id_curso=${idCurso}&activo=true`)
       .then(({ data }) => {
         if (data) setAlumnos(data)
       })
@@ -77,26 +54,17 @@ export function GestionAmonestaciones({ userId }: { userId: string }) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setMsg('')
-    const { error } = await supabase.from('amonestaciones').insert([
-      {
-        id_alumno: Number(form.id_alumno),
-        id_docente: idDocente,
-        tipo: form.tipo,
-        descripcion: form.descripcion,
-      },
-    ])
+    // El backend registra la amonestación a nombre del docente logueado.
+    const { error } = await api.post('/amonestaciones', {
+      id_alumno: Number(form.id_alumno),
+      tipo: form.tipo,
+      descripcion: form.descripcion,
+    })
     if (error) setMsg('Error: ' + error.message)
     else {
       setMsg('✅ Amonestación registrada.')
       setForm({ id_alumno: '', tipo: 'Leve', descripcion: '' })
-      supabase
-        .from('amonestaciones')
-        .select('*, alumnos(nombre, apellido)')
-        .eq('id_docente', idDocente!)
-        .order('fecha', { ascending: false })
-        .then(({ data }) => {
-          if (data) setAmonest(data as any)
-        })
+      loadAmonestaciones()
     }
   }
 

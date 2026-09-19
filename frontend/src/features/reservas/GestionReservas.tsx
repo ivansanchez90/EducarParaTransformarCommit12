@@ -2,7 +2,7 @@
 // Extraído de AdminPanel.tsx sin cambios de lógica.
 import { useState, useEffect, useCallback } from 'react'
 import type { FormEvent } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Instalacion, Reserva } from '../../types'
 import {
   btnPrimary,
@@ -15,7 +15,7 @@ import {
   card,
 } from '../../ui/styles'
 
-export function GestionReservas({ userId }: { userId: string }) {
+export function GestionReservas() {
   const [instalaciones, setInstalaciones] = useState<Instalacion[]>([])
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [msg, setMsg] = useState('')
@@ -31,20 +31,12 @@ export function GestionReservas({ userId }: { userId: string }) {
   const hoy = new Date().toISOString().slice(0, 10)
 
   const load = useCallback(async () => {
-    const { data: inst } = await supabase
-      .from('instalaciones')
-      .select('*')
-      .eq('activo', true)
-      .order('nombre', { ascending: true })
-    if (inst) setInstalaciones(inst as Instalacion[])
+    const { data: inst } = await api.get<Instalacion[]>('/instalaciones')
+    if (inst) setInstalaciones(inst)
 
-    const { data: res } = await supabase
-      .from('reservas_instalaciones')
-      .select('*, instalaciones(nombre), usuarios(nombre, apellido)')
-      .gte('fecha', new Date().toISOString().slice(0, 10))
-      .order('fecha', { ascending: true })
-      .order('hora_inicio', { ascending: true })
-    if (res) setReservas(res as unknown as Reserva[])
+    // El backend devuelve solo las reservas de hoy en adelante.
+    const { data: res } = await api.get<Reserva[]>('/reservas')
+    if (res) setReservas(res)
   }, [])
 
   useEffect(() => {
@@ -58,16 +50,13 @@ export function GestionReservas({ userId }: { userId: string }) {
       setMsg('La hora de fin debe ser posterior a la de inicio.')
       return
     }
-    const { error } = await supabase.from('reservas_instalaciones').insert([
-      {
-        id_instalacion: Number(form.id_instalacion),
-        fecha: form.fecha,
-        hora_inicio: form.hora_inicio,
-        hora_fin: form.hora_fin,
-        motivo: form.motivo || null,
-        reservado_por: userId,
-      },
-    ])
+    const { error } = await api.post('/reservas', {
+      id_instalacion: Number(form.id_instalacion),
+      fecha: form.fecha,
+      hora_inicio: form.hora_inicio,
+      hora_fin: form.hora_fin,
+      motivo: form.motivo || null,
+    })
     if (error) {
       setMsg(
         error.message.includes('ya está reservada')
@@ -81,7 +70,9 @@ export function GestionReservas({ userId }: { userId: string }) {
   }
 
   const eliminar = async (id: number) => {
-    await supabase.from('reservas_instalaciones').delete().eq('id_reserva', id)
+    setMsg('')
+    const { error } = await api.delete(`/reservas/${id}`)
+    if (error) setMsg('Error: ' + error.message)
     load()
   }
 

@@ -1,7 +1,7 @@
 // GestionPostulaciones — panel de administración de postulaciones a empleos.
 // Extraído de AdminPanel.tsx sin cambios de lógica.
 import { useState, useCallback, useEffect } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Postulacion } from '../../types'
 import { POST_ESTADOS, POST_COLOR } from '../../constants'
 import { fieldLabel, thCell, tdCell, card, badge } from '../../ui/styles'
@@ -17,18 +17,12 @@ export function GestionPostulaciones() {
 
   const load = useCallback(async () => {
     const [{ data: posts }, { data: emps }] = await Promise.all([
-      supabase
-        .from('postulaciones')
-        .select('*, empleos(titulo, area)')
-        .order('fecha_postulacion', { ascending: false }),
-      supabase
-        .from('empleos')
-        .select('id_empleo, titulo')
-        .eq('activo', true)
-        .order('titulo'),
+      api.get<Postulacion[]>('/postulaciones'),
+      api.get<{ id_empleo: number; titulo: string }[]>('/empleos?activo=true'),
     ])
-    if (posts) setPostulaciones(posts as unknown as Postulacion[])
-    if (emps) setEmpleos(emps as { id_empleo: number; titulo: string }[])
+    if (posts) setPostulaciones(posts)
+    if (emps)
+      setEmpleos([...emps].sort((a, b) => a.titulo.localeCompare(b.titulo)))
   }, [])
 
   useEffect(() => {
@@ -36,10 +30,7 @@ export function GestionPostulaciones() {
   }, [load])
 
   const cambiarEstado = async (id: number, estado: string) => {
-    await supabase
-      .from('postulaciones')
-      .update({ estado })
-      .eq('id_postulacion', id)
+    await api.patch(`/postulaciones/${id}`, { estado })
     load()
   }
 

@@ -1,14 +1,10 @@
 /**
  * StudentPortal.tsx
  * Portal Estudiantil — Educar Para Transformar
- * Stack: React + TypeScript + Supabase
- *
- * Instalación requerida:
- *   npm install @supabase/supabase-js
+ * Stack: React + TypeScript + backend Node/Express
  *
  * Variables de entorno (.env):
- *   VITE_SUPABASE_URL=https://xxxx.supabase.co
- *   VITE_SUPABASE_ANON_KEY=tu_anon_key
+ *   VITE_API_URL=http://localhost:4000
  *
  * Logo: colocar /public/logo.png con el logo del centro
  * Fuente: agregar en index.html →
@@ -17,8 +13,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { User } from '@supabase/supabase-js'
-import { supabase } from './lib/supabaseClient'
+import { api, qs } from './lib/api'
+import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/auth'
+import type { Perfil } from './lib/auth'
 
 // ═══════════════════════════════════════════════════════════════
 //  TIPOS — coinciden con el schema de la base de datos
@@ -167,9 +164,8 @@ const NAV_ITEMS = [
 //  COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════
 export default function StudentPortal() {
-  const [user, setUser] = useState<User | null>(null)
+  const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
-  const [rol, setRol] = useState<string | null>(null)
   const [hijos, setHijos] = useState<Alumno[]>([])
   const [alumno, setAlumno] = useState<Alumno | null>(null)
   const [calificaciones, setCalificaciones] = useState<Calificacion[]>([])
@@ -183,69 +179,43 @@ export default function StudentPortal() {
   const [loading, setLoading] = useState(true)
 
   // Un padre/tutor ve los datos de su hijo/a; un estudiante, los propios.
-  const esTutor = !!rol && /padre|tutor/i.test(rol)
-
-  console.log(import.meta.env.VITE_SUPABASE_URL)
-  console.log(import.meta.env.VITE_SUPABASE_ANON_KEY)
+  // El backend resuelve cuáles alumnos corresponden al usuario logueado.
+  const esTutor = esRolTutor(perfil?.rol)
 
   // ── Auth ────────────────────────────────────────────────────
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    getSession().then((p) => {
+      setPerfil(p)
       setAuthChecked(true)
     })
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-    return () => subscription.unsubscribe()
+    return onAuthChange(setPerfil)
   }, [])
 
   useEffect(() => {
-    if (!user) {
+    if (!perfil) {
       setLoading(false)
       return
     }
-    loadAll(user.id)
-  }, [user])
+    loadAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perfil?.id_usuario])
 
   // ── Data loading ─────────────────────────────────────────────
-  const loadAll = useCallback(async (userId: string) => {
+  const loadAll = useCallback(async () => {
     setLoading(true)
-    const { data: usuario } = await supabase
-      .from('usuarios')
-      .select('rol, activo')
-      .eq('id_usuario', userId)
-      .single()
-    // Usuario desactivado: cerrar sesión (el guard de render redirige a /login)
-    if (usuario && usuario.activo === false) {
-      await supabase.auth.signOut()
-      return
-    }
-    const rolUsuario = (usuario?.rol as string | undefined) ?? null
-    setRol(rolUsuario)
-    const tutor = !!rolUsuario && /padre|tutor/i.test(rolUsuario)
-
-    const { data: alumnosData } = await supabase
-      .from('alumnos')
-      .select(
-        'id_alumno, nombre, apellido, dni, obra_social, id_curso, cursos(nivel, grado_anio, division)',
-      )
-      .eq(tutor ? 'id_usuario_padre' : 'id_usuario', userId)
-      .order('apellido', { ascending: true })
-
-    const lista = (alumnosData ?? []) as unknown as Alumno[]
+    const { data: alumnosData } = await api.get<Alumno[]>('/alumnos/mios')
+    const lista = alumnosData ?? []
     setHijos(lista)
     const activo = lista[0] ?? null
     setAlumno(activo)
-    await loadDatosAlumno(activo, userId)
+    await loadDatosAlumno(activo)
     setLoading(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function loadDatosAlumno(a: Alumno | null, userId: string) {
+  async function loadDatosAlumno(a: Alumno | null) {
     await Promise.all([
-      loadNotificaciones(userId),
+      loadNotificaciones(),
       a ? loadCalificaciones(a.id_alumno) : Promise.resolve(),
       a ? loadCuotas(a.id_alumno) : Promise.resolve(),
       a ? loadHorarioHoy(a.id_curso) : Promise.resolve(),
@@ -257,40 +227,17 @@ export default function StudentPortal() {
   async function seleccionarHijo(id: number) {
     const a = hijos.find((h) => h.id_alumno === id) ?? null
     setAlumno(a)
-    if (user) {
-      setLoading(true)
-      await loadDatosAlumno(a, user.id)
-      setLoading(false)
-    }
+    setLoading(true)
+    await loadDatosAlumno(a)
+    setLoading(false)
   }
 
   async function loadActividades(idAlumno: number) {
-    const { data: acts } = await supabase
-      .from('actividades_extracurriculares')
-      .select('*')
-      .eq('activo', true)
-      .order('tipo', { ascending: true })
-      .order('nombre', { ascending: true })
-
-    const { data: insc } = await supabase
-      .from('inscripciones_actividades')
-      .select('id_actividad, id_alumno')
-
-    const lista: ActividadEx[] = (acts ?? []).map(
-      (a: Omit<ActividadEx, 'inscriptos' | 'inscripto'>) => {
-        const delActividad = (insc ?? []).filter(
-          (i: { id_actividad: number }) => i.id_actividad === a.id_actividad,
-        )
-        return {
-          ...a,
-          inscriptos: delActividad.length,
-          inscripto: delActividad.some(
-            (i: { id_alumno: number }) => i.id_alumno === idAlumno,
-          ),
-        }
-      },
+    // El backend agrega `inscriptos` (conteo) e `inscripto` (si este alumno está anotado).
+    const { data } = await api.get<ActividadEx[]>(
+      `/actividades${qs({ id_alumno: idAlumno })}`,
     )
-    setActividades(lista)
+    setActividades(data ?? [])
   }
 
   async function inscribirseActividad(id_actividad: number) {
@@ -299,9 +246,10 @@ export default function StudentPortal() {
       setActMsg('No se encontró el legajo del alumno.')
       return
     }
-    const { error } = await supabase
-      .from('inscripciones_actividades')
-      .insert([{ id_actividad, id_alumno: alumno.id_alumno }])
+    const { error } = await api.post(
+      `/actividades/${id_actividad}/inscripciones`,
+      { id_alumno: alumno.id_alumno },
+    )
     if (error) {
       setActMsg(
         error.message.includes('Cupo completo')
@@ -315,42 +263,29 @@ export default function StudentPortal() {
   async function cancelarActividad(id_actividad: number) {
     setActMsg('')
     if (!alumno) return
-    await supabase
-      .from('inscripciones_actividades')
-      .delete()
-      .eq('id_actividad', id_actividad)
-      .eq('id_alumno', alumno.id_alumno)
+    await api.delete(
+      `/actividades/${id_actividad}/inscripciones/${alumno.id_alumno}`,
+    )
     await loadActividades(alumno.id_alumno)
   }
 
   async function loadCalificaciones(idAlumno: number) {
-    const { data } = await supabase
-      .from('calificaciones')
-      .select('*, asignaciones(materias(nombre))')
-      .eq('id_alumno', idAlumno)
-      .order('fecha_carga', { ascending: false })
-      .limit(20)
-    setCalificaciones((data as unknown as Calificacion[]) ?? [])
+    const { data } = await api.get<Calificacion[]>(
+      `/alumnos/${idAlumno}/calificaciones?limit=20`,
+    )
+    setCalificaciones(data ?? [])
   }
 
   async function loadCuotas(idAlumno: number) {
-    const { data } = await supabase
-      .from('cuotas')
-      .select('*')
-      .eq('id_alumno', idAlumno)
-      .in('estado', ['Pendiente', 'Vencida', 'En mora'])
-      .order('fecha_vencimiento', { ascending: true })
-    setCuotas((data as Cuota[]) ?? [])
+    const { data } = await api.get<Cuota[]>(
+      `/alumnos/${idAlumno}/cuotas${qs({ estado: 'Pendiente,Vencida,En mora' })}`,
+    )
+    setCuotas(data ?? [])
   }
 
-  async function loadNotificaciones(userId: string) {
-    const { data } = await supabase
-      .from('notificaciones')
-      .select('*')
-      .eq('id_usuario_destino', userId)
-      .order('fecha_envio', { ascending: false })
-      .limit(20)
-    if (data) setNotificaciones(data as Notificacion[])
+  async function loadNotificaciones() {
+    const { data } = await api.get<Notificacion[]>('/notificaciones?limit=20')
+    if (data) setNotificaciones(data)
   }
 
   async function loadHorarioHoy(idCurso: number | null) {
@@ -358,22 +293,16 @@ export default function StudentPortal() {
       setHorarioHoy([])
       return
     }
-    const { data } = await supabase
-      .from('horarios')
-      .select(
-        '*, asignaciones!inner(materias(nombre), docentes(nombre, apellido), id_curso)',
-      )
-      .eq('dia_semana', diaActual())
-      .eq('asignaciones.id_curso', idCurso)
-      .order('hora_inicio', { ascending: true })
-    setHorarioHoy((data as unknown as HorarioHoy[]) ?? [])
+    const { data } = await api.get<HorarioHoy[]>(
+      `/horarios${qs({ id_curso: idCurso, dia: diaActual() })}`,
+    )
+    setHorarioHoy(data ?? [])
   }
 
   async function loadAsistencias(idAlumno: number) {
-    const { data } = await supabase
-      .from('asistencias')
-      .select('estado')
-      .eq('id_alumno', idAlumno)
+    const { data } = await api.get<{ estado: string }[]>(
+      `/alumnos/${idAlumno}/asistencias`,
+    )
     if (!data) return
     const stats: AsistenciaStats = {
       presentes: 0,
@@ -392,13 +321,15 @@ export default function StudentPortal() {
   }
 
   async function marcarLeida(id: number) {
-    await supabase
-      .from('notificaciones')
-      .update({ leida: true })
-      .eq('id_notificacion', id)
+    await api.patch(`/notificaciones/${id}/leida`)
     setNotificaciones((prev) =>
       prev.map((n) => (n.id_notificacion === id ? { ...n, leida: true } : n)),
     )
+  }
+
+  async function marcarTodasLeidas() {
+    await api.patch('/notificaciones/leidas')
+    setNotificaciones((prev) => prev.map((n) => ({ ...n, leida: true })))
   }
   const navigate = useNavigate()
 
@@ -421,7 +352,7 @@ export default function StudentPortal() {
   // ── Render guards ────────────────────────────────────────────
   if (!authChecked) return null
 
-  if (!user) {
+  if (!perfil) {
     navigate('/login', { replace: true })
     return null
   }
@@ -453,7 +384,7 @@ export default function StudentPortal() {
           </p>
           <button
             className='mt-3 bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
-            onClick={() => supabase.auth.signOut()}
+            onClick={logout}
           >
             Salir
           </button>
@@ -552,7 +483,7 @@ export default function StudentPortal() {
           {/* Logout */}
           <button
             className='bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
-            onClick={() => supabase.auth.signOut()}
+            onClick={logout}
           >
             Salir
           </button>
@@ -1279,15 +1210,7 @@ export default function StudentPortal() {
                 {notifNoLeidas > 0 && (
                   <button
                     className='bg-transparent border border-purple-700 rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-purple-700 cursor-pointer font-[inherit]'
-                    onClick={async () => {
-                      await supabase
-                        .from('notificaciones')
-                        .update({ leida: true })
-                        .eq('id_usuario_destino', user?.id)
-                      setNotificaciones((prev) =>
-                        prev.map((n) => ({ ...n, leida: true })),
-                      )
-                    }}
+                    onClick={marcarTodasLeidas}
                   >
                     Marcar todas como leídas
                   </button>

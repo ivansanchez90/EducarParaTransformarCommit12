@@ -1,5 +1,8 @@
 # Resumen de cambios — Educar Para Transformar
 
+> Registro histórico: describe cambios hechos cuando el proyecto usaba Supabase.
+> Hoy el backend es Node + Express + Prisma (ver `README.md` y `backend/`).
+
 Sesión de corrección de bugs y features sobre la SPA React + Supabase.
 
 **Contexto importante:** es una **app de muestra para la facultad**. Se decidió dejar

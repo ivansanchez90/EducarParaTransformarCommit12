@@ -3,7 +3,7 @@
  * accesos rápidos a las secciones de navegación según el rol.
  */
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { UsuarioPanel } from '../../types'
 import { NAV_ADMIN, NAV_DOCENTE } from '../../constants'
 import { card } from '../../ui/styles'
@@ -26,30 +26,8 @@ export function Dashboard({
 
   useEffect(() => {
     if (!esAdmin) return
-    Promise.all([
-      supabase
-        .from('alumnos')
-        .select('id_alumno', { count: 'exact' })
-        .eq('activo', true),
-      supabase
-        .from('docentes')
-        .select('id_docente', { count: 'exact' })
-        .eq('activo', true),
-      supabase
-        .from('inscripciones')
-        .select('id_inscripcion', { count: 'exact' })
-        .eq('estado', 'Pendiente'),
-      supabase
-        .from('cuotas')
-        .select('id_cuota', { count: 'exact' })
-        .in('estado', ['Pendiente', 'Vencida', 'En mora']),
-    ]).then(([a, d, i, c]) => {
-      setStats({
-        alumnos: a.count ?? 0,
-        docentes: d.count ?? 0,
-        inscripciones: i.count ?? 0,
-        cuotasPendientes: c.count ?? 0,
-      })
+    api.get<typeof stats>('/dashboard/stats').then(({ data }) => {
+      if (data) setStats(data)
     })
   }, [esAdmin])
 

@@ -26,3 +26,6 @@ src/**/*.js
 *.njsproj
 *.sln
 *.sw?
+
+# Variables de entorno locales (ver .env.example)
+.env

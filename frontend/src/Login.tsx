@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { supabase } from './lib/supabaseClient'
+import { getSession, login } from './lib/auth'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -12,36 +12,15 @@ export default function Login() {
 
   // Si ya hay sesión activa, redirigir directamente
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        await redirectByRole(session.user.id)
-      } else {
-        setChecking(false)
-      }
+    getSession().then((perfil) => {
+      if (perfil) redirectByRole(perfil.rol)
+      else setChecking(false)
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const redirectByRole = async (userId: string) => {
-    const { data } = await supabase
-      .from('usuarios')
-      .select('rol, activo')
-      .eq('id_usuario', userId)
-      .single()
-
-    // Usuario desactivado: no permitir el ingreso (cerrar la sesión recién abierta)
-    if (data && data.activo === false) {
-      await supabase.auth.signOut()
-      setError('Tu usuario está desactivado. Contactá a la institución.')
-      setChecking(false)
-      setLoading(false)
-      return
-    }
-
-    if (
-      data?.rol === 'Admin' ||
-      data?.rol === 'Directivo' ||
-      data?.rol === 'Docente'
-    ) {
+  const redirectByRole = (rol: string) => {
+    if (rol === 'Admin' || rol === 'Directivo' || rol === 'Docente') {
       navigate('/admin', { replace: true })
     } else {
       navigate('/portal', { replace: true })
@@ -53,18 +32,20 @@ export default function Login() {
     setLoading(true)
     setError('')
 
-    const { data, error: err } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    const { data, error: err } = await login(email, password)
 
-    if (err || !data.user) {
-      setError('Credenciales incorrectas. Verificá tu email y contraseña.')
+    if (err) {
+      // 403 = usuario desactivado; 0 = backend caído; el resto, credenciales.
+      setError(
+        err.status === 403 || err.status === 0
+          ? err.message
+          : 'Credenciales incorrectas. Verificá tu email y contraseña.',
+      )
       setLoading(false)
       return
     }
 
-    await redirectByRole(data.user.id)
+    redirectByRole(data.rol)
     setLoading(false)
   }
 

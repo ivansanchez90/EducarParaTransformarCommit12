@@ -1,6 +1,6 @@
 // Gestión de inscripciones — extraído de AdminPanel.tsx
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { api } from '../../lib/api'
 import type { Inscripcion, PrefillUsuario } from '../../types'
 import { thCell, tdCell, card, badge } from '../../ui/styles'
 
@@ -12,11 +12,8 @@ export function GestionInscripciones({
   const [inscripciones, setInscripciones] = useState<Inscripcion[]>([])
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('inscripciones')
-      .select('*')
-      .order('fecha_solicitud', { ascending: false })
-    if (data) setInscripciones(data as Inscripcion[])
+    const { data } = await api.get<Inscripcion[]>('/inscripciones')
+    if (data) setInscripciones(data)
   }, [])
 
   useEffect(() => {
@@ -24,10 +21,7 @@ export function GestionInscripciones({
   }, [load])
 
   const cambiarEstado = async (id: number, estado: string) => {
-    await supabase
-      .from('inscripciones')
-      .update({ estado })
-      .eq('id_inscripcion', id)
+    await api.patch(`/inscripciones/${id}`, { estado })
     load()
   }
 

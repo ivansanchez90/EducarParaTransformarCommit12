@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { supabase } from './lib/supabaseClient'
+import { api } from './lib/api'
 
 const MESES = [
   'ene', 'feb', 'mar', 'abr', 'may', 'jun',
@@ -44,19 +44,11 @@ export default function NoticiaDetalle() {
       setLoading(false)
       return
     }
-    supabase
-      .from('noticias')
-      .select(
-        'id_noticia, titulo, resumen, contenido, url_imagen, fecha_publicacion, destacada',
-      )
-      .eq('id_noticia', Number(id))
-      .eq('activo', true)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) setNotFound(true)
-        else setNoticia(data as Noticia)
-        setLoading(false)
-      })
+    api.get<Noticia>(`/noticias/publicas/${Number(id)}`).then(({ data, error }) => {
+      if (error || !data) setNotFound(true)
+      else setNoticia(data)
+      setLoading(false)
+    })
   }, [id])
 
   if (loading) {
