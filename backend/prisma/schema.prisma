@@ -177,6 +177,8 @@ model Alumno {
   documentos_alumno         DocumentoAlumno[]
   inscripciones_actividades InscripcionActividad[]
   inscripciones             Inscripcion[]
+  transporte                InscripcionTransporte?
+  comedor                   InscripcionComedor?
 
   @@index([id_curso])
   @@index([id_usuario])
@@ -419,6 +421,55 @@ model ReservaInstalacion {
 
   @@index([id_instalacion, fecha])
   @@map("reservas_instalaciones")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Servicios complementarios: transporte y comedor
+// ─────────────────────────────────────────────────────────────
+
+model RecorridoTransporte {
+  id_recorrido Int       @id @default(autoincrement())
+  nombre       String
+  zona         String?
+  /// Paradas del recorrido, una por línea
+  paradas      String?
+  hora_ida     DateTime? @db.Time(0)
+  hora_vuelta  DateTime? @db.Time(0)
+  /// null = sin límite de lugares
+  capacidad    Int?
+  activo       Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+
+  inscripciones_transporte InscripcionTransporte[]
+
+  @@map("recorridos_transporte")
+}
+
+/// Un alumno viaja en un solo recorrido (cambiarlo reemplaza el anterior).
+model InscripcionTransporte {
+  id_inscripcion_transporte Int      @id @default(autoincrement())
+  id_alumno                 Int      @unique
+  id_recorrido              Int
+  observaciones             String?
+  fecha_inscripcion         DateTime @default(now()) @db.Timestamptz(6)
+
+  alumnos               Alumno              @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  recorridos_transporte RecorridoTransporte @relation(fields: [id_recorrido], references: [id_recorrido], onDelete: Cascade)
+
+  @@index([id_recorrido])
+  @@map("inscripciones_transporte")
+}
+
+/// Un alumno está o no inscripto al comedor (una fila por alumno).
+model InscripcionComedor {
+  id_inscripcion_comedor Int      @id @default(autoincrement())
+  id_alumno              Int      @unique
+  observaciones          String?
+  fecha_inscripcion      DateTime @default(now()) @db.Timestamptz(6)
+
+  alumnos Alumno @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+
+  @@map("inscripciones_comedor")
 }
 
 // ─────────────────────────────────────────────────────────────

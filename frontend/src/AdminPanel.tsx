@@ -29,6 +29,8 @@ import { GestionCompras } from './features/compras/GestionCompras'
 import { GestionInscripciones } from './features/inscripciones/GestionInscripciones'
 import { GestionActividades } from './features/actividades/GestionActividades'
 import { GestionReservas } from './features/reservas/GestionReservas'
+import { GestionServicios } from './features/servicios/GestionServicios'
+import { GestionReportes } from './features/reportes/GestionReportes'
 import { GestionMensajes } from './features/mensajes/GestionMensajes'
 import { GestionNoticias } from './features/noticias/GestionNoticias'
 import { GestionEmpleos } from './features/empleos/GestionEmpleos'
@@ -279,6 +281,8 @@ export default function AdminPanel() {
           {activeNav === 'mensajes' && esAdmin && <GestionMensajes />}
           {activeNav === 'actividades' && esAdmin && <GestionActividades />}
           {activeNav === 'reservas' && <GestionReservas />}
+          {activeNav === 'servicios' && esAdmin && <GestionServicios />}
+          {activeNav === 'reportes' && esAdmin && <GestionReportes />}
           {activeNav === 'noticias' && esAdmin && (
             <GestionNoticias />
           )}

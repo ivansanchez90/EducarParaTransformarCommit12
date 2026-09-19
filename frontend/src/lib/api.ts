@@ -102,6 +102,43 @@ export function qs(params: Record<string, string | number | boolean | null | und
   return s ? `?${s}` : ''
 }
 
+/**
+ * Descarga un archivo generado por la API (PDF/CSV) respetando la sesión:
+ * un enlace normal no puede mandar el token, así que se baja con fetch y se
+ * entrega al navegador desde memoria.
+ */
+export async function descargar(path: string): Promise<ApiError | null> {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  let res: Response
+  try {
+    res = await fetch(`${API_URL}/api${path}`, { headers })
+  } catch {
+    return { message: 'No se pudo conectar con el servidor', status: 0 }
+  }
+  if (!res.ok) {
+    const json = await res.json().catch(() => null)
+    if (token && res.status === 401) onUnauthorized?.()
+    return { message: json?.error ?? `Error ${res.status}`, code: json?.code, status: res.status }
+  }
+
+  // El nombre sugerido por el backend viene en la cabecera Content-Disposition.
+  const nombre =
+    /filename="?([^";]+)"?/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'reporte'
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nombre
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+  return null
+}
+
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),

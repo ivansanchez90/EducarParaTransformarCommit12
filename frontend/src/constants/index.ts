@@ -100,6 +100,8 @@ export const NAV_ADMIN = [
   { key: 'inscripciones', icon: '📋', label: 'Inscripciones' },
   { key: 'actividades', icon: '🎨', label: 'Extracurriculares' },
   { key: 'reservas', icon: '🏟️', label: 'Reservas' },
+  { key: 'servicios', icon: '🚌', label: 'Transporte y comedor' },
+  { key: 'reportes', icon: '📄', label: 'Reportes' },
   { key: 'mensajes', icon: '✉️', label: 'Mensajes' },
   { key: 'noticias', icon: '📰', label: 'Noticias' },
   { key: 'empleos', icon: '💼', label: 'Empleos' },

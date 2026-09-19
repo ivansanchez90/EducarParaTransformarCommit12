@@ -101,6 +101,76 @@ export interface Cuota {
   alumnos: { nombre: string; apellido: string } | null
 }
 
+// ── Servicios complementarios (transporte y comedor) ──────────
+
+export interface RecorridoTransporte {
+  id_recorrido: number
+  nombre: string
+  zona: string | null
+  paradas: string | null
+  hora_ida: string | null
+  hora_vuelta: string | null
+  capacidad: number | null
+  activo: boolean
+  inscriptos: number
+}
+
+export interface InscripcionTransporte {
+  observaciones: string | null
+  recorridos_transporte: {
+    id_recorrido: number
+    nombre: string
+    zona: string | null
+    hora_ida: string | null
+    hora_vuelta: string | null
+  }
+}
+
+/** Servicios que utiliza un alumno (portal de familias). */
+export interface ServiciosAlumno {
+  transporte: InscripcionTransporte | null
+  comedor: { observaciones: string | null } | null
+}
+
+/** Alumno con el detalle de los servicios que utiliza. */
+export interface AlumnoServicios {
+  id_alumno: number
+  nombre: string
+  apellido: string
+  dni: string
+  cursos: { nivel: string; grado_anio: string; division: string } | null
+  transporte: InscripcionTransporte | null
+  comedor: { observaciones: string | null } | null
+}
+
+// ── Reportes ───────────────────────────────────────────────────
+
+export interface ColumnaReporte {
+  key: string
+  label: string
+}
+
+export type BloqueReporte =
+  | { tipo: 'tabla'; titulo?: string; columnas: ColumnaReporte[]; filas: Record<string, string | number | null>[] }
+  | { tipo: 'datos'; titulo?: string; items: [string, string][] }
+  | { tipo: 'texto'; titulo?: string; texto: string }
+
+/** Reporte devuelto por el backend, que se muestra igual que su versión PDF. */
+export interface ReporteDoc {
+  titulo: string
+  subtitulo?: string
+  filtros?: string[]
+  bloques: BloqueReporte[]
+}
+
+export interface OpcionesReportes {
+  niveles: string[]
+  cursos: { id_curso: number; nivel: string; grado_anio: string; division: string }[]
+  materias: { id_materia: number; nombre: string }[]
+  actividades: { id_actividad: number; nombre: string; tipo: string }[]
+  recorridos: { id_recorrido: number; nombre: string; zona: string | null }[]
+}
+
 /** Movimiento del historial de pagos de cuotas. */
 export interface Pago {
   id_pago: number

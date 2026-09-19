@@ -20,7 +20,7 @@ const CAMPOS_FECHA = new Set([
   'fecha_inicio',
   'fecha_fin',
 ])
-const CAMPOS_HORA = new Set(['hora_inicio', 'hora_fin'])
+const CAMPOS_HORA = new Set(['hora_inicio', 'hora_fin', 'hora_ida', 'hora_vuelta'])
 
 export function jsonReplacer(this: Record<string, unknown>, key: string, value: unknown) {
   // `this[key]` es el valor original, antes de que se aplique su toJSON().

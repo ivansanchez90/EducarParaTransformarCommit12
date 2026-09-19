@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, qs } from './lib/api'
+import type { RecorridoTransporte, ServiciosAlumno } from './types'
 import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/auth'
 import type { Perfil } from './lib/auth'
 
@@ -157,6 +158,7 @@ const NAV_ITEMS = [
   { key: 'cuotas', icon: '💳', label: 'Cuotas' },
   { key: 'horario', icon: '🕐', label: 'Mi Horario' },
   { key: 'actividades', icon: '🎨', label: 'Extracurriculares' },
+  { key: 'servicios', icon: '🚌', label: 'Transporte y comedor' },
   { key: 'notificaciones', icon: '🔔', label: 'Notificaciones' },
 ]
 
@@ -175,6 +177,9 @@ export default function StudentPortal() {
   const [asistStats, setAsistStats] = useState<AsistenciaStats | null>(null)
   const [actividades, setActividades] = useState<ActividadEx[]>([])
   const [actMsg, setActMsg] = useState('')
+  const [servicios, setServicios] = useState<ServiciosAlumno | null>(null)
+  const [recorridos, setRecorridos] = useState<RecorridoTransporte[]>([])
+  const [servMsg, setServMsg] = useState('')
   const [activeNav, setActiveNav] = useState('inicio')
   const [loading, setLoading] = useState(true)
 
@@ -221,6 +226,8 @@ export default function StudentPortal() {
       a ? loadHorarioHoy(a.id_curso) : Promise.resolve(),
       a ? loadAsistencias(a.id_alumno) : Promise.resolve(),
       a ? loadActividades(a.id_alumno) : Promise.resolve(),
+      a ? loadServicios(a.id_alumno) : Promise.resolve(),
+      loadRecorridos(),
     ])
   }
 
@@ -267,6 +274,46 @@ export default function StudentPortal() {
       `/actividades/${id_actividad}/inscripciones/${alumno.id_alumno}`,
     )
     await loadActividades(alumno.id_alumno)
+  }
+
+  async function loadRecorridos() {
+    const { data } = await api.get<RecorridoTransporte[]>('/recorridos')
+    setRecorridos(data ?? [])
+  }
+
+  async function loadServicios(idAlumno: number) {
+    const { data } = await api.get<ServiciosAlumno>(`/servicios/${idAlumno}`)
+    setServicios(data)
+  }
+
+  /** Inscribe al hijo en un recorrido (o lo cambia por otro). */
+  async function elegirRecorrido(idRecorrido: number) {
+    if (!alumno) return
+    setServMsg('')
+    const { error } = await api.put(`/servicios/${alumno.id_alumno}/transporte`, {
+      id_recorrido: idRecorrido,
+    })
+    if (error) setServMsg(error.message)
+    await loadServicios(alumno.id_alumno)
+    await loadRecorridos()
+  }
+
+  async function bajaTransporte() {
+    if (!alumno) return
+    setServMsg('')
+    await api.delete(`/servicios/${alumno.id_alumno}/transporte`)
+    await loadServicios(alumno.id_alumno)
+    await loadRecorridos()
+  }
+
+  async function alternarComedor() {
+    if (!alumno) return
+    setServMsg('')
+    const { error } = servicios?.comedor
+      ? await api.delete(`/servicios/${alumno.id_alumno}/comedor`)
+      : await api.put(`/servicios/${alumno.id_alumno}/comedor`, {})
+    if (error) setServMsg(error.message)
+    await loadServicios(alumno.id_alumno)
   }
 
   async function loadCalificaciones(idAlumno: number) {
@@ -1201,6 +1248,140 @@ export default function StudentPortal() {
           )}
 
           {/* ━━━━━ NOTIFICACIONES ━━━━━ */}
+          {/* ━━━━━ SERVICIOS: TRANSPORTE Y COMEDOR ━━━━━ */}
+          {activeNav === 'servicios' && (
+            <div className='bg-white rounded-card p-6 shadow-card border border-border'>
+              <div className='text-[15px] font-extrabold text-text mb-5 flex items-center gap-2'>
+                🚌 Transporte y comedor
+              </div>
+              <p className='text-[13px] text-textMuted m-0 mb-5 leading-relaxed'>
+                {esTutor
+                  ? 'Elegí el recorrido del transporte escolar y el servicio de comedor para tu hijo/a. Podés cambiarlos cuando lo necesites.'
+                  : 'Estos son los servicios que tenés asignados. Para modificarlos, hablá con tu familia o con la administración.'}
+              </p>
+
+              {servMsg && (
+                <div className='bg-[#E74C3C12] border border-red/25 rounded-[8px] px-3.5 py-2.5 text-xs text-red font-bold mb-4'>
+                  ⚠️ {servMsg}
+                </div>
+              )}
+
+              {/* Comedor */}
+              <div className='border border-border rounded-[12px] p-4 mb-5 flex justify-between items-center gap-4 flex-wrap'>
+                <div>
+                  <div className='text-[15px] font-black mb-1'>🍽️ Comedor</div>
+                  <div className='text-[13px] text-textMuted'>
+                    {servicios?.comedor
+                      ? 'Inscripto en el servicio de comedor.'
+                      : 'No utiliza el servicio de comedor.'}
+                  </div>
+                </div>
+                {esTutor && (
+                  <button
+                    className={
+                      servicios?.comedor
+                        ? 'bg-transparent border border-red rounded-[8px] px-4 py-2 text-xs font-extrabold text-red cursor-pointer font-[inherit]'
+                        : 'bg-gradient-to-br from-purple-700 to-purpleMid text-white border-0 rounded-btn px-4 py-2 text-xs font-extrabold cursor-pointer font-[inherit]'
+                    }
+                    onClick={alternarComedor}
+                  >
+                    {servicios?.comedor ? 'Dar de baja' : 'Inscribir al comedor'}
+                  </button>
+                )}
+              </div>
+
+              {/* Transporte */}
+              <div className='text-xs font-black text-purple-700 uppercase tracking-[0.08em] mb-3'>
+                🚌 Transporte escolar
+              </div>
+
+              {servicios?.transporte ? (
+                <div className='border border-purple-700/30 bg-purpleLight rounded-[12px] p-4 mb-4 flex justify-between items-center gap-4 flex-wrap'>
+                  <div>
+                    <div className='text-[15px] font-black'>
+                      {servicios.transporte.recorridos_transporte.nombre}
+                    </div>
+                    <div className='text-[13px] text-textMuted'>
+                      {servicios.transporte.recorridos_transporte.zona ?? 'Sin zona'} · Ida{' '}
+                      {(servicios.transporte.recorridos_transporte.hora_ida ?? '—').slice(0, 5)} · Vuelta{' '}
+                      {(servicios.transporte.recorridos_transporte.hora_vuelta ?? '—').slice(0, 5)}
+                    </div>
+                    {servicios.transporte.observaciones && (
+                      <div className='text-[12px] text-textMuted mt-1'>
+                        {servicios.transporte.observaciones}
+                      </div>
+                    )}
+                  </div>
+                  {esTutor && (
+                    <button
+                      className='bg-transparent border border-red rounded-[8px] px-4 py-2 text-xs font-extrabold text-red cursor-pointer font-[inherit]'
+                      onClick={bajaTransporte}
+                    >
+                      Dar de baja
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className='text-[13px] text-textMuted mb-4'>
+                  El alumno no utiliza el transporte escolar.
+                </div>
+              )}
+
+              {esTutor && (
+                <div className='grid grid-cols-2 gap-3'>
+                  {recorridos.map((r) => {
+                    const actual =
+                      servicios?.transporte?.recorridos_transporte.id_recorrido === r.id_recorrido
+                    const lleno = r.capacidad !== null && r.inscriptos >= r.capacidad && !actual
+                    return (
+                      <div
+                        key={r.id_recorrido}
+                        className='border border-border rounded-[12px] p-4 flex flex-col gap-2'
+                      >
+                        <div className='flex justify-between items-start gap-2'>
+                          <span className='text-[15px] font-black'>{r.nombre}</span>
+                          <span
+                            className='inline-block rounded-[20px] px-2.5 py-[3px] text-[11px] font-extrabold'
+                            style={{
+                              background: lleno ? '#E74C3C1A' : '#27AE601A',
+                              color: lleno ? '#E74C3C' : '#27AE60',
+                            }}
+                          >
+                            {r.capacidad !== null
+                              ? `${r.capacidad - r.inscriptos} lugar(es)`
+                              : 'Sin límite'}
+                          </span>
+                        </div>
+                        <div className='text-[12px] text-textMuted'>
+                          {r.zona ?? 'Sin zona'} · Ida {(r.hora_ida ?? '—').slice(0, 5)} · Vuelta{' '}
+                          {(r.hora_vuelta ?? '—').slice(0, 5)}
+                        </div>
+                        {r.paradas && (
+                          <div className='text-[11px] text-textMuted whitespace-pre-line'>
+                            {r.paradas}
+                          </div>
+                        )}
+                        <button
+                          disabled={lleno || actual}
+                          className={
+                            actual
+                              ? 'bg-[#27AE601A] text-[#27AE60] border-0 rounded-btn py-2 text-xs font-extrabold font-[inherit] cursor-default'
+                              : lleno
+                                ? 'bg-border text-textMuted border-0 rounded-btn py-2 text-xs font-extrabold font-[inherit] cursor-not-allowed'
+                                : 'bg-gradient-to-br from-purple-700 to-purpleMid text-white border-0 rounded-btn py-2 text-xs font-extrabold cursor-pointer font-[inherit]'
+                          }
+                          onClick={() => elegirRecorrido(r.id_recorrido)}
+                        >
+                          {actual ? 'Recorrido actual' : lleno ? 'Sin lugares' : 'Elegir este recorrido'}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeNav === 'notificaciones' && (
             <div className='bg-white rounded-card p-6 shadow-card border border-border'>
               <div className='flex justify-between items-center mb-5'>

@@ -33,6 +33,15 @@ const INSTALACIONES = [
   { nombre: 'Gimnasio cubierto', tipo: 'Deportiva', descripcion: 'Gimnasio multipropósito cubierto' },
 ]
 
+const RECORRIDOS = [
+  { nombre: 'Recorrido 1 - Centro', zona: 'Centro y microcentro', paradas: 'Plaza principal\nTerminal\nAv. San Martín 500', hora_ida: '07:00', hora_vuelta: '17:30' },
+  { nombre: 'Recorrido 2 - Norte', zona: 'Barrios del norte', paradas: 'Av. Belgrano 2100\nPlaza Norte\nClub Social', hora_ida: '06:45', hora_vuelta: '17:45' },
+  { nombre: 'Recorrido 3 - Sur', zona: 'Barrios del sur', paradas: 'Av. Sur 1200\nEscuela N° 12\nPolideportivo', hora_ida: '06:50', hora_vuelta: '17:40' },
+  { nombre: 'Recorrido 4 - Oeste', zona: 'Zona oeste y rutas', paradas: 'Ruta 9 km 12\nBarrio El Molino\nAv. Oeste 800', hora_ida: '06:30', hora_vuelta: '18:00' },
+]
+
+const hora = (hhmm: string) => new Date(`1970-01-01T${hhmm}:00Z`)
+
 async function main() {
   const email = (process.env.SEED_ADMIN_EMAIL ?? 'admin@educar.local').toLowerCase()
   const password = process.env.SEED_ADMIN_PASSWORD ?? 'admin1234'
@@ -68,6 +77,14 @@ async function main() {
   for (const i of INSTALACIONES) {
     if (!(await prisma.instalacion.findFirst({ where: { nombre: i.nombre } }))) {
       await prisma.instalacion.create({ data: i })
+    }
+  }
+
+  for (const r of RECORRIDOS) {
+    if (!(await prisma.recorridoTransporte.findFirst({ where: { nombre: r.nombre } }))) {
+      await prisma.recorridoTransporte.create({
+        data: { ...r, hora_ida: hora(r.hora_ida), hora_vuelta: hora(r.hora_vuelta), capacidad: 30 },
+      })
     }
   }
 

@@ -121,6 +121,12 @@ git add prisma && git commit && git push                  # Coolify despliega y 
   notificaciones a las familias.
 - **Administración**: cuotas, pagos, becas, sueldos, compras.
 - **Bolsa de trabajo**: publicación de empleos y postulaciones.
+- **Servicios complementarios**: transporte escolar (recorridos con zona,
+  paradas, horarios y cupo) y comedor. La administración inscribe a cualquier
+  alumno y las familias gestionan los servicios de sus hijos desde el portal.
+- **Reportes**: listados de alumnos por curso, materia, deporte y recorrido de
+  transporte, y ficha individual del alumno (materias, profesores, actividades
+  y servicios). Se ven en pantalla y se exportan a PDF o CSV.
 - **Otros**: reservas de espacios, galería de imágenes.
 
 
