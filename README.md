@@ -114,11 +114,14 @@ git add prisma && git commit && git push                  # Coolify despliega y 
 ## Funcionalidades principales
 
 - **Gestión de usuarios**: alta, edición y desactivación de cuentas
-  (Admin, Docente, Alumno, Familia).
+  (Admin, Docente, Alumno, Familia). Cada usuario cambia su propia contraseña
+  desde el panel o el portal, y la administración puede asignar una nueva a
+  quien la haya olvidado.
 - **Gestión académica**: cursos, materias, asignaciones docente-materia,
   planes de estudio.
-- **Alumnos**: legajo, inscripciones, calificaciones, asistencia,
-  amonestaciones.
+- **Alumnos**: alta y edición completa (datos personales, curso, tutor, obra
+  social y contacto de emergencia), baja y reactivación, legajo,
+  inscripciones, calificaciones, asistencia y amonestaciones.
 - **Comunicación**: noticias, comunicados, mensajería interna y
   notificaciones a las familias.
 - **Administración**: cuotas, pagos, becas, sueldos, compras.

@@ -29,11 +29,17 @@ const FORM_INICIAL = {
   id_curso: '',
   email_padre: '',
   obra_social: '',
+  nro_obra_social: '',
+  direccion: '',
+  telefono_emergencia: '',
+  nombre_contacto_emergencia: '',
 }
 
 export function GestionAlumnos() {
-  const { alumnos, cursos, crearAlumno, cambiarCurso } = useAlumnos()
+  const { alumnos, cursos, crearAlumno, editarAlumno, cambiarCurso, cambiarEstado } =
+    useAlumnos()
   const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [legajoId, setLegajoId] = useState<number | null>(null)
@@ -45,18 +51,54 @@ export function GestionAlumnos() {
   const setCampo = (campo: keyof typeof FORM_INICIAL) => (value: string) =>
     setForm((p) => ({ ...p, [campo]: value }))
 
-  const handleCreate = async (e: FormEvent) => {
+  /** Abre el formulario vacío para dar de alta. */
+  const abrirAlta = () => {
+    setEditId(null)
+    setForm(FORM_INICIAL)
+    setMsg('')
+    setShowForm(true)
+  }
+
+  /** Abre el formulario con los datos del alumno para editarlos. */
+  const abrirEdicion = (a: Alumno) => {
+    setEditId(a.id_alumno)
+    setForm({
+      nombre: a.nombre,
+      apellido: a.apellido,
+      dni: a.dni,
+      fecha_nacimiento: a.fecha_nacimiento ?? '',
+      id_curso: a.id_curso ? String(a.id_curso) : '',
+      email_padre: a.padre?.email ?? '',
+      obra_social: a.obra_social ?? '',
+      nro_obra_social: a.nro_obra_social ?? '',
+      direccion: a.direccion ?? '',
+      telefono_emergencia: a.telefono_emergencia ?? '',
+      nombre_contacto_emergencia: a.nombre_contacto_emergencia ?? '',
+    })
+    setMsg('')
+    setShowForm(true)
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMsg('')
-    const error = await crearAlumno(form)
+    const error = editId ? await editarAlumno(editId, form) : await crearAlumno(form)
     if (error) {
       setMsg('Error: ' + error)
     } else {
-      setMsg('✅ Alumno registrado.')
+      setMsg(editId ? '✅ Datos actualizados.' : '✅ Alumno registrado.')
       setShowForm(false)
+      setEditId(null)
     }
     setLoading(false)
+  }
+
+  const alternarEstado = async (a: Alumno) => {
+    const accion = a.activo ? 'dar de baja' : 'reactivar'
+    if (!confirm(`¿Querés ${accion} a ${a.apellido}, ${a.nombre}?`)) return
+    const error = await cambiarEstado(a.id_alumno, !a.activo)
+    setMsg(error ? 'Error: ' + error : `✅ Alumno ${a.activo ? 'dado de baja' : 'reactivado'}.`)
   }
 
   const abrirEditCurso = (a: Alumno) => {
@@ -96,20 +138,30 @@ export function GestionAlumnos() {
           <ToggleFormButton
             open={showForm}
             openLabel='+ Nuevo alumno'
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => (showForm ? setShowForm(false) : abrirAlta())}
           />
         }
       />
 
+      {msg && (
+        <div
+          className='text-[13px] font-bold px-4 py-3 rounded-lg border mb-5'
+          style={{
+            color: msg.startsWith('✅') ? '#27AE60' : '#E74C3C',
+            background: msg.startsWith('✅') ? '#27AE6012' : '#E74C3C12',
+            borderColor: msg.startsWith('✅') ? '#27AE6040' : '#E74C3C40',
+          }}
+        >
+          {msg}
+        </div>
+      )}
+
       {showForm && (
         <Card className='mb-6'>
           <div className='text-[15px] font-extrabold text-text mb-5'>
-            Registrar alumno
+            {editId ? 'Editar alumno' : 'Registrar alumno'}
           </div>
-          <form
-            onSubmit={handleCreate}
-            className='grid grid-cols-2 gap-[14px]'
-          >
+          <form onSubmit={handleSubmit} className='grid grid-cols-2 gap-[14px]'>
             <Field
               label='Nombre'
               required
@@ -162,23 +214,36 @@ export function GestionAlumnos() {
               value={form.obra_social}
               onChange={setCampo('obra_social')}
             />
+            <Field
+              label='N° de obra social'
+              value={form.nro_obra_social}
+              onChange={setCampo('nro_obra_social')}
+            />
+            <Field
+              label='Domicilio'
+              value={form.direccion}
+              onChange={setCampo('direccion')}
+            />
+            <Field
+              label='Contacto de emergencia'
+              value={form.nombre_contacto_emergencia}
+              onChange={setCampo('nombre_contacto_emergencia')}
+              placeholder='Nombre de la persona a avisar'
+            />
+            <Field
+              label='Teléfono de emergencia'
+              value={form.telefono_emergencia}
+              onChange={setCampo('telefono_emergencia')}
+            />
             <div className='flex items-end'>
               <button
                 type='submit'
                 disabled={loading}
                 className={`${btnPrimary} w-full${loading ? ' opacity-60' : ''}`}
               >
-                {loading ? 'Guardando...' : 'Registrar alumno'}
+                {loading ? 'Guardando...' : editId ? 'Guardar cambios' : 'Registrar alumno'}
               </button>
             </div>
-            {msg && (
-              <div
-                className='col-span-full text-[13px] font-bold'
-                style={{ color: msg.startsWith('✅') ? '#27AE60' : '#E74C3C' }}
-              >
-                {msg}
-              </div>
-            )}
           </form>
         </Card>
       )}
@@ -255,12 +320,27 @@ export function GestionAlumnos() {
                   </Badge>
                 </td>
                 <td className={tdCell}>
+                  <div className='flex gap-2'>
                   <button
                     className={btnSecondarySm}
                     onClick={() => setLegajoId(a.id_alumno)}
                   >
                     Ver legajo
                   </button>
+                  <button className={btnSecondarySm} onClick={() => abrirEdicion(a)}>
+                    Editar
+                  </button>
+                  <button
+                    className={
+                      a.activo
+                        ? btnDanger
+                        : 'bg-[#27AE601A] text-green border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
+                    }
+                    onClick={() => alternarEstado(a)}
+                  >
+                    {a.activo ? 'Dar de baja' : 'Reactivar'}
+                  </button>
+                  </div>
                 </td>
               </tr>
             ))}

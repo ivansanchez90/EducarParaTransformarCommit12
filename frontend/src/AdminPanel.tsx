@@ -31,6 +31,7 @@ import { GestionActividades } from './features/actividades/GestionActividades'
 import { GestionReservas } from './features/reservas/GestionReservas'
 import { GestionServicios } from './features/servicios/GestionServicios'
 import { GestionReportes } from './features/reportes/GestionReportes'
+import { CambiarPassword } from './features/cuenta/CambiarPassword'
 import { GestionMensajes } from './features/mensajes/GestionMensajes'
 import { GestionNoticias } from './features/noticias/GestionNoticias'
 import { GestionEmpleos } from './features/empleos/GestionEmpleos'
@@ -49,6 +50,7 @@ export default function AdminPanel() {
   const [perfil, setPerfil] = useState<UsuarioPanel | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [activeNav, setActiveNav] = useState('dashboard')
+  const [cambiandoPassword, setCambiandoPassword] = useState(false)
   const [prefillUsuario, setPrefillUsuario] = useState<PrefillUsuario | null>(
     null,
   )
@@ -184,6 +186,12 @@ export default function AdminPanel() {
           </div>
           <button
             className='bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
+            onClick={() => setCambiandoPassword(true)}
+          >
+            🔑 Mi contraseña
+          </button>
+          <button
+            className='bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
             onClick={() => navigate('/')}
           >
             ← Inicio
@@ -305,6 +313,10 @@ export default function AdminPanel() {
           )}
         </main>
       </div>
+
+      {cambiandoPassword && (
+        <CambiarPassword onClose={() => setCambiandoPassword(false)} />
+      )}
     </div>
   )
 }

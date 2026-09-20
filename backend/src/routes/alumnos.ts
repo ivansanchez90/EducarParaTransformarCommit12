@@ -44,7 +44,7 @@ export async function verificarCupoCurso(
 alumnosRouter.get('/', requireRole(...ROLES_STAFF), async (req, res) => {
   const alumnos = await prisma.alumno.findMany({
     where: { activo: bool(req.query.activo), id_curso: numOrNull(req.query.id_curso) ?? undefined },
-    include: { cursos: cursoResumen },
+    include: { cursos: cursoResumen, padre: { select: { email: true } } },
     orderBy: { apellido: 'asc' },
   })
   res.json(alumnos)
@@ -115,16 +115,53 @@ alumnosRouter.post('/', requireRole(...ROLES_ADMIN), async (req, res) => {
   res.status(201).json(alumno)
 })
 
+/** Edición del alumno: solo se tocan los campos que vienen en el body. */
 alumnosRouter.patch('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
   const idAlumno = id(req.params.id)
   const body = req.body ?? {}
+
   const alumno = await prisma.$transaction(async (tx) => {
     const data: Prisma.AlumnoUncheckedUpdateInput = {}
+
     if ('id_curso' in body) {
       data.id_curso = numOrNull(body.id_curso)
       await verificarCupoCurso(tx, data.id_curso, idAlumno)
     }
     if (typeof body.activo === 'boolean') data.activo = body.activo
+
+    for (const campo of ['nombre', 'apellido'] as const) {
+      if (campo in body) {
+        const valor = textOrNull(body[campo])
+        if (!valor) throw new HttpError(400, `El campo ${campo} no puede quedar vacío`)
+        data[campo] = valor
+      }
+    }
+    if ('dni' in body) {
+      const dni = textOrNull(body.dni)
+      if (!dni) throw new HttpError(400, 'El DNI no puede quedar vacío')
+      const otro = await tx.alumno.findFirst({
+        where: { dni, id_alumno: { not: idAlumno } },
+        select: { id_alumno: true },
+      })
+      if (otro) throw new HttpError(409, 'Ya existe un alumno registrado con ese DNI', '23505')
+      data.dni = dni
+    }
+    if ('fecha_nacimiento' in body) {
+      data.fecha_nacimiento = fechaObligatoria(body.fecha_nacimiento, 'fecha de nacimiento')
+    }
+    // Vincular (o desvincular, con cadena vacía) al padre/tutor por email.
+    if ('email_padre' in body) {
+      const email = textOrNull(body.email_padre)
+      if (!email) data.id_usuario_padre = null
+      else {
+        const padre = await tx.usuario.findUnique({
+          where: { email: email.toLowerCase() },
+          select: { id_usuario: true },
+        })
+        if (!padre) throw new HttpError(404, `No existe un usuario con el email ${email}`)
+        data.id_usuario_padre = padre.id_usuario
+      }
+    }
     for (const campo of [
       'direccion',
       'telefono_emergencia',
@@ -134,7 +171,11 @@ alumnosRouter.patch('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
     ] as const) {
       if (campo in body) data[campo] = textOrNull(body[campo])
     }
-    return tx.alumno.update({ where: { id_alumno: idAlumno }, data })
+    return tx.alumno.update({
+      where: { id_alumno: idAlumno },
+      data,
+      include: { cursos: cursoResumen },
+    })
   })
   res.json(alumno)
 })

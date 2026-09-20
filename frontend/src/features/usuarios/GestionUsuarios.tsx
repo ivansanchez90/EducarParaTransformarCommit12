@@ -3,7 +3,7 @@
  * tutores (el backend crea también sus registros asociados) y
  * activación/desactivación según la jerarquía del rol del actor.
  */
-import { useState, useEffect, useCallback } from 'react'
+import { Fragment, useState, useEffect, useCallback } from 'react'
 import type { FormEvent } from 'react'
 import { api } from '../../lib/api'
 import type { UsuarioPanel, PrefillUsuario, Curso } from '../../types'
@@ -54,6 +54,8 @@ export function GestionUsuarios({
   }
   const [alumnoForm, setAlumnoForm] = useState(ALUMNO_VACIO)
   const [msg, setMsg] = useState('')
+  const [passUsuario, setPassUsuario] = useState<string | null>(null)
+  const [passNueva, setPassNueva] = useState('')
 
   const load = useCallback(async () => {
     const [{ data: us }, { data: cu }] = await Promise.all([
@@ -131,6 +133,24 @@ export function GestionUsuarios({
     setLoading(false)
   }
 
+  /** Asigna una contraseña nueva a otro usuario (no pide la anterior). */
+  const guardarPassword = async (u: UsuarioPanel) => {
+    setMsg('')
+    if (passNueva.length < 6) {
+      setMsg('La contraseña debe tener al menos 6 caracteres.')
+      return
+    }
+    const { error } = await api.patch(`/usuarios/${u.id_usuario}/password`, {
+      nueva: passNueva,
+    })
+    if (error) setMsg('Error: ' + error.message)
+    else {
+      setMsg(`✅ Contraseña actualizada para ${u.email}. Avisale cuál es.`)
+      setPassUsuario(null)
+      setPassNueva('')
+    }
+  }
+
   const toggleActivo = async (id: string, activo: boolean) => {
     const { error } = await api.patch(`/usuarios/${id}`, { activo: !activo })
     if (error) setMsg('Error: ' + error.message)
@@ -159,6 +179,19 @@ export function GestionUsuarios({
       </div>
 
       {/* Formulario */}
+      {msg && (
+        <div
+          className='text-[13px] font-bold px-4 py-3 rounded-lg border mb-5'
+          style={{
+            color: msg.startsWith('✅') ? '#27AE60' : '#E74C3C',
+            background: msg.startsWith('✅') ? '#27AE6012' : '#E74C3C12',
+            borderColor: msg.startsWith('✅') ? '#27AE6040' : '#E74C3C40',
+          }}
+        >
+          {msg}
+        </div>
+      )}
+
       {showForm && (
         <div className={`${card} mb-6`}>
           <div className='text-[15px] font-extrabold text-text mb-5'>
@@ -392,18 +425,6 @@ export function GestionUsuarios({
                     : 'Crear usuario'}
               </button>
             </div>
-            {msg && (
-              <div
-                style={{
-                  gridColumn: '1/-1',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: msg.startsWith('✅') ? '#27AE60' : '#E74C3C',
-                }}
-              >
-                {msg}
-              </div>
-            )}
           </form>
         </div>
       )}
@@ -432,7 +453,8 @@ export function GestionUsuarios({
           </thead>
           <tbody>
             {usuarios.map((u) => (
-              <tr key={u.id_usuario}>
+              <Fragment key={u.id_usuario}>
+              <tr>
                 <td className={`${tdCell} font-bold`}>
                   {u.apellido}, {u.nombre}
                 </td>
@@ -457,21 +479,65 @@ export function GestionUsuarios({
                 </td>
                 <td className={tdCell}>
                   {puedeGestionar(u.rol) ? (
-                    <button
-                      className={
-                        u.activo
-                          ? btnDanger
-                          : 'bg-[#27AE601A] text-green border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
-                      }
-                      onClick={() => toggleActivo(u.id_usuario, u.activo)}
-                    >
-                      {u.activo ? 'Desactivar' : 'Activar'}
-                    </button>
+                    <div className='flex gap-2'>
+                      <button
+                        className={
+                          u.activo
+                            ? btnDanger
+                            : 'bg-[#27AE601A] text-green border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
+                        }
+                        onClick={() => toggleActivo(u.id_usuario, u.activo)}
+                      >
+                        {u.activo ? 'Desactivar' : 'Activar'}
+                      </button>
+                      <button
+                        className='bg-purpleLight text-purple-700 border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
+                        onClick={() => {
+                          setPassUsuario(passUsuario === u.id_usuario ? null : u.id_usuario)
+                          setPassNueva('')
+                          setMsg('')
+                        }}
+                      >
+                        🔑 Contraseña
+                      </button>
+                    </div>
                   ) : (
                     <span className='text-[11px] text-textMuted'>—</span>
                   )}
                 </td>
               </tr>
+              {passUsuario === u.id_usuario && (
+                <tr>
+                  <td colSpan={5} className='bg-purpleLight border-b border-border py-4 px-4'>
+                    <div className='flex items-end gap-3 flex-wrap'>
+                      <div>
+                        <span className={fieldLabel}>Contraseña nueva para {u.email}</span>
+                        <input
+                          type='text'
+                          className={inputField}
+                          autoFocus
+                          placeholder='Mínimo 6 caracteres'
+                          value={passNueva}
+                          onChange={(e) => setPassNueva(e.target.value)}
+                        />
+                      </div>
+                      <button className={btnPrimary} onClick={() => guardarPassword(u)}>
+                        Guardar contraseña
+                      </button>
+                      <button
+                        className='bg-transparent border border-border rounded-[8px] px-3.5 py-[9px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
+                        onClick={() => setPassUsuario(null)}
+                      >
+                        Cancelar
+                      </button>
+                      <span className='text-[11px] text-textMuted self-center'>
+                        La contraseña se muestra a propósito, para que puedas comunicársela.
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>

@@ -25,6 +25,28 @@ authRouter.post('/login', async (req, res) => {
   res.json({ token: firmarToken(usuario.id_usuario), usuario: perfil })
 })
 
+/** Cambia la contraseña del usuario logueado (pide la actual como control). */
+authRouter.post('/password', requireAuth, async (req, res) => {
+  const actual = String(req.body?.actual ?? '')
+  const nueva = String(req.body?.nueva ?? '')
+  if (nueva.length < 6) throw new HttpError(400, 'La contraseña nueva debe tener al menos 6 caracteres')
+  if (nueva === actual) throw new HttpError(400, 'La contraseña nueva debe ser distinta de la actual')
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { id_usuario: req.user!.id_usuario },
+    omit: { password_hash: false },
+  })
+  if (!usuario || !(await bcrypt.compare(actual, usuario.password_hash))) {
+    throw new HttpError(400, 'La contraseña actual no es correcta')
+  }
+
+  await prisma.usuario.update({
+    where: { id_usuario: usuario.id_usuario },
+    data: { password_hash: await bcrypt.hash(nueva, 10) },
+  })
+  res.json({ ok: true })
+})
+
 /** Perfil del usuario logueado (reemplaza a supabase.auth.getSession + select de usuarios). */
 authRouter.get('/me', requireAuth, (req, res) => {
   res.json(req.user)

@@ -113,6 +113,28 @@ usuariosRouter.post('/', async (req, res) => {
   res.status(201).json(resultado)
 })
 
+/**
+ * Asigna una contraseña nueva a otro usuario (por ejemplo, cuando la olvidó).
+ * No pide la anterior: es una acción de administración.
+ */
+usuariosRouter.patch('/:id/password', async (req, res) => {
+  const nueva = String(req.body?.nueva ?? '')
+  if (nueva.length < 6) throw new HttpError(400, 'La contraseña debe tener al menos 6 caracteres')
+
+  const objetivo = await prisma.usuario.findUnique({
+    where: { id_usuario: req.params.id },
+    select: { rol: true, email: true },
+  })
+  if (!objetivo) throw new HttpError(404, 'Usuario no encontrado')
+  assertPuedeGestionar(req.user!.rol, objetivo.rol)
+
+  await prisma.usuario.update({
+    where: { id_usuario: req.params.id },
+    data: { password_hash: await bcrypt.hash(nueva, 10) },
+  })
+  res.json({ ok: true, email: objetivo.email })
+})
+
 usuariosRouter.patch('/:id', async (req, res) => {
   const { nombre, apellido, rol, activo } = req.body ?? {}
   if (req.params.id === req.user!.id_usuario && activo === false) {

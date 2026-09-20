@@ -37,7 +37,16 @@ export interface Alumno {
   apellido: string
   dni: string
   activo: boolean
+  fecha_nacimiento?: string
+  id_curso?: number | null
+  direccion?: string | null
+  telefono_emergencia?: string | null
+  nombre_contacto_emergencia?: string | null
+  obra_social?: string | null
+  nro_obra_social?: string | null
   cursos: { nivel: string; grado_anio: string; division: string } | null
+  /** Padre/tutor vinculado (solo en el listado del panel). */
+  padre?: { email: string } | null
 }
 
 export interface Docente {

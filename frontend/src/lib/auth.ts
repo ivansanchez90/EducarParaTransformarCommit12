@@ -7,7 +7,7 @@
  * - onAuthChange(): suscripción a cambios de sesión (también entre pestañas).
  */
 import { api, getToken, setToken, setUnauthorizedHandler } from './api'
-import type { ApiResult } from './api'
+import type { ApiError, ApiResult } from './api'
 import type { UsuarioPanel } from '../types'
 
 export type Perfil = UsuarioPanel
@@ -37,6 +37,15 @@ export async function getSession(): Promise<Perfil | null> {
   if (!getToken()) return null
   const { data } = await api.get<Perfil>('/auth/me')
   return data
+}
+
+/** Cambia la contraseña del usuario logueado. Devuelve el error si lo hay. */
+export async function cambiarPassword(
+  actual: string,
+  nueva: string,
+): Promise<ApiError | null> {
+  const { error } = await api.post('/auth/password', { actual, nueva })
+  return error
 }
 
 export function logout() {

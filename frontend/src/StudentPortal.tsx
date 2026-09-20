@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, qs } from './lib/api'
+import { CambiarPassword } from './features/cuenta/CambiarPassword'
 import type { RecorridoTransporte, ServiciosAlumno } from './types'
 import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/auth'
 import type { Perfil } from './lib/auth'
@@ -181,6 +182,7 @@ export default function StudentPortal() {
   const [recorridos, setRecorridos] = useState<RecorridoTransporte[]>([])
   const [servMsg, setServMsg] = useState('')
   const [activeNav, setActiveNav] = useState('inicio')
+  const [cambiandoPassword, setCambiandoPassword] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Un padre/tutor ve los datos de su hijo/a; un estudiante, los propios.
@@ -518,6 +520,13 @@ export default function StudentPortal() {
               )}
             </div>
           )}
+
+          <button
+            className='bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
+            onClick={() => setCambiandoPassword(true)}
+          >
+            🔑 Mi contraseña
+          </button>
 
           {/* Volver al inicio */}
           <button
@@ -1453,6 +1462,10 @@ export default function StudentPortal() {
           )}
         </main>
       </div>
+
+      {cambiandoPassword && (
+        <CambiarPassword onClose={() => setCambiandoPassword(false)} />
+      )}
     </div>
   )
 }

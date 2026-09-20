@@ -46,16 +46,10 @@ Funcionalidad propuesta como desafío, no contemplada en el enunciado original:
 
 ## Mejoras técnicas detectadas
 
-- **Cambio de contraseña:** la aplicación no permite cambiarla, ni al propio
-  usuario ni al administrador. Los alumnos creados desde el panel quedan con
-  su DNI como contraseña.
 - **Documentos del legajo:** se sirven de forma pública para quien tenga el
   enlace, igual que hacía el bucket de Supabase. Convendría exigir sesión.
 - **Historial de pagos:** la API acepta número de comprobante y observaciones,
   y la pantalla ya los carga, pero no hay forma de editar un pago registrado.
-- **Datos de contacto del alumno:** dirección, teléfono y contacto de
-  emergencia, y número de obra social se guardan en la base y la API los
-  acepta, pero no hay campos para cargarlos en el frontend.
 - **Vulnerabilidades reportadas por `npm audit`:** provienen del CLI de Prisma
   (`mysql2`, que no usamos, y `deepmerge-ts`). Se resuelven cuando Prisma
   actualice esas dependencias; bajar a Prisma 6 no es una opción razonable.
