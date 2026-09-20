@@ -8,10 +8,10 @@
  * enrutado entre secciones. Cada sección vive en su propio módulo en `features/`.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getSession, logout, onAuthChange } from './lib/auth'
-import type { UsuarioPanel, PrefillUsuario } from './types'
+import type { UsuarioPanel } from './types'
 import { NAV_ADMIN, NAV_DOCENTE } from './constants'
 
 import { Dashboard } from './features/dashboard/Dashboard'
@@ -51,15 +51,6 @@ export default function AdminPanel() {
   const [authChecked, setAuthChecked] = useState(false)
   const [activeNav, setActiveNav] = useState('dashboard')
   const [cambiandoPassword, setCambiandoPassword] = useState(false)
-  const [prefillUsuario, setPrefillUsuario] = useState<PrefillUsuario | null>(
-    null,
-  )
-
-  const irARegistrarUsuario = useCallback((data: PrefillUsuario) => {
-    setPrefillUsuario(data)
-    setActiveNav('usuarios')
-  }, [])
-
   // La sesión devuelve el perfil completo (el backend ya rechaza a los
   // usuarios desactivados), así que no hace falta una segunda consulta.
   useEffect(() => {
@@ -267,11 +258,7 @@ export default function AdminPanel() {
             />
           )}
           {activeNav === 'usuarios' && esAdmin && (
-            <GestionUsuarios
-              prefill={prefillUsuario}
-              onPrefillConsumed={() => setPrefillUsuario(null)}
-              rolActor={perfil.rol}
-            />
+            <GestionUsuarios rolActor={perfil.rol} />
           )}
           {activeNav === 'alumnos' && esAdmin && <GestionAlumnos />}
           {activeNav === 'docentes' && esAdmin && <GestionDocentes />}
@@ -283,9 +270,7 @@ export default function AdminPanel() {
           {activeNav === 'becas' && esAdmin && <GestionBecas />}
           {activeNav === 'sueldos' && esAdmin && <GestionSueldos />}
           {activeNav === 'compras' && esAdmin && <GestionCompras />}
-          {activeNav === 'inscripciones' && esAdmin && (
-            <GestionInscripciones onRegistrar={irARegistrarUsuario} />
-          )}
+          {activeNav === 'inscripciones' && esAdmin && <GestionInscripciones />}
           {activeNav === 'mensajes' && esAdmin && <GestionMensajes />}
           {activeNav === 'actividades' && esAdmin && <GestionActividades />}
           {activeNav === 'reservas' && <GestionReservas />}

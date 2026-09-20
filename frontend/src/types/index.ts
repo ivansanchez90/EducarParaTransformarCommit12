@@ -15,22 +15,6 @@ export interface UsuarioPanel {
   activo: boolean
 }
 
-export interface PrefillAlumno {
-  nombre: string
-  apellido: string
-  dni: string
-  fecha_nacimiento: string
-}
-
-export interface PrefillUsuario {
-  nombre: string
-  apellido: string
-  email: string
-  password: string
-  rol: string
-  alumno?: PrefillAlumno | null
-}
-
 export interface Alumno {
   id_alumno: number
   nombre: string
@@ -283,9 +267,24 @@ export interface Inscripcion {
   email_tutor: string
   telefono_tutor: string | null
   nivel_solicitado: string
+  grado_anio_solicitado: string | null
+  documentacion_completa: boolean
+  observaciones: string | null
   estado: string
   fecha_solicitud: string
   id_alumno_creado: number | null
+}
+
+/** Solicitud con el alumno dado de alta, si ya fue aprobada. */
+export interface InscripcionDetalle extends Inscripcion {
+  alumnos: {
+    id_alumno: number
+    nombre: string
+    apellido: string
+    dni: string
+    activo: boolean
+    cursos: { nivel: string; grado_anio: string; division: string } | null
+  } | null
 }
 
 export interface Noticia {

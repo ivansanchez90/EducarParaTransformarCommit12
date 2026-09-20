@@ -67,6 +67,22 @@ export const MODALIDAD_COLOR: Record<string, string> = {
   Híbrido: '#7B55E8',
 }
 
+export const ESTADOS_INSCRIPCION = [
+  'Pendiente',
+  'En revisión',
+  'Aprobada',
+  'Rechazada',
+  'En lista de espera',
+]
+
+export const INSC_COLOR: Record<string, string> = {
+  Pendiente: '#E67E22',
+  'En revisión': '#2980B9',
+  Aprobada: '#27AE60',
+  Rechazada: '#E74C3C',
+  'En lista de espera': '#6B6B8A',
+}
+
 export const POST_ESTADOS = [
   'Recibida',
   'En revisión',

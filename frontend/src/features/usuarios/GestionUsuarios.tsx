@@ -6,7 +6,7 @@
 import { Fragment, useState, useEffect, useCallback } from 'react'
 import type { FormEvent } from 'react'
 import { api } from '../../lib/api'
-import type { UsuarioPanel, PrefillUsuario, Curso } from '../../types'
+import type { UsuarioPanel, Curso } from '../../types'
 import {
   btnPrimary,
   btnDanger,
@@ -19,15 +19,7 @@ import {
   badge,
 } from '../../ui/styles'
 
-export function GestionUsuarios({
-  prefill,
-  onPrefillConsumed,
-  rolActor,
-}: {
-  prefill?: PrefillUsuario | null
-  onPrefillConsumed?: () => void
-  rolActor?: string
-} = {}) {
+export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
   // Jerarquía (solo UX): un Directivo no puede activar/desactivar a un Admin u
   // otro Directivo; un Admin puede con todos.
   const puedeGestionar = (rolObjetivo: string) =>
@@ -69,33 +61,6 @@ export function GestionUsuarios({
   useEffect(() => {
     load()
   }, [load])
-
-  useEffect(() => {
-    if (!prefill) return
-    setForm({
-      email: prefill.email,
-      password: prefill.password,
-      nombre: prefill.nombre,
-      apellido: prefill.apellido,
-      rol: prefill.rol,
-    })
-    setAlumnoForm(
-      prefill.alumno
-        ? {
-            nombre: prefill.alumno.nombre,
-            apellido: prefill.alumno.apellido,
-            dni: prefill.alumno.dni,
-            fecha_nacimiento: prefill.alumno.fecha_nacimiento,
-            id_curso: '',
-            obra_social: '',
-          }
-        : ALUMNO_VACIO,
-    )
-    setMsg('')
-    setShowForm(true)
-    onPrefillConsumed?.()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefill, onPrefillConsumed])
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()

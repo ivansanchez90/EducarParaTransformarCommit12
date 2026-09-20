@@ -3,7 +3,7 @@ import { Router } from 'express'
 import { HttpError, bool, fechaObligatoria, lista, numOrNull, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { ROLES_ADMIN, requireAuth, requireRole } from '../middleware/auth.js'
-import { Prisma } from '../generated/prisma/client.js'
+import { crearUsuario, validarUsuario } from '../services/usuarios.js'
 import { verificarCupoCurso } from './alumnos.js'
 
 export const usuariosRouter = Router()
@@ -18,27 +18,6 @@ usuariosRouter.get('/', async (req, res) => {
   res.json(usuarios)
 })
 
-interface DatosUsuario {
-  email: string
-  password: string
-  nombre: string
-  apellido: string
-  rol: string
-}
-
-function validarUsuario(body: Record<string, unknown>): DatosUsuario {
-  const datos = {
-    email: String(body.email ?? '').trim().toLowerCase(),
-    password: String(body.password ?? ''),
-    nombre: String(body.nombre ?? '').trim(),
-    apellido: String(body.apellido ?? '').trim(),
-    rol: String(body.rol ?? '').trim(),
-  }
-  if (!datos.email || !datos.rol) throw new HttpError(400, 'Email y rol son obligatorios')
-  if (datos.password.length < 6) throw new HttpError(400, 'La contraseña debe tener al menos 6 caracteres')
-  return datos
-}
-
 /**
  * Jerarquía: un Directivo no puede crear ni modificar a un Admin u otro
  * Directivo; un Admin puede con todos.
@@ -47,25 +26,6 @@ function assertPuedeGestionar(rolActor: string, rolObjetivo: string) {
   if (rolActor === 'Directivo' && ROLES_ADMIN.includes(rolObjetivo)) {
     throw new HttpError(403, 'Un Directivo no puede gestionar usuarios Admin o Directivo')
   }
-}
-
-async function crearUsuario(tx: Prisma.TransactionClient, datos: DatosUsuario) {
-  const existe = await tx.usuario.findUnique({ where: { email: datos.email }, select: { id_usuario: true } })
-  if (existe) throw new HttpError(409, `Ya existe un usuario con el email ${datos.email}`, '23505')
-  const usuario = await tx.usuario.create({
-    data: {
-      email: datos.email,
-      password_hash: await bcrypt.hash(datos.password, 10),
-      nombre: datos.nombre,
-      apellido: datos.apellido,
-      rol: datos.rol,
-    },
-  })
-  // Los docentes necesitan su fila en `docentes` para aparecer en el panel.
-  if (datos.rol === 'Docente') {
-    await tx.docente.create({ data: { id_usuario: usuario.id_usuario, dni: null } })
-  }
-  return usuario
 }
 
 /**

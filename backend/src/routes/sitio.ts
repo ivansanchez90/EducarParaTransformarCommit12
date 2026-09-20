@@ -8,6 +8,8 @@ import { Router } from 'express'
 import { HttpError, bool, fecha, id, numOrNull, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { ROLES_ADMIN, requireAuth, requireRole } from '../middleware/auth.js'
+import { crearUsuario, partirNombre } from '../services/usuarios.js'
+import { verificarCupoCurso } from './alumnos.js'
 import { borrarArchivo, uploader, urlPublica } from '../middleware/upload.js'
 import { notificarFamilias } from '../services/notificaciones.js'
 
@@ -299,14 +301,158 @@ inscripcionesRouter.get('/', ...soloAdmin, async (_req, res) => {
   res.json(inscripciones)
 })
 
+/** Solicitud completa, con el alumno dado de alta si ya fue aprobada. */
+inscripcionesRouter.get('/:id', ...soloAdmin, async (req, res) => {
+  const inscripcion = await prisma.inscripcion.findUnique({
+    where: { id_inscripcion: id(req.params.id) },
+    include: {
+      alumnos: {
+        select: {
+          id_alumno: true,
+          nombre: true,
+          apellido: true,
+          dni: true,
+          activo: true,
+          cursos: { select: { nivel: true, grado_anio: true, division: true } },
+        },
+      },
+    },
+  })
+  if (!inscripcion) throw new HttpError(404, 'Solicitud no encontrada')
+  res.json(inscripcion)
+})
+
+/**
+ * Aprueba la solicitud y da de alta al alumno con los datos cargados.
+ *
+ * Opcionalmente crea los usuarios de acceso: el del tutor (con el email de la
+ * solicitud) y el del alumno (`<dni>@alumno.local`). Si el tutor ya tiene
+ * usuario, se reutiliza. Todo ocurre en una transacción: o se crea el alumno
+ * con sus accesos y la solicitud queda aprobada, o no se toca nada.
+ */
+inscripcionesRouter.post('/:id/aprobar', ...soloAdmin, async (req, res) => {
+  const idInscripcion = id(req.params.id)
+  const body = req.body ?? {}
+  const crearAccesos = body.crear_usuarios !== false
+  const idCurso = numOrNull(body.id_curso)
+
+  const resultado = await prisma.$transaction(async (tx) => {
+    const solicitud = await tx.inscripcion.findUnique({ where: { id_inscripcion: idInscripcion } })
+    if (!solicitud) throw new HttpError(404, 'Solicitud no encontrada')
+    if (solicitud.id_alumno_creado) {
+      throw new HttpError(409, 'La solicitud ya fue aprobada y el alumno está dado de alta')
+    }
+    if (!solicitud.fecha_nacimiento_aspirante) {
+      throw new HttpError(400, 'La solicitud no tiene fecha de nacimiento: completala antes de aprobarla')
+    }
+    const dni = solicitud.dni_aspirante.trim()
+    const repetido = await tx.alumno.findUnique({ where: { dni }, select: { id_alumno: true } })
+    if (repetido) throw new HttpError(409, 'Ya existe un alumno registrado con ese DNI', '23505')
+
+    // Tutor: se reutiliza su usuario si ya existe.
+    let idTutor: string | null = null
+    let tutorCreado = false
+    if (crearAccesos) {
+      const existente = await tx.usuario.findUnique({
+        where: { email: solicitud.email_tutor.toLowerCase() },
+        select: { id_usuario: true },
+      })
+      if (existente) idTutor = existente.id_usuario
+      else {
+        const { nombre, apellido } = partirNombre(solicitud.nombre_tutor)
+        const tutor = await crearUsuario(tx, {
+          email: solicitud.email_tutor,
+          password: String(body.password_tutor ?? dni),
+          nombre,
+          apellido,
+          rol: 'Padre',
+        })
+        idTutor = tutor.id_usuario
+        tutorCreado = true
+      }
+    }
+
+    // Usuario del propio alumno (para que entre al portal).
+    let idUsuarioAlumno: string | null = null
+    if (crearAccesos) {
+      const emailAlumno = `${dni}@alumno.local`
+      const existente = await tx.usuario.findUnique({
+        where: { email: emailAlumno },
+        select: { id_usuario: true },
+      })
+      idUsuarioAlumno = existente
+        ? existente.id_usuario
+        : (
+            await crearUsuario(tx, {
+              email: emailAlumno,
+              password: dni,
+              nombre: solicitud.nombre_aspirante,
+              apellido: solicitud.apellido_aspirante ?? '',
+              rol: 'Alumno',
+            })
+          ).id_usuario
+    }
+
+    await verificarCupoCurso(tx, idCurso)
+    const alumno = await tx.alumno.create({
+      data: {
+        nombre: solicitud.nombre_aspirante,
+        apellido: solicitud.apellido_aspirante ?? '',
+        dni,
+        fecha_nacimiento: solicitud.fecha_nacimiento_aspirante,
+        id_curso: idCurso,
+        id_usuario: idUsuarioAlumno,
+        id_usuario_padre: idTutor,
+      },
+      include: { cursos: { select: { nivel: true, grado_anio: true, division: true } } },
+    })
+
+    await tx.inscripcion.update({
+      where: { id_inscripcion: idInscripcion },
+      data: { estado: 'Aprobada', id_alumno_creado: alumno.id_alumno },
+    })
+
+    return {
+      alumno,
+      accesos: crearAccesos
+        ? {
+            tutor: { email: solicitud.email_tutor, creado: tutorCreado },
+            alumno: { email: `${dni}@alumno.local`, password_inicial: dni },
+          }
+        : null,
+    }
+  })
+
+  res.status(201).json(resultado)
+})
+
+/**
+ * Actualiza la solicitud: estado, seguimiento (observaciones y documentación)
+ * y también los datos cargados, para poder corregirlos antes de aprobarla.
+ */
 inscripcionesRouter.patch('/:id', ...soloAdmin, async (req, res) => {
+  const body = req.body ?? {}
+  const texto = (campo: string) => (body[campo] !== undefined ? textOrNull(body[campo]) : undefined)
+  const obligatorioSiViene = (campo: string, etiqueta: string) =>
+    body[campo] !== undefined ? obligatorio(body[campo], etiqueta) : undefined
+
   const inscripcion = await prisma.inscripcion.update({
     where: { id_inscripcion: id(req.params.id) },
     data: {
-      estado: req.body?.estado !== undefined ? obligatorio(req.body.estado, 'estado') : undefined,
-      observaciones: req.body?.observaciones !== undefined ? textOrNull(req.body.observaciones) : undefined,
+      estado: obligatorioSiViene('estado', 'estado'),
+      observaciones: texto('observaciones'),
       documentacion_completa:
-        typeof req.body?.documentacion_completa === 'boolean' ? req.body.documentacion_completa : undefined,
+        typeof body.documentacion_completa === 'boolean' ? body.documentacion_completa : undefined,
+      nombre_aspirante: obligatorioSiViene('nombre_aspirante', 'nombre del aspirante'),
+      apellido_aspirante: texto('apellido_aspirante'),
+      dni_aspirante: obligatorioSiViene('dni_aspirante', 'DNI del aspirante'),
+      fecha_nacimiento_aspirante:
+        body.fecha_nacimiento_aspirante !== undefined ? fecha(body.fecha_nacimiento_aspirante) : undefined,
+      nombre_tutor: obligatorioSiViene('nombre_tutor', 'nombre del tutor'),
+      email_tutor: body.email_tutor !== undefined ? email(body.email_tutor) : undefined,
+      telefono_tutor: texto('telefono_tutor'),
+      nivel_solicitado: obligatorioSiViene('nivel_solicitado', 'nivel solicitado'),
+      grado_anio_solicitado: texto('grado_anio_solicitado'),
     },
   })
   res.json(inscripcion)

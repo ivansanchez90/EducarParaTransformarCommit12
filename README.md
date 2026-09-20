@@ -122,6 +122,10 @@ git add prisma && git commit && git push                  # Coolify despliega y 
 - **Alumnos**: alta y edición completa (datos personales, curso, tutor, obra
   social y contacto de emergencia), baja y reactivación, legajo,
   inscripciones, calificaciones, asistencia y amonestaciones.
+- **Preinscripciones**: las solicitudes enviadas desde la web se revisan una
+  por una (todos los datos, observaciones internas y control de
+  documentación). Al aprobarlas se da de alta al alumno y, opcionalmente, se
+  crean los usuarios de acceso del tutor y del alumno.
 - **Comunicación**: noticias, comunicados, mensajería interna y
   notificaciones a las familias.
 - **Administración**: cuotas, pagos, becas, sueldos, compras.
