@@ -5,7 +5,7 @@
  * alumnos al transporte y al comedor. Los padres hacen lo propio con sus
  * hijos desde el portal de familias.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api, qs } from '../../lib/api'
 import type { AlumnoServicios, RecorridoTransporte } from '../../types'
@@ -410,8 +410,8 @@ export function GestionServicios() {
           </thead>
           <tbody>
             {alumnosFiltrados.map((a) => (
-              <>
-                <tr key={a.id_alumno}>
+              <Fragment key={a.id_alumno}>
+                <tr>
                   <td className={`${tdCell} font-bold`}>
                     {a.apellido}, {a.nombre}
                     <div className='text-[11px] text-textMuted font-normal'>DNI {a.dni}</div>
@@ -459,7 +459,7 @@ export function GestionServicios() {
                   </td>
                 </tr>
                 {selAlumno === a.id_alumno && (
-                  <tr key={`insc-${a.id_alumno}`}>
+                  <tr>
                     <td colSpan={5} className='bg-purpleLight border-b border-border py-4 px-4'>
                       <div className='flex items-end gap-4 flex-wrap'>
                         <div>
@@ -505,7 +505,7 @@ export function GestionServicios() {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
             {alumnosFiltrados.length === 0 && (
               <tr>

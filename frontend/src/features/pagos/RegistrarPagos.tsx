@@ -2,7 +2,7 @@
  * RegistrarPagos — búsqueda y filtrado de cuotas pendientes/vencidas,
  * con registro del pago (fecha y método) directamente desde la tabla.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { api, qs } from '../../lib/api'
 import type { Cuota, Pago } from '../../types'
 import { MESES, METODOS_PAGO, CUOTA_ESTADO_COLOR } from '../../constants'
@@ -269,8 +269,8 @@ export function RegistrarPagos() {
                 const isSelected = selCuota === c.id_cuota
                 const color = CUOTA_ESTADO_COLOR[c.estado] ?? '#6B6B8A'
                 return (
-                  <>
-                    <tr key={c.id_cuota}>
+                  <Fragment key={c.id_cuota}>
+                    <tr>
                       <td className={`${tdCell} font-bold`}>
                         {c.alumnos?.apellido}, {c.alumnos?.nombre}
                       </td>
@@ -308,7 +308,7 @@ export function RegistrarPagos() {
                       </td>
                     </tr>
                     {isSelected && (
-                      <tr key={`pago-${c.id_cuota}`}>
+                      <tr>
                         <td
                           colSpan={6}
                           className='bg-purpleLight border-b border-border py-4 px-4'
@@ -404,7 +404,7 @@ export function RegistrarPagos() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 )
               })}
             </tbody>

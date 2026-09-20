@@ -44,10 +44,33 @@ El seed crea el usuario `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` del `.env`
 (por defecto `admin@educar.local` / `admin1234`). Cambiá esa contraseña en
 producción.
 
+### Datos de prueba
+
+Para trabajar (o mostrar el sistema) con un colegio completo y ya cargado:
+
+```bash
+npm run seed:demo
+```
+
+Carga doce cursos de los tres niveles, doce docentes, más de cien alumnos con
+sus familias, asignaciones y horarios, asistencia de las últimas jornadas,
+calificaciones, cuotas con sus pagos, becas, sueldos, compras, servicios de
+transporte y comedor, reservas, noticias, galería, empleos con postulaciones,
+preinscripciones sin resolver y mensajes de contacto.
+
+Todos los usuarios que crea entran con la contraseña `demo1234`
+(configurable con `SEED_DEMO_PASSWORD`); el admin conserva la suya. Al
+terminar, imprime un usuario de ejemplo de cada rol para probar.
+
+> ⚠️ **Borra todo lo que haya en la base** antes de cargar los datos. Por eso
+> solo corre contra una base local: para usarlo en otra hay que declarar
+> `SEED_DEMO_FORCE=true` de forma explícita.
+
 Otros comandos útiles del backend:
 
 | Comando | Qué hace |
 |---|---|
+| `npm run seed:demo` | Vacía la base y la llena con datos de prueba (ver arriba) |
 | `npm run db:sync` | Después de un `git pull`: aplica las migraciones nuevas del repo en tu base local y regenera el cliente de Prisma |
 | `npm run prisma:migrate` | Crea una migración nueva después de editar `prisma/schema.prisma` |
 | `npm run prisma:studio` | Abre Prisma Studio para ver/editar los datos |
