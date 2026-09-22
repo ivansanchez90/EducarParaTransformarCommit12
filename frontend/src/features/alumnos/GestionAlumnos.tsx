@@ -3,7 +3,7 @@
  *
  * Solo presentación: toda la lógica de datos vive en `useAlumnos`.
  */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Alumno } from '../../types'
 import {
@@ -13,6 +13,7 @@ import {
   btnSecondarySm,
   card,
   fieldLabel,
+  inputField,
   selectField,
   tdCell,
   thCell,
@@ -47,6 +48,17 @@ export function GestionAlumnos() {
   const [editCursoVal, setEditCursoVal] = useState<string>('')
   const [savingCurso, setSavingCurso] = useState(false)
   const [form, setForm] = useState(FORM_INICIAL)
+  const [busqueda, setBusqueda] = useState('')
+
+  const alumnosFiltrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase()
+    if (!q) return alumnos
+    return alumnos.filter(
+      (a) =>
+        `${a.apellido} ${a.nombre}`.toLowerCase().includes(q) ||
+        a.dni.toLowerCase().includes(q),
+    )
+  }, [alumnos, busqueda])
 
   const setCampo = (campo: keyof typeof FORM_INICIAL) => (value: string) =>
     setForm((p) => ({ ...p, [campo]: value }))
@@ -248,6 +260,16 @@ export function GestionAlumnos() {
         </Card>
       )}
 
+      <div className='mb-4' style={{ maxWidth: 320 }}>
+        <input
+          type='text'
+          className={inputField}
+          placeholder='Buscar por nombre o DNI...'
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
+      </div>
+
       <div className={card}>
         <table className='w-full border-collapse'>
           <thead>
@@ -260,7 +282,14 @@ export function GestionAlumnos() {
             </tr>
           </thead>
           <tbody>
-            {alumnos.map((a) => (
+            {alumnosFiltrados.length === 0 && (
+              <tr>
+                <td className={`${tdCell} text-textMuted`} colSpan={5}>
+                  No se encontraron alumnos.
+                </td>
+              </tr>
+            )}
+            {alumnosFiltrados.map((a) => (
               <tr key={a.id_alumno}>
                 <td className={`${tdCell} font-bold`}>
                   {a.apellido}, {a.nombre}
