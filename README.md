@@ -140,6 +140,9 @@ El frontend se puede instalar en el celular como app (Android: "Instalar app"
 en Chrome; iPhone: Compartir → Agregar a inicio). La configuración está en
 `frontend/vite.config.ts` (`vite-plugin-pwa`):
 
+> El plan completo, el reparto de tareas y su estado están en
+> [`PLAN-PWA.md`](PLAN-PWA.md).
+
 - Se guardan en caché la app y las imágenes públicas de noticias y galería.
   **La API (`/api`) nunca se cachea**: los datos personales no quedan en el
   teléfono.
