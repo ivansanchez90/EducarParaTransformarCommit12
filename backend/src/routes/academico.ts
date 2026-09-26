@@ -153,13 +153,66 @@ materiasRouter.get('/', async (req, res) => {
   res.json(materias)
 })
 
+/** Horas semanales: entero mayor o igual a 0 (la columna no admite null). */
+function horasSemanales(valor: unknown): number {
+  const n = valor === null || valor === '' ? NaN : Number(valor)
+  if (!Number.isInteger(n) || n < 0) throw new HttpError(400, 'Las horas semanales deben ser un número entero mayor o igual a 0')
+  return n
+}
+
+/** Sin unique en la base: se evita a nivel aplicación que haya dos materias con el mismo nombre. */
+async function assertMateriaNoDuplicada(nombre: string, idExcluido?: number) {
+  const otra = await prisma.materia.findFirst({
+    where: {
+      nombre: { equals: nombre, mode: 'insensitive' },
+      id_materia: idExcluido ? { not: idExcluido } : undefined,
+    },
+    select: { activo: true },
+  })
+  if (!otra) return
+  throw new HttpError(
+    409,
+    otra.activo
+      ? `Ya existe la materia ${nombre}.`
+      : `Ya existe la materia ${nombre}, dada de baja: reactivala en lugar de crear otra.`,
+    '23505',
+  )
+}
+
 materiasRouter.post('/', requireRole(...ROLES_ADMIN), async (req, res) => {
-  const { nombre, horas_semanales, descripcion } = req.body ?? {}
+  const body = req.body ?? {}
+  const nombre = textOrNull(body.nombre)
   if (!nombre) throw new HttpError(400, 'El nombre es obligatorio')
+  await assertMateriaNoDuplicada(nombre)
   const materia = await prisma.materia.create({
-    data: { nombre, descripcion: textOrNull(descripcion), horas_semanales: numOrNull(horas_semanales) ?? 0 },
+    data: {
+      nombre,
+      descripcion: textOrNull(body.descripcion),
+      horas_semanales: 'horas_semanales' in body ? horasSemanales(body.horas_semanales) : 0,
+    },
   })
   res.status(201).json(materia)
+})
+
+/** Edición de la materia: solo se tocan los campos que vienen en el body. */
+materiasRouter.patch('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
+  const idMateria = id(req.params.id)
+  const body = req.body ?? {}
+  const actual = await prisma.materia.findUnique({ where: { id_materia: idMateria } })
+  if (!actual) throw new HttpError(404, 'Materia no encontrada')
+
+  const data: Prisma.MateriaUpdateInput = {}
+  if ('nombre' in body) {
+    const nombre = textOrNull(body.nombre)
+    if (!nombre) throw new HttpError(400, 'El campo nombre no puede quedar vacío')
+    await assertMateriaNoDuplicada(nombre, idMateria)
+    data.nombre = nombre
+  }
+  if ('descripcion' in body) data.descripcion = textOrNull(body.descripcion)
+  if ('horas_semanales' in body) data.horas_semanales = horasSemanales(body.horas_semanales)
+
+  const materia = await prisma.materia.update({ where: { id_materia: idMateria }, data })
+  res.json(materia)
 })
 
 // ── Docentes ───────────────────────────────────────────────────
