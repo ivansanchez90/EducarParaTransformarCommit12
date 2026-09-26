@@ -39,6 +39,22 @@ export async function verificarCupoCurso(
   }
 }
 
+/**
+ * Rechaza asignar un alumno a un curso dado de baja. Va después de
+ * verificarCupoCurso (que bloquea la fila). Si el alumno ya estaba en ese curso
+ * no es una asignación nueva: se deja editar el resto de sus datos.
+ */
+async function assertCursoActivo(tx: Prisma.TransactionClient, idCurso: number | null, idAlumno?: number) {
+  if (!idCurso) return
+  const curso = await tx.curso.findUnique({ where: { id_curso: idCurso }, select: { activo: true } })
+  if (!curso || curso.activo) return
+  if (idAlumno) {
+    const yaEstaba = await tx.alumno.count({ where: { id_alumno: idAlumno, id_curso: idCurso } })
+    if (yaEstaba) return
+  }
+  throw new HttpError(400, 'El curso está dado de baja. Elegí un curso activo.')
+}
+
 // ── Listados para el personal ──────────────────────────────────
 
 alumnosRouter.get('/', requireRole(...ROLES_STAFF), async (req, res) => {
@@ -96,6 +112,7 @@ alumnosRouter.post('/', requireRole(...ROLES_ADMIN), async (req, res) => {
   const idCurso = numOrNull(body.id_curso)
   const alumno = await prisma.$transaction(async (tx) => {
     await verificarCupoCurso(tx, idCurso)
+    await assertCursoActivo(tx, idCurso)
     return tx.alumno.create({
       data: {
         nombre: String(body.nombre ?? '').trim(),
@@ -126,6 +143,7 @@ alumnosRouter.patch('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
     if ('id_curso' in body) {
       data.id_curso = numOrNull(body.id_curso)
       await verificarCupoCurso(tx, data.id_curso, idAlumno)
+      await assertCursoActivo(tx, data.id_curso, idAlumno)
     }
     if (typeof body.activo === 'boolean') data.activo = body.activo
 

@@ -1,225 +1,192 @@
 /**
- * Gestión de cursos (panel admin): alta y listado de cursos.
- * Extraído verbatim desde AdminPanel.tsx.
+ * Gestión de cursos (panel admin): alta, edición, baja y reactivación.
+ * El acceso a datos está en useCursos; este componente es solo interfaz.
  */
 import type { FormEvent } from 'react'
-import { useCallback, useEffect, useState } from 'react'
-import { api } from '../../lib/api'
+import { useState } from 'react'
 import type { Curso } from '../../types'
+import { Badge, Card, EstadoBadge, FormMessage, SectionHeader, ToggleFormButton } from '../../ui/components'
 import {
-  badge,
+  btnDanger,
   btnPrimary,
-  card,
+  btnSecondarySm,
   fieldLabel,
+  formGrid4,
   inputField,
+  rowActions,
   selectField,
+  tableBase,
   tdCell,
   thCell,
 } from '../../ui/styles'
+import { CURSO_VACIO, aFormulario, useCursos } from './useCursos'
+import type { DatosCurso } from './useCursos'
+
+const COLOR_NIVEL: Record<string, string> = {
+  Inicial: '#27AE60',
+  Primario: '#2980B9',
+  Secundario: '#5B35C5',
+}
+
+type Aviso = { ok: boolean; texto: string } | null
 
 export function GestionCursos() {
-  const [cursos, setCursos] = useState<Curso[]>([])
+  const { cursos, crearCurso, editarCurso, cambiarEstado } = useCursos()
   const [showForm, setShowForm] = useState(false)
+  // null = alta; un curso = edición de ese curso.
+  const [editando, setEditando] = useState<Curso | null>(null)
+  const [form, setForm] = useState<DatosCurso>(CURSO_VACIO)
   const [loading, setLoading] = useState(false)
-  const [msg, setMsg] = useState('')
-  const [form, setForm] = useState({
-    nivel: 'Inicial',
-    grado_anio: '',
-    division: 'A',
-    capacidad_maxima: '30',
-  })
+  const [aviso, setAviso] = useState<Aviso>(null)
 
-  const load = useCallback(async () => {
-    const { data } = await api.get<Curso[]>('/cursos')
-    if (data) setCursos(data)
-  }, [])
+  const set = (campo: keyof DatosCurso) => (valor: string) => setForm((p) => ({ ...p, [campo]: valor }))
 
-  useEffect(() => {
-    load()
-  }, [load])
+  const cerrarForm = () => {
+    setShowForm(false)
+    setEditando(null)
+    setForm(CURSO_VACIO)
+  }
 
-  const handleCreate = async (e: FormEvent) => {
+  const abrirAlta = () => {
+    if (showForm) return cerrarForm()
+    setEditando(null)
+    setForm(CURSO_VACIO)
+    setAviso(null)
+    setShowForm(true)
+  }
+
+  const abrirEdicion = (c: Curso) => {
+    setEditando(c)
+    setForm(aFormulario(c))
+    setAviso(null)
+    setShowForm(true)
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setMsg('')
-    // El backend asigna el período académico activo.
-    const { error } = await api.post('/cursos', {
-      nivel: form.nivel,
-      grado_anio: form.grado_anio,
-      division: form.division,
-      capacidad_maxima: Number(form.capacidad_maxima),
-    })
-    if (error) setMsg('Error: ' + error.message)
-    else {
-      setMsg('✅ Curso creado.')
-      setShowForm(false)
-      load()
-    }
+    setAviso(null)
+    const error = editando ? await editarCurso(editando.id_curso, form) : await crearCurso(form)
     setLoading(false)
+    if (error) return setAviso({ ok: false, texto: error })
+    setAviso({ ok: true, texto: editando ? '✅ Curso actualizado.' : '✅ Curso creado.' })
+    cerrarForm()
+  }
+
+  const handleEstado = async (c: Curso) => {
+    setAviso(null)
+    const error = await cambiarEstado(c.id_curso, !c.activo)
+    if (error) setAviso({ ok: false, texto: error })
+    else setAviso({ ok: true, texto: c.activo ? '✅ Curso dado de baja.' : '✅ Curso reactivado.' })
   }
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 20,
-        }}
-      >
-        <h2 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>🏫 Cursos</h2>
-        <button
-          className={btnPrimary}
-          onClick={() => setShowForm(!showForm)}
-        >
-          {showForm ? 'Cancelar' : '+ Nuevo curso'}
-        </button>
-      </div>
+      <SectionHeader
+        title='🏫 Cursos'
+        action={<ToggleFormButton open={showForm} onClick={abrirAlta} openLabel='+ Nuevo curso' />}
+      />
 
       {showForm && (
-        <div className={`${card} mb-6`}>
+        <Card className='mb-6'>
           <div className='text-[15px] font-extrabold text-text mb-5'>
-            Crear curso
+            {editando ? `Editar ${editando.grado_anio} ${editando.division} de ${editando.nivel}` : 'Crear curso'}
           </div>
-          <form
-            onSubmit={handleCreate}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr 1fr',
-              gap: 14,
-            }}
-          >
+          <form onSubmit={handleSubmit} className={formGrid4}>
             <div>
-              <span className={fieldLabel}>
-                Nivel
-              </span>
-              <select
-                className={selectField}
-                value={form.nivel}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, nivel: e.target.value }))
-                }
-              >
+              <span className={fieldLabel}>Nivel</span>
+              <select className={selectField} value={form.nivel} onChange={(e) => set('nivel')(e.target.value)}>
                 <option>Inicial</option>
                 <option>Primario</option>
                 <option>Secundario</option>
               </select>
             </div>
             <div>
-              <span className={fieldLabel}>
-                Grado / Año
-              </span>
+              <span className={fieldLabel}>Grado / Año</span>
               <input
                 className={inputField}
                 required
                 value={form.grado_anio}
                 placeholder='1er Grado'
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, grado_anio: e.target.value }))
-                }
+                onChange={(e) => set('grado_anio')(e.target.value)}
               />
             </div>
             <div>
-              <span className={fieldLabel}>
-                División
-              </span>
+              <span className={fieldLabel}>División</span>
               <input
                 className={inputField}
                 required
                 value={form.division}
                 placeholder='A'
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, division: e.target.value }))
-                }
+                onChange={(e) => set('division')(e.target.value)}
               />
             </div>
             <div>
-              <span className={fieldLabel}>
-                Capacidad máx.
-              </span>
+              <span className={fieldLabel}>Capacidad máx. (vacío = sin límite)</span>
               <input
                 type='number'
+                min={1}
                 className={inputField}
                 value={form.capacidad_maxima}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, capacidad_maxima: e.target.value }))
-                }
+                onChange={(e) => set('capacidad_maxima')(e.target.value)}
               />
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <button
-                type='submit'
-                disabled={loading}
-                className={`${btnPrimary}${loading ? ' opacity-60' : ''}`}
-              >
-                {loading ? 'Guardando...' : 'Crear curso'}
+            <div className='col-span-full'>
+              <button type='submit' disabled={loading} className={`${btnPrimary}${loading ? ' opacity-60' : ''}`}>
+                {loading ? 'Guardando...' : editando ? 'Guardar cambios' : 'Crear curso'}
               </button>
             </div>
-            {msg && (
-              <div
-                style={{
-                  gridColumn: '1/-1',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: msg.startsWith('✅') ? '#27AE60' : '#E74C3C',
-                }}
-              >
-                {msg}
-              </div>
-            )}
           </form>
+        </Card>
+      )}
+
+      {aviso && (
+        <div className='mb-4'>
+          <FormMessage ok={aviso.ok}>{aviso.texto}</FormMessage>
         </div>
       )}
 
-      <div className={card}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <Card>
+        <table className={tableBase}>
           <thead>
             <tr>
-              <th className={thCell}>
-                Nivel
-              </th>
-              <th className={thCell}>
-                Grado / Año
-              </th>
-              <th className={thCell}>
-                División
-              </th>
-              <th className={thCell}>
-                Capacidad
-              </th>
+              <th className={thCell}>Nivel</th>
+              <th className={thCell}>Grado / Año</th>
+              <th className={thCell}>División</th>
+              <th className={thCell}>Capacidad</th>
+              <th className={thCell}>Estado</th>
+              <th className={thCell} />
             </tr>
           </thead>
           <tbody>
             {cursos.map((c) => (
-              <tr key={c.id_curso}>
+              <tr key={c.id_curso} className={c.activo ? '' : 'opacity-60'}>
                 <td className={tdCell}>
-                  <span
-                    style={badge(
-                      c.nivel === 'Inicial'
-                        ? '#27AE60'
-                        : c.nivel === 'Primario'
-                          ? '#2980B9'
-                          : '#5B35C5',
-                    )}
-                  >
-                    {c.nivel}
-                  </span>
+                  <Badge color={COLOR_NIVEL[c.nivel] ?? '#6B6B8A'}>{c.nivel}</Badge>
                 </td>
-                <td className={`${tdCell} font-bold`}>
-                  {c.grado_anio}
-                </td>
-                <td className={tdCell}>
-                  División {c.division}
-                </td>
+                <td className={`${tdCell} font-bold`}>{c.grado_anio}</td>
+                <td className={tdCell}>División {c.division}</td>
                 <td className={`${tdCell} text-textMuted`}>
-                  {c.capacidad_maxima} alumnos
+                  {c.capacidad_maxima === null ? 'Sin límite' : `${c.capacidad_maxima} alumnos`}
+                </td>
+                <td className={tdCell}>
+                  <EstadoBadge activo={c.activo} />
+                </td>
+                <td className={tdCell}>
+                  <div className={rowActions}>
+                    <button className={btnSecondarySm} onClick={() => abrirEdicion(c)}>
+                      Editar
+                    </button>
+                    <button className={c.activo ? btnDanger : btnSecondarySm} onClick={() => handleEstado(c)}>
+                      {c.activo ? 'Dar de baja' : 'Reactivar'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
   )
 }

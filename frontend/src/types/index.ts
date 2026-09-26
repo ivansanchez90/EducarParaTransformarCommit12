@@ -46,12 +46,15 @@ export interface Curso {
   nivel: string
   grado_anio: string
   division: string
-  capacidad_maxima: number
+  /** null = sin límite de cupo */
+  capacidad_maxima: number | null
+  activo: boolean
 }
 
 export interface Materia {
   id_materia: number
   nombre: string
+  descripcion: string | null
   horas_semanales: number
   activo: boolean
 }

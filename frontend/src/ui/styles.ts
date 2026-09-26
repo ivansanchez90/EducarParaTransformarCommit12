@@ -65,3 +65,16 @@ export const badge = (color: string): CSSProperties => ({
   fontSize: 11,
   fontWeight: 800,
 })
+
+/** Tabla de listado a todo el ancho. */
+export const tableBase = 'w-full border-collapse'
+
+/** Grilla de formulario de cuatro columnas (la última fila puede ocupar todo el ancho con `col-span-full`). */
+export const formGrid4 = 'grid grid-cols-4 gap-[14px]'
+
+/** Acciones por fila dentro de una tabla. */
+export const rowActions = 'flex gap-2 justify-end'
+
+/** Mensaje de resultado de un formulario. */
+export const msgOk = 'text-[13px] font-bold text-green'
+export const msgError = 'text-[13px] font-bold text-red'
