@@ -141,7 +141,9 @@ function useCerrarConEscape(abierto: boolean, cerrar: () => void) {
       if (e.key === 'Escape') cerrar()
     }
     document.addEventListener('keydown', alApretar)
-    return () => document.removeEventListener('keydown', alApretar)
+    return () => {
+      document.removeEventListener('keydown', alApretar)
+    }
   }, [abierto, cerrar])
 }
 
@@ -223,7 +225,9 @@ export function BottomNav({
 }) {
   const [masAbierto, setMasAbierto] = useState(false)
   const idPanel = useId()
-  const cerrarMas = () => setMasAbierto(false)
+  const cerrarMas = () => {
+    setMasAbierto(false)
+  }
   useCerrarConEscape(masAbierto, cerrarMas)
 
   const hayMas = items.length > maxVisibles + 1
@@ -253,7 +257,9 @@ export function BottomNav({
                 <li key={item.key}>
                   <button
                     type='button'
-                    onClick={() => elegir(item.key)}
+                    onClick={() => {
+                      elegir(item.key)
+                    }}
                     aria-current={item.key === activo ? 'page' : undefined}
                     className={`w-full min-h-12 flex items-center gap-3 px-6 bg-transparent border-0 cursor-pointer font-[inherit] text-sm text-left ${
                       item.key === activo ? 'text-purple-700 font-extrabold bg-purpleLight' : 'text-text font-semibold'
@@ -296,7 +302,9 @@ export function BottomNav({
                 label='Más'
                 activo={activoEnMas || masAbierto}
                 contador={contadorMas}
-                onClick={() => setMasAbierto((abierto) => !abierto)}
+                onClick={() => {
+                  setMasAbierto((abierto) => !abierto)
+                }}
                 aria-expanded={masAbierto}
                 aria-controls={idPanel}
               />
@@ -457,7 +465,9 @@ export function AvatarMenu({
       if (!contenedor.current?.contains(e.target as Node)) setAbierto(false)
     }
     document.addEventListener('pointerdown', alTocar)
-    return () => document.removeEventListener('pointerdown', alTocar)
+    return () => {
+      document.removeEventListener('pointerdown', alTocar)
+    }
   }, [abierto])
 
   return (
@@ -465,7 +475,9 @@ export function AvatarMenu({
       <button
         ref={boton}
         type='button'
-        onClick={() => setAbierto((a) => !a)}
+        onClick={() => {
+          setAbierto((a) => !a)
+        }}
         aria-haspopup='menu'
         aria-expanded={abierto}
         aria-controls={idMenu}

@@ -12,7 +12,9 @@ const CONSULTA_MOVIL = '(max-width: 767.98px)'
 function suscribir(avisar: () => void) {
   const consulta = window.matchMedia(CONSULTA_MOVIL)
   consulta.addEventListener('change', avisar)
-  return () => consulta.removeEventListener('change', avisar)
+  return () => {
+    consulta.removeEventListener('change', avisar)
+  }
 }
 
 function esMovilAhora() {

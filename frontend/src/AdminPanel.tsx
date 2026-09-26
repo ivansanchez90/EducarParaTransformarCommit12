@@ -105,7 +105,9 @@ export default function AdminPanel() {
       if (e.key === 'Escape') setMenuAbierto(false)
     }
     document.addEventListener('keydown', alApretar)
-    return () => document.removeEventListener('keydown', alApretar)
+    return () => {
+      document.removeEventListener('keydown', alApretar)
+    }
   }, [menuAbierto])
 
   if (!authChecked || !perfil) return null
@@ -144,7 +146,9 @@ export default function AdminPanel() {
           {esAdmin && (
             <button
               type='button'
-              onClick={() => setMenuAbierto(true)}
+              onClick={() => {
+                setMenuAbierto(true)
+              }}
               aria-label='Abrir menú'
               aria-haspopup='menu'
               aria-expanded={menuAbierto}
@@ -173,8 +177,22 @@ export default function AdminPanel() {
           nombre={`${perfil.nombre} ${perfil.apellido}`}
           detalle={perfil.rol}
           opciones={[
-            { key: 'password', icon: '🔑', label: 'Mi contraseña', onClick: () => setCambiandoPassword(true) },
-            { key: 'inicio', icon: '🏠', label: 'Inicio', onClick: () => navigate('/') },
+            {
+              key: 'password',
+              icon: '🔑',
+              label: 'Mi contraseña',
+              onClick: () => {
+                setCambiandoPassword(true)
+              },
+            },
+            {
+              key: 'inicio',
+              icon: '🏠',
+              label: 'Inicio',
+              onClick: () => {
+                navigate('/')
+              },
+            },
             { key: 'salir', icon: '🚪', label: 'Salir', onClick: logout },
           ]}
         />
@@ -187,7 +205,14 @@ export default function AdminPanel() {
             Menú
           </div>
           {navItems.map((item) => (
-            <ItemMenu key={item.key} item={item} activo={activeNav === item.key} onClick={() => setActiveNav(item.key)} />
+            <ItemMenu
+              key={item.key}
+              item={item}
+              activo={activeNav === item.key}
+              onClick={() => {
+                setActiveNav(item.key)
+              }}
+            />
           ))}
         </aside>
 
@@ -196,7 +221,9 @@ export default function AdminPanel() {
           <>
             <div
               className='fixed inset-0 z-[120] bg-text/30 md:hidden'
-              onClick={() => setMenuAbierto(false)}
+              onClick={() => {
+                setMenuAbierto(false)
+              }}
               aria-hidden='true'
             />
             <aside
@@ -208,7 +235,9 @@ export default function AdminPanel() {
                 <span className='text-[10px] font-extrabold text-textMuted uppercase tracking-[0.1em]'>Menú</span>
                 <button
                   type='button'
-                  onClick={() => setMenuAbierto(false)}
+                  onClick={() => {
+                    setMenuAbierto(false)
+                  }}
                   aria-label='Cerrar menú'
                   className={`${touchTarget} flex items-center justify-center text-xl bg-transparent border-0 cursor-pointer`}
                 >
@@ -216,7 +245,14 @@ export default function AdminPanel() {
                 </button>
               </div>
               {navItems.map((item) => (
-                <ItemMenu key={item.key} item={item} activo={activeNav === item.key} onClick={() => elegirNav(item.key)} />
+                <ItemMenu
+                  key={item.key}
+                  item={item}
+                  activo={activeNav === item.key}
+                  onClick={() => {
+                    elegirNav(item.key)
+                  }}
+                />
               ))}
             </aside>
           </>
@@ -277,7 +313,11 @@ export default function AdminPanel() {
       {!esAdmin && <BottomNav items={NAV_DOCENTE} activo={activeNav} onSelect={setActiveNav} />}
 
       {cambiandoPassword && (
-        <CambiarPassword onClose={() => setCambiandoPassword(false)} />
+        <CambiarPassword
+          onClose={() => {
+            setCambiandoPassword(false)
+          }}
+        />
       )}
     </div>
   )
