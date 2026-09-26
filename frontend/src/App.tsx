@@ -6,6 +6,7 @@ import AdminPanel from './AdminPanel'
 import StudentPortal from './StudentPortal'
 import NoticiaDetalle from './NoticiaDetalle'
 import { ActualizarApp } from './pwa/ActualizarApp'
+import { AvisoSinConexion } from './pwa/AvisoSinConexion'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path='/portal' element={<StudentPortal />} />
       </Routes>
       <ActualizarApp />
+      <AvisoSinConexion />
     </BrowserRouter>
   )
 }

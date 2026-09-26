@@ -128,7 +128,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T5. Shell del portal: cabecera, selector de hijo, `BottomNav` de padre y alumno | 1 | 2 | Iván (era de Juan Manuel) | T3 | 1,5–2 días | Hecho (PR #10) |
 | T6. Pantallas del docente en celular: Tomar asistencia, Calificaciones, Amonestaciones | 2 | 2 | Iván | T4 | 2–3 días | En revisión |
 | T7. Las 8 secciones del portal en celular | 2 | 2 | Juan Manuel | T5 | 2–3 días | En revisión |
-| T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | Pendiente |
+| T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | En revisión |
 | T9. Admin en celular, parte académica: usuarios, alumnos, docentes, cursos, materias, asignaciones, inscripciones, mensajes, actividades, reservas, legajos | 5 | 3 | Iván | T4 | 1–1,5 días | Pendiente |
 | T10. Admin en celular, parte de gestión y sitio: cuotas, pagos, becas, sueldos, compras, servicios, reportes, noticias, empleos, postulaciones, galería | 5 | 3 | Juan Manuel | T4 | 1–1,5 días | Pendiente |
 | T11. (Opcional) Push, backend: tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío en `notificarFamilias` | 4 | 4 | Iván | T1 | 2 días | Pendiente |
@@ -346,6 +346,35 @@ interface NavItem { key: string; icon: string; label: string }
   un efecto), confirmado comparando contra `main` con `git stash`. No probado
   con la API real ni en un teléfono real (no se puede levantar el backend en
   este entorno).
+
+### T8 — Aviso "Sin conexión" (Juan Manuel): en revisión, rama `feat/pwa-t8-sin-conexion`
+
+- **Qué quedó:**
+  - `ui/useEnLinea.ts`: hook (`useSyncExternalStore`, mismo patrón que
+    `useEsMovil`) que refleja `navigator.onLine` y se actualiza con los
+    eventos `online`/`offline` del navegador.
+  - `pwa/AvisoSinConexion.tsx`: tarjeta flotante — mismo patrón que
+    `pwa/ActualizarApp.tsx` (T1) en vez de una barra a todo el ancho, para no
+    taparle los botones a las cabeceras `sticky` de `AdminPanel`/
+    `StudentPortal`. Se monta una sola vez en `App.tsx`, así que cubre las 5
+    rutas (`/`, `/login`, `/admin`, `/portal`, `/noticias/:id`) con un solo
+    componente. Se ubica más arriba que `ActualizarApp` para que los dos
+    avisos puedan mostrarse a la vez sin superponerse. Al volver la señal
+    muestra "Conexión restablecida" 3 segundos (con una `ref` para no
+    mostrarlo también al abrir la app ya online, que era el primer intento).
+  - Patrón de guardado deshabilitado, aplicado en `features/cuenta/
+    CambiarPassword.tsx` (el único formulario que ya comparten el panel y el
+    portal): `useEnLinea()` deshabilita el botón de guardar y muestra el
+    motivo debajo, sin tocar el resto del formulario ni perder lo tipeado.
+- **Qué falta:** extender `useEnLinea()` al resto de los formularios de
+  guardado (los del docente de T6, los del portal de T7, y los ~21 módulos
+  del panel de T9/T10). Se dejó como patrón listo para que cada tarea que
+  toque una pantalla lo sume, en vez de tocar los ~25 formularios del
+  proyecto en un solo PR.
+- **Verificado:** `pnpm build` y `eslint` de los 4 archivos tocados sin
+  errores. No se pudo probar en el navegador (DevTools → Network → Offline)
+  porque el backend no está levantado en este entorno; falta esa prueba y la
+  de un teléfono real en modo avión.
 
 ## Pruebas
 
