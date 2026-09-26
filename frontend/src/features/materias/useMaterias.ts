@@ -44,7 +44,7 @@ export function useMaterias() {
   }, [])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
   /** Crea una materia. Devuelve el error si lo hay. */

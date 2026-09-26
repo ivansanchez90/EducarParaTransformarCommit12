@@ -39,7 +39,9 @@ export function GestionCursos() {
   const [loading, setLoading] = useState(false)
   const [aviso, setAviso] = useState<Aviso>(null)
 
-  const set = (campo: keyof DatosCurso) => (valor: string) => setForm((p) => ({ ...p, [campo]: valor }))
+  const set = (campo: keyof DatosCurso) => (valor: string) => {
+    setForm((p) => ({ ...p, [campo]: valor }))
+  }
 
   const cerrarForm = () => {
     setShowForm(false)
@@ -48,7 +50,10 @@ export function GestionCursos() {
   }
 
   const abrirAlta = () => {
-    if (showForm) return cerrarForm()
+    if (showForm) {
+      cerrarForm()
+      return
+    }
     setEditando(null)
     setForm(CURSO_VACIO)
     setAviso(null)
@@ -68,7 +73,10 @@ export function GestionCursos() {
     setAviso(null)
     const error = editando ? await editarCurso(editando.id_curso, form) : await crearCurso(form)
     setLoading(false)
-    if (error) return setAviso({ ok: false, texto: error })
+    if (error) {
+      setAviso({ ok: false, texto: error })
+      return
+    }
     setAviso({ ok: true, texto: editando ? '✅ Curso actualizado.' : '✅ Curso creado.' })
     cerrarForm()
   }
@@ -92,10 +100,16 @@ export function GestionCursos() {
           <div className='text-[15px] font-extrabold text-text mb-5'>
             {editando ? `Editar ${editando.grado_anio} ${editando.division} de ${editando.nivel}` : 'Crear curso'}
           </div>
-          <form onSubmit={handleSubmit} className={formGrid4}>
+          <form onSubmit={(e) => void handleSubmit(e)} className={formGrid4}>
             <div>
               <span className={fieldLabel}>Nivel</span>
-              <select className={selectField} value={form.nivel} onChange={(e) => set('nivel')(e.target.value)}>
+              <select
+                className={selectField}
+                value={form.nivel}
+                onChange={(e) => {
+                  set('nivel')(e.target.value)
+                }}
+              >
                 <option>Inicial</option>
                 <option>Primario</option>
                 <option>Secundario</option>
@@ -108,7 +122,9 @@ export function GestionCursos() {
                 required
                 value={form.grado_anio}
                 placeholder='1er Grado'
-                onChange={(e) => set('grado_anio')(e.target.value)}
+                onChange={(e) => {
+                  set('grado_anio')(e.target.value)
+                }}
               />
             </div>
             <div>
@@ -118,7 +134,9 @@ export function GestionCursos() {
                 required
                 value={form.division}
                 placeholder='A'
-                onChange={(e) => set('division')(e.target.value)}
+                onChange={(e) => {
+                  set('division')(e.target.value)
+                }}
               />
             </div>
             <div>
@@ -128,7 +146,9 @@ export function GestionCursos() {
                 min={1}
                 className={inputField}
                 value={form.capacidad_maxima}
-                onChange={(e) => set('capacidad_maxima')(e.target.value)}
+                onChange={(e) => {
+                  set('capacidad_maxima')(e.target.value)
+                }}
               />
             </div>
             <div className='col-span-full'>
@@ -174,10 +194,15 @@ export function GestionCursos() {
                 </td>
                 <td className={tdCell}>
                   <div className={rowActions}>
-                    <button className={btnSecondarySm} onClick={() => abrirEdicion(c)}>
+                    <button
+                      className={btnSecondarySm}
+                      onClick={() => {
+                        abrirEdicion(c)
+                      }}
+                    >
                       Editar
                     </button>
-                    <button className={c.activo ? btnDanger : btnSecondarySm} onClick={() => handleEstado(c)}>
+                    <button className={c.activo ? btnDanger : btnSecondarySm} onClick={() => void handleEstado(c)}>
                       {c.activo ? 'Dar de baja' : 'Reactivar'}
                     </button>
                   </div>

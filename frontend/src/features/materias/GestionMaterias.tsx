@@ -21,7 +21,9 @@ export function GestionMaterias() {
   const [loading, setLoading] = useState(false)
   const [aviso, setAviso] = useState<Aviso>(null)
 
-  const set = (campo: keyof DatosMateria) => (valor: string) => setForm((p) => ({ ...p, [campo]: valor }))
+  const set = (campo: keyof DatosMateria) => (valor: string) => {
+    setForm((p) => ({ ...p, [campo]: valor }))
+  }
 
   const cerrarForm = () => {
     setShowForm(false)
@@ -30,7 +32,10 @@ export function GestionMaterias() {
   }
 
   const abrirAlta = () => {
-    if (showForm) return cerrarForm()
+    if (showForm) {
+      cerrarForm()
+      return
+    }
     setEditando(null)
     setForm(MATERIA_VACIA)
     setAviso(null)
@@ -50,7 +55,10 @@ export function GestionMaterias() {
     setAviso(null)
     const error = editando ? await editarMateria(editando.id_materia, form) : await crearMateria(form)
     setLoading(false)
-    if (error) return setAviso({ ok: false, texto: error })
+    if (error) {
+      setAviso({ ok: false, texto: error })
+      return
+    }
     setAviso({ ok: true, texto: editando ? '✅ Materia actualizada.' : '✅ Materia creada.' })
     cerrarForm()
   }
@@ -79,7 +87,7 @@ export function GestionMaterias() {
           <div className='text-[15px] font-extrabold text-text mb-5'>
             {editando ? `Editar ${editando.nombre}` : 'Crear materia'}
           </div>
-          <form onSubmit={handleSubmit} className={formGrid4}>
+          <form onSubmit={(e) => void handleSubmit(e)} className={formGrid4}>
             <div className='col-span-2'>
               <Field label='Nombre de la materia' required value={form.nombre} onChange={set('nombre')} />
             </div>
@@ -132,10 +140,15 @@ export function GestionMaterias() {
                 </td>
                 <td className={tdCell}>
                   <div className={rowActions}>
-                    <button className={btnSecondarySm} onClick={() => abrirEdicion(m)}>
+                    <button
+                      className={btnSecondarySm}
+                      onClick={() => {
+                        abrirEdicion(m)
+                      }}
+                    >
                       Editar
                     </button>
-                    <button className={m.activo ? btnDanger : btnSecondarySm} onClick={() => handleEstado(m)}>
+                    <button className={m.activo ? btnDanger : btnSecondarySm} onClick={() => void handleEstado(m)}>
                       {m.activo ? 'Dar de baja' : 'Reactivar'}
                     </button>
                   </div>
