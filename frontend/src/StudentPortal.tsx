@@ -18,7 +18,7 @@ import { CambiarPassword } from './features/cuenta/CambiarPassword'
 import type { RecorridoTransporte, ServiciosAlumno } from './types'
 import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/auth'
 import type { Perfil } from './lib/auth'
-import { AvatarMenu, BottomNav } from './ui/components'
+import { AvatarMenu, Badge, BottomNav, ResponsiveTable, type Columna } from './ui/components'
 import { conBottomNav, conPaddingX, touchTarget } from './ui/styles'
 import { useEsMovil } from './ui/useEsMovil'
 
@@ -151,6 +151,105 @@ const NOTIF_COLOR: Record<string, string> = {
   Novedad: '#2980B9',
   Urgente: '#C0392B',
 }
+
+/** Círculo con la nota, coloreado según `notaColor`. */
+function NotaBadge({ nota }: { nota: number }) {
+  return (
+    <div
+      className='w-[38px] h-[38px] rounded-full flex items-center justify-center font-black text-sm shrink-0'
+      style={{ background: notaColor(nota) + '1A', color: notaColor(nota) }}
+    >
+      {nota}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  COLUMNAS DE TABLAS (escritorio) / TARJETAS (celular)
+// ═══════════════════════════════════════════════════════════════
+const COLUMNAS_CALIFICACIONES_RESUMEN: Columna<Calificacion>[] = [
+  {
+    key: 'materia',
+    header: 'Materia',
+    movil: 'titulo',
+    render: (c) => c.asignaciones?.materias?.nombre,
+  },
+  {
+    key: 'tipo',
+    header: 'Tipo',
+    render: (c) => <Badge color='#5B35C5'>{c.tipo_evaluacion}</Badge>,
+  },
+  {
+    key: 'trimestre',
+    header: 'Trimestre',
+    className: 'text-textMuted',
+    render: (c) => `Trimestre ${c.trimestre}`,
+  },
+  {
+    key: 'fecha',
+    header: 'Fecha',
+    className: 'text-textMuted',
+    render: (c) => formatFecha(c.fecha_carga),
+  },
+  {
+    key: 'nota',
+    header: 'Nota',
+    movil: 'pie',
+    render: (c) => <NotaBadge nota={c.nota} />,
+  },
+]
+
+const COLUMNAS_CALIFICACIONES: Columna<Calificacion>[] = [
+  ...COLUMNAS_CALIFICACIONES_RESUMEN.slice(0, 4),
+  {
+    key: 'descripcion',
+    header: 'Descripción',
+    className: 'text-textMuted',
+    render: (c) => c.descripcion ?? '—',
+  },
+  COLUMNAS_CALIFICACIONES_RESUMEN[4],
+]
+
+const COLUMNAS_CUOTAS: Columna<Cuota>[] = [
+  {
+    key: 'periodo',
+    header: 'Período',
+    movil: 'titulo',
+    render: (c) => `${MESES[c.mes - 1]} ${c.anio}`,
+  },
+  {
+    key: 'monto',
+    header: 'Monto base',
+    render: (c) => `$${c.monto_base.toLocaleString('es-AR')}`,
+  },
+  {
+    key: 'recargo',
+    header: 'Recargo',
+    render: (c) => (
+      <span style={{ color: c.recargo > 0 ? '#E74C3C' : '#6B6B8A' }}>
+        {c.recargo > 0 ? `+$${c.recargo.toLocaleString('es-AR')}` : '—'}
+      </span>
+    ),
+  },
+  {
+    key: 'total',
+    header: 'Total a pagar',
+    className: 'font-black text-purple-700',
+    render: (c) => `$${(c.monto_base + c.recargo - c.descuento).toLocaleString('es-AR')}`,
+  },
+  {
+    key: 'vencimiento',
+    header: 'Vencimiento',
+    className: 'text-textMuted',
+    render: (c) => formatFecha(c.fecha_vencimiento),
+  },
+  {
+    key: 'estado',
+    header: 'Estado',
+    movil: 'pie',
+    render: (c) => <Badge color={CUOTA_COLOR[c.estado] ?? '#6B6B8A'}>{c.estado}</Badge>,
+  },
+]
 
 // ═══════════════════════════════════════════════════════════════
 //  SECCIONES DE NAVEGACIÓN
@@ -647,7 +746,7 @@ export default function StudentPortal() {
               </div>
 
               {/* Stats */}
-              <div className='grid grid-cols-4 gap-3.5 mb-6'>
+              <div className='grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6'>
                 {/* Asistencia */}
                 <div className='bg-white rounded-[14px] px-5 py-[18px] shadow-[0_2px_12px_rgba(91,53,197,0.06)] border border-border'>
                   <div className='w-10 h-10 rounded-[10px] flex items-center justify-center text-xl mb-2.5 bg-purpleLight'>
@@ -713,7 +812,7 @@ export default function StudentPortal() {
               </div>
 
               {/* Horario hoy + Notificaciones */}
-              <div className='grid grid-cols-2 gap-[18px] mb-[18px]'>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-[18px] mb-[18px]'>
                 {/* Clases de hoy */}
                 <div className='bg-white rounded-card p-6 shadow-card border border-border'>
                   <div className='text-[15px] font-extrabold text-text mb-5 flex items-center gap-2'>
@@ -806,65 +905,12 @@ export default function StudentPortal() {
                 <div className='text-[15px] font-extrabold text-text mb-5 flex items-center gap-2'>
                   📊 Últimas calificaciones
                 </div>
-                {calificaciones.length === 0 ? (
-                  <div className='flex items-center justify-center py-8 text-textMuted text-[13px]'>
-                    Sin calificaciones registradas
-                  </div>
-                ) : (
-                  <table className='w-full border-collapse'>
-                    <thead>
-                      <tr>
-                        {['Materia', 'Tipo', 'Trimestre', 'Fecha', 'Nota'].map(
-                          (h) => (
-                            <th
-                              key={h}
-                              className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-3 border-b-2 border-border'
-                            >
-                              {h}
-                            </th>
-                          ),
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {calificaciones.slice(0, 6).map((c) => (
-                        <tr key={c.id_calificacion}>
-                          <td className='py-[11px] text-[13px] border-b border-border align-middle font-extrabold'>
-                            {c.asignaciones?.materias?.nombre}
-                          </td>
-                          <td className='py-[11px] text-[13px] border-b border-border align-middle'>
-                            <span
-                              className='inline-block rounded-[20px] px-2.5 py-[3px] text-[11px] font-extrabold'
-                              style={{
-                                background: '#5B35C51A',
-                                color: '#5B35C5',
-                              }}
-                            >
-                              {c.tipo_evaluacion}
-                            </span>
-                          </td>
-                          <td className='py-[11px] text-[13px] border-b border-border align-middle text-textMuted'>
-                            Trimestre {c.trimestre}
-                          </td>
-                          <td className='py-[11px] text-[13px] border-b border-border align-middle text-textMuted'>
-                            {formatFecha(c.fecha_carga)}
-                          </td>
-                          <td className='py-[11px] text-[13px] border-b border-border align-middle'>
-                            <div
-                              className='w-[38px] h-[38px] rounded-full flex items-center justify-center font-black text-sm shrink-0'
-                              style={{
-                                background: notaColor(c.nota) + '1A',
-                                color: notaColor(c.nota),
-                              }}
-                            >
-                              {c.nota}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                <ResponsiveTable
+                  columnas={COLUMNAS_CALIFICACIONES_RESUMEN}
+                  filas={calificaciones.slice(0, 6)}
+                  filaKey={(c) => c.id_calificacion}
+                  vacio='Sin calificaciones registradas'
+                />
               </div>
             </>
           )}
@@ -882,7 +928,7 @@ export default function StudentPortal() {
               ) : (
                 <>
                   {/* Counters */}
-                  <div className='grid grid-cols-5 gap-3 mb-7'>
+                  <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-7'>
                     {[
                       {
                         label: 'Presentes',
@@ -970,7 +1016,7 @@ export default function StudentPortal() {
           {/* ━━━━━ CALIFICACIONES ━━━━━ */}
           {activeNav === 'calificaciones' && (
             <div className='bg-white rounded-card p-6 shadow-card border border-border'>
-              <div className='flex justify-between items-center mb-5'>
+              <div className='flex justify-between items-center gap-2 flex-wrap mb-5'>
                 <div className='text-[15px] font-extrabold text-text flex items-center gap-2'>
                   📊 Todas mis Calificaciones
                 </div>
@@ -980,73 +1026,12 @@ export default function StudentPortal() {
                   </div>
                 )}
               </div>
-              {calificaciones.length === 0 ? (
-                <div className='flex items-center justify-center py-8 text-textMuted text-[13px]'>
-                  Sin calificaciones registradas
-                </div>
-              ) : (
-                <table className='w-full border-collapse'>
-                  <thead>
-                    <tr>
-                      {[
-                        'Materia',
-                        'Tipo',
-                        'Trimestre',
-                        'Fecha',
-                        'Descripción',
-                        'Nota',
-                      ].map((h) => (
-                        <th
-                          key={h}
-                          className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-3 border-b-2 border-border'
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {calificaciones.map((c) => (
-                      <tr key={c.id_calificacion}>
-                        <td className='py-[11px] text-[13px] border-b border-border align-middle font-extrabold'>
-                          {c.asignaciones?.materias?.nombre}
-                        </td>
-                        <td className='py-[11px] text-[13px] border-b border-border align-middle'>
-                          <span
-                            className='inline-block rounded-[20px] px-2.5 py-[3px] text-[11px] font-extrabold'
-                            style={{
-                              background: '#5B35C51A',
-                              color: '#5B35C5',
-                            }}
-                          >
-                            {c.tipo_evaluacion}
-                          </span>
-                        </td>
-                        <td className='py-[11px] text-[13px] border-b border-border align-middle text-textMuted'>
-                          T{c.trimestre}
-                        </td>
-                        <td className='py-[11px] text-[13px] border-b border-border align-middle text-textMuted'>
-                          {formatFecha(c.fecha_carga)}
-                        </td>
-                        <td className='py-[11px] text-[13px] border-b border-border align-middle text-textMuted'>
-                          {c.descripcion ?? '—'}
-                        </td>
-                        <td className='py-[11px] text-[13px] border-b border-border align-middle'>
-                          <div
-                            className='w-[38px] h-[38px] rounded-full flex items-center justify-center font-black text-sm shrink-0'
-                            style={{
-                              background: notaColor(c.nota) + '1A',
-                              color: notaColor(c.nota),
-                            }}
-                          >
-                            {c.nota}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+              <ResponsiveTable
+                columnas={COLUMNAS_CALIFICACIONES}
+                filas={calificaciones}
+                filaKey={(c) => c.id_calificacion}
+                vacio='Sin calificaciones registradas'
+              />
             </div>
           )}
 
@@ -1069,72 +1054,11 @@ export default function StudentPortal() {
                     ⚠️ Tenés {cuotas.length} cuota{cuotas.length > 1 ? 's' : ''}{' '}
                     sin abonar. Regularizá tu situación para evitar recargos.
                   </div>
-                  <table className='w-full border-collapse'>
-                    <thead>
-                      <tr>
-                        {[
-                          'Período',
-                          'Monto base',
-                          'Recargo',
-                          'Total a pagar',
-                          'Vencimiento',
-                          'Estado',
-                        ].map((h) => (
-                          <th
-                            key={h}
-                            className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-3 border-b-2 border-border'
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cuotas.map((c) => (
-                        <tr key={c.id_cuota}>
-                          <td className='py-[11px] text-[13px] border-b border-border align-middle font-extrabold'>
-                            {MESES[c.mes - 1]} {c.anio}
-                          </td>
-                          <td className='py-[11px] text-[13px] border-b border-border align-middle'>
-                            ${c.monto_base.toLocaleString('es-AR')}
-                          </td>
-                          <td
-                            className='py-[11px] text-[13px] border-b border-border align-middle'
-                            style={{
-                              color: c.recargo > 0 ? '#E74C3C' : '#6B6B8A',
-                            }}
-                          >
-                            {c.recargo > 0
-                              ? `+$${c.recargo.toLocaleString('es-AR')}`
-                              : '—'}
-                          </td>
-                          <td className='py-[11px] text-[13px] border-b border-border align-middle font-black text-purple-700'>
-                            $
-                            {(
-                              c.monto_base +
-                              c.recargo -
-                              c.descuento
-                            ).toLocaleString('es-AR')}
-                          </td>
-                          <td className='py-[11px] text-[13px] border-b border-border align-middle text-textMuted'>
-                            {formatFecha(c.fecha_vencimiento)}
-                          </td>
-                          <td className='py-[11px] text-[13px] border-b border-border align-middle'>
-                            <span
-                              className='inline-block rounded-[20px] px-2.5 py-[3px] text-[11px] font-extrabold'
-                              style={{
-                                background:
-                                  (CUOTA_COLOR[c.estado] ?? '#6B6B8A') + '1A',
-                                color: CUOTA_COLOR[c.estado] ?? '#6B6B8A',
-                              }}
-                            >
-                              {c.estado}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <ResponsiveTable
+                    columnas={COLUMNAS_CUOTAS}
+                    filas={cuotas}
+                    filaKey={(c) => c.id_cuota}
+                  />
                 </>
               )}
             </div>
@@ -1211,7 +1135,7 @@ export default function StudentPortal() {
                         ? '🗣️ Idiomas'
                         : '⚽ Disciplinas deportivas'}
                     </div>
-                    <div className='grid grid-cols-2 gap-3'>
+                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                       {items.map((a) => {
                         const disponibles = a.cupo_maximo - a.inscriptos
                         const completo = disponibles <= 0
@@ -1373,7 +1297,7 @@ export default function StudentPortal() {
               )}
 
               {esTutor && (
-                <div className='grid grid-cols-2 gap-3'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                   {recorridos.map((r) => {
                     const actual =
                       servicios?.transporte?.recorridos_transporte.id_recorrido === r.id_recorrido
@@ -1429,7 +1353,7 @@ export default function StudentPortal() {
 
           {activeNav === 'notificaciones' && (
             <div className='bg-white rounded-card p-6 shadow-card border border-border'>
-              <div className='flex justify-between items-center mb-5'>
+              <div className='flex justify-between items-center gap-2 flex-wrap mb-5'>
                 <div className='text-[15px] font-extrabold text-text flex items-center gap-2'>
                   🔔 Todas mis Notificaciones
                 </div>
