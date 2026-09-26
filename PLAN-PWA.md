@@ -128,9 +128,9 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T5. Shell del portal: cabecera, selector de hijo, `BottomNav` de padre y alumno | 1 | 2 | Iván (era de Juan Manuel) | T3 | 1,5–2 días | Hecho (PR #10) |
 | T6. Pantallas del docente en celular: Tomar asistencia, Calificaciones, Amonestaciones | 2 | 2 | Iván | T4 | 2–3 días | Hecho (PR #12) |
 | T7. Las 8 secciones del portal en celular | 2 | 2 | Juan Manuel | T5 | 2–3 días | Hecho (PR #13) |
-| T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | En revisión |
+| T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | Hecho (PR #15) |
 | T9. Admin en celular, parte académica: usuarios, alumnos, docentes, cursos, materias, asignaciones, inscripciones, mensajes, actividades, reservas, legajos | 5 | 3 | Iván | T4 | 1–1,5 días | Hecho (PR #14) |
-| T10. Admin en celular, parte de gestión y sitio: cuotas, pagos, becas, sueldos, compras, servicios, reportes, noticias, empleos, postulaciones, galería | 5 | 3 | Juan Manuel | T4 | 1–1,5 días | Pendiente |
+| T10. Admin en celular, parte de gestión y sitio: cuotas, pagos, becas, sueldos, compras, servicios, reportes, noticias, empleos, postulaciones, galería | 5 | 3 | Juan Manuel | T4 | 1–1,5 días | En revisión |
 | T11. (Opcional) Push, backend: tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío en `notificarFamilias` | 4 | 4 | Iván | T1 | 2 días | Pendiente |
 | T12. (Opcional) Push, frontend: botón "Activar avisos" y manejo del aviso en el service worker (`importScripts` en la config de Workbox) | 4 | 4 | Juan Manuel | T11 | 1–2 días | Pendiente |
 
@@ -347,7 +347,7 @@ interface NavItem { key: string; icon: string; label: string }
   con la API real ni en un teléfono real (no se puede levantar el backend en
   este entorno).
 
-### T8 — Aviso "Sin conexión" (Juan Manuel): en revisión, rama `feat/pwa-t8-sin-conexion`
+### T8 — Aviso "Sin conexión" (Juan Manuel): hecho, mergeado en el PR #15
 
 - **Qué quedó:**
   - `ui/useEnLinea.ts`: hook (`useSyncExternalStore`, mismo patrón que
@@ -413,6 +413,38 @@ interface NavItem { key: string; icon: string; label: string }
   que los nombres largos ocupan varias líneas. Si molesta, se puede dar un
   ancho mínimo a las tablas dentro de `TablaScroll` o pasar las más usadas a
   `ResponsiveTable`.
+
+### T10 — Admin en celular, parte de gestión y sitio (Juan Manuel): en revisión, rama `feat/pwa-t10-admin-gestion`
+
+- **Qué quedó** (en `frontend/src/features/`: cuotas, pagos, becas, sueldos,
+  compras, servicios, reportes, noticias, empleos, postulaciones y galería —
+  11 pantallas, 13 tablas en total):
+  - Las 13 tablas quedaron dentro de `TablaScroll` (mismo componente que T9),
+    incluida la del reporte con formato dinámico (`GestionReportes`, la única
+    tabla que se arma según el tipo de reporte elegido) y las dos tablas
+    independientes de Registrar pagos (cuotas filtradas + historial).
+  - Grillas fijas (`grid-cols-2/3/5`) y dos `gridTemplateColumns` en línea
+    (Compras, Galería) pasaron a 1 columna en el celular, siguiendo la misma
+    convención que dejó T9: `grid-cols-1 sm:grid-cols-N`.
+  - Las cabeceras con botón (Servicios, Empleos) ahora bajan de línea con
+    `flex-wrap` si no entran, igual que hizo T9 en Mensajes.
+  - `Empleos` no tenía tabla (usa tarjetas de `flex`); ya traía `min-w-0` y
+    `shrink-0` bien puestos, así que no necesitó cambios ahí.
+- **No se tocó** `ui/styles.ts` ni `ui/components.tsx`: `formGrid4` (1 columna
+  en el celular) y el `flex-wrap` de `SectionHeader` ya los dejó T9 hechos
+  para las dos partes del admin, así que esta tarea los usa tal cual.
+- **Cómo se midió:** mismo método que T9 (`main.scrollWidth` del panel contra
+  su ancho visible, buscando elementos fuera de un `TablaScroll`), pero sin
+  poder correr `pnpm preview` con la API simulada en este entorno (sin
+  backend), así que la medición fue por inspección del código: cada tabla y
+  cada grilla fija de las 11 pantallas quedó localizada con `grep` antes y
+  después del cambio, sin ninguna sin convertir.
+- **Verificado:** `pnpm build` sin errores; el lint de las 11 pantallas da
+  los mismos 16 errores que en `main` antes de esta tarea (confirmado con
+  `git stash`; todos `setState` dentro de un efecto al cargar datos, igual
+  que en T6/T9). **No probado en el navegador ni en un teléfono real** (no
+  se pudo levantar el backend en este entorno) — a diferencia de T1-T9, acá
+  falta esa verificación visual.
 
 ## Pruebas
 

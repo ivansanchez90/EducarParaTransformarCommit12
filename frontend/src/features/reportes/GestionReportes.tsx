@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, descargar, qs } from '../../lib/api'
 import type { AlumnoServicios, OpcionesReportes, ReporteDoc } from '../../types'
+import { TablaScroll } from '../../ui/components'
 import {
   btnPrimary,
   btnSecondary,
@@ -145,7 +146,7 @@ export function GestionReportes() {
         <div className='text-[15px] font-extrabold text-text mb-5'>
           ¿Qué reporte necesitás?
         </div>
-        <div className='grid grid-cols-3 gap-3'>
+        <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
           {REPORTES.map((r) => {
             const activo = reporte === r.key
             return (
@@ -306,7 +307,7 @@ export function GestionReportes() {
               )}
 
               {bloque.tipo === 'datos' && (
-                <div className='grid grid-cols-2 gap-4'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                   {bloque.items.map(([label, valor]) => (
                     <div key={label}>
                       <div className='text-[11px] font-extrabold text-textMuted uppercase'>
@@ -329,6 +330,7 @@ export function GestionReportes() {
                   </div>
                 ) : (
                   <>
+                    <TablaScroll>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr>
@@ -351,6 +353,7 @@ export function GestionReportes() {
                         ))}
                       </tbody>
                     </table>
+                    </TablaScroll>
                     <div className='text-[12px] font-bold text-textMuted mt-3'>
                       Total: {bloque.filas.length} registro(s)
                     </div>

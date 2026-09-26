@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api } from '../../lib/api'
+import { TablaScroll } from '../../ui/components'
 import { badge, btnPrimary, card, fieldLabel, inputField, selectField, thCell } from '../../ui/styles'
 
 export function GestionGaleria() {
@@ -125,13 +126,7 @@ export function GestionGaleria() {
             onSubmit={handleCreate}
             style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
           >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 14,
-              }}
-            >
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-[14px]'>
               <div>
                 <span className={fieldLabel}>
                   Título de la foto (Opcional)
@@ -180,14 +175,7 @@ export function GestionGaleria() {
               />
             </div>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 14,
-                alignItems: 'center',
-              }}
-            >
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-[14px] items-center'>
               <div>
                 <span className={fieldLabel}>
                   Opción A: Seleccionar archivo local
@@ -246,6 +234,7 @@ export function GestionGaleria() {
 
       {/* Lista del Repositorio Visual */}
       <div className={card}>
+        <TablaScroll>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -335,6 +324,7 @@ export function GestionGaleria() {
             )}
           </tbody>
         </table>
+        </TablaScroll>
       </div>
     </div>
   )

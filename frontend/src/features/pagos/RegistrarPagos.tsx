@@ -6,6 +6,7 @@ import { Fragment, useCallback, useEffect, useState } from 'react'
 import { api, qs } from '../../lib/api'
 import type { Cuota, Pago } from '../../types'
 import { MESES, METODOS_PAGO, CUOTA_ESTADO_COLOR } from '../../constants'
+import { TablaScroll } from '../../ui/components'
 import {
   btnPrimary,
   btnDanger,
@@ -178,7 +179,7 @@ export function RegistrarPagos() {
       </div>
 
       {/* Estadísticas */}
-      <div className='grid grid-cols-3 gap-4'>
+      <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
         {[
           {
             label: 'Total pendiente',
@@ -240,6 +241,7 @@ export function RegistrarPagos() {
             🎉 No hay cuotas pendientes con los filtros seleccionados.
           </div>
         ) : (
+          <TablaScroll>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
@@ -409,6 +411,7 @@ export function RegistrarPagos() {
               })}
             </tbody>
           </table>
+          </TablaScroll>
         )}
       </div>
 
@@ -428,6 +431,7 @@ export function RegistrarPagos() {
             Todavía no hay pagos registrados.
           </div>
         ) : (
+          <TablaScroll>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
@@ -475,6 +479,7 @@ export function RegistrarPagos() {
               ))}
             </tbody>
           </table>
+          </TablaScroll>
         )}
       </div>
     </div>

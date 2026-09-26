@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { api } from '../../lib/api'
 import type { Sueldo, UsuarioPanel } from '../../types'
 import { MESES } from '../../constants'
+import { TablaScroll } from '../../ui/components'
 import {
   btnPrimary,
   btnSecondary,
@@ -167,6 +168,7 @@ export function GestionSueldos() {
         <div className='text-[15px] font-extrabold text-text mb-5'>
           Sueldos registrados
         </div>
+        <TablaScroll>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -246,6 +248,7 @@ export function GestionSueldos() {
             )}
           </tbody>
         </table>
+        </TablaScroll>
       </div>
     </div>
   )
