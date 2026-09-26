@@ -29,7 +29,7 @@ export function ActualizarApp() {
   return (
     <div
       role='status'
-      className="fixed inset-x-4 bottom-[calc(16px+env(safe-area-inset-bottom))] z-[1000] mx-auto max-w-[420px] bg-white border border-border rounded-btn shadow-[0_8px_32px_rgba(91,53,197,0.18)] p-4 flex items-center gap-3 font-[Nunito,_'Segoe_UI',_sans-serif]"
+      className="fixed inset-x-4 bottom-[calc(80px+env(safe-area-inset-bottom))] md:bottom-[calc(16px+env(safe-area-inset-bottom))] z-[1000] mx-auto max-w-[420px] bg-white border border-border rounded-btn shadow-[0_8px_32px_rgba(91,53,197,0.18)] p-4 flex items-center gap-3 font-[Nunito,_'Segoe_UI',_sans-serif]"
     >
       <span className='text-[13px] font-bold text-text flex-1'>Hay una versión nueva de la app.</span>
       <button

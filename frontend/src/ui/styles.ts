@@ -78,3 +78,24 @@ export const rowActions = 'flex gap-2 justify-end'
 /** Mensaje de resultado de un formulario. */
 export const msgOk = 'text-[13px] font-bold text-green'
 export const msgError = 'text-[13px] font-bold text-red'
+
+// ── Mobile y bordes del teléfono ────────────────────────────────
+// La app instalada usa `viewport-fit=cover`, así que el contenido puede quedar
+// debajo del gesto de inicio del iPhone o del notch en horizontal. Estas
+// clases suman el margen seguro que informa el navegador (0 en escritorio).
+
+/** Relleno inferior igual al área segura (barra de gestos del iPhone). */
+export const safeAreaBottom = 'pb-[env(safe-area-inset-bottom)]'
+
+/** Relleno lateral igual al área segura (notch con el teléfono en horizontal). */
+export const safeAreaX = 'pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]'
+
+/**
+ * Relleno inferior del contenido cuando hay `BottomNav`: en el celular deja
+ * lugar para la barra (64 px, `h-16`), un margen y el área segura; desde `md`
+ * vuelve al relleno normal del panel.
+ */
+export const conBottomNav = 'pb-[calc(64px+24px+env(safe-area-inset-bottom))] md:pb-7'
+
+/** Área táctil mínima recomendada (44 px) para botones en el celular. */
+export const touchTarget = 'min-h-11 min-w-11'
