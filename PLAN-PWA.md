@@ -27,7 +27,7 @@ worker y una interfaz que se adapte a pantallas chicas.
 | Service worker | No había | Hecho en T1 (`vite-plugin-pwa`, Workbox) |
 | Caché del servidor | `index.html` con `no-cache`, `/assets` inmutable por 1 año | Hecho en T1: `sw.js` y el manifest con `no-cache` |
 | Interfaz mobile | `AdminPanel` y `StudentPortal` con barra lateral fija de 220–230 px y cabecera con 4–5 botones; 23 pantallas con `<table>`; casi sin breakpoints (34 usos de `sm:`/`md:`/`lg:` en todo el frontend) | Es el grueso del trabajo: ver *Adaptación mobile* |
-| Notificaciones | El backend crea filas en `notificaciones` (`notificarFamilias`); el portal las lee al entrar | Opcional: Web Push para avisar con la app cerrada |
+| Notificaciones | El backend crea filas en `notificaciones` (`notificarFamilias`); el portal las lee al entrar | Web Push para avisar con la app cerrada (entra en el TP: T11 y T12) |
 
 ## Roles
 
@@ -104,18 +104,19 @@ tarjetas en celular).
 | 1. Shells responsive | Cabecera compacta, `BottomNav` para portal y docente, menú desplegable para admin, estilos del shell a Tailwind, safe areas | Se puede navegar todo el sistema con una mano | A 375 px de ancho no hay scroll horizontal en ningún shell; cada rol ve solo su menú | 3–4 días |
 | 2. Pantallas prioritarias | Las 8 secciones del portal; Tomar asistencia, Calificaciones y Amonestaciones del docente; `ResponsiveTable` | Padres, alumnos y docentes usan su día a día desde el celular | Un docente toma asistencia de un curso completo en el celular sin hacer zoom | 4–5 días |
 | 3. Sin conexión | Aviso "Sin conexión" (evento `offline` + errores con `status: 0`), botones de guardado deshabilitados mientras no hay señal | La app no falla en silencio sin señal | En modo avión la app abre, muestra el aviso y no pierde lo tipeado | 1–2 días |
-| 4. Avisos push (opcional) | Tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío con `web-push` dentro de `notificarFamilias`, botón "Activar avisos" en el portal | Las familias reciben las notificaciones con la app cerrada | Al cargar una nota o una amonestación, el padre recibe el aviso en el teléfono; tocarlo abre Notificaciones | 3–4 días |
+| 4. Avisos push | Tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío con `web-push` dentro de `notificarFamilias`, botón "Activar avisos" en el portal | Las familias reciben las notificaciones con la app cerrada | Al cargar una nota o una amonestación, el padre recibe el aviso en el teléfono; tocarlo abre Notificaciones | 3–4 días |
 | 5. Admin en celular | Scroll horizontal en todas las tablas restantes, formularios en 1 columna, repaso de los 21 módulos | Todo el panel admin se puede usar, aunque no esté optimizado | Ninguna pantalla admin se corta ni desborda a 375 px | 2–3 días |
 
-Orden sugerido: 0 → 1 → 2 → 3, y después 5 o 4 según lo que pida la cátedra o la
-escuela.
+Orden sugerido: 0 → 1 → 2 → 3 → 5 → 4. Los avisos push (fase 4) entran en el TP;
+el panel admin solo tiene que ser usable (fase 5), porque los administrativos
+trabajan desde la computadora.
 
 ## Reparto del trabajo
 
 Se reparte por archivos, no por fases, para que los dos trabajen en paralelo sin
 pisarse: Iván se queda con el panel (`AdminPanel.tsx`, pantallas del docente,
 configuración y backend) y Juan Manuel con el portal (`StudentPortal.tsx`,
-componentes compartidos e íconos). Son 3 sprints de una semana (más uno opcional).
+componentes compartidos e íconos). Son 4 sprints de una semana.
 
 Estados: Pendiente · En curso · En revisión · Hecho.
 
@@ -128,11 +129,11 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T5. Shell del portal: cabecera, selector de hijo, `BottomNav` de padre y alumno | 1 | 2 | Iván (era de Juan Manuel) | T3 | 1,5–2 días | Hecho (PR #10) |
 | T6. Pantallas del docente en celular: Tomar asistencia, Calificaciones, Amonestaciones | 2 | 2 | Iván | T4 | 2–3 días | Hecho (PR #12) |
 | T7. Las 8 secciones del portal en celular | 2 | 2 | Juan Manuel | T5 | 2–3 días | Hecho (PR #13) |
-| T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | En revisión |
+| T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | Hecho (PR #15) |
 | T9. Admin en celular, parte académica: usuarios, alumnos, docentes, cursos, materias, asignaciones, inscripciones, mensajes, actividades, reservas, legajos | 5 | 3 | Iván | T4 | 1–1,5 días | Hecho (PR #14) |
 | T10. Admin en celular, parte de gestión y sitio: cuotas, pagos, becas, sueldos, compras, servicios, reportes, noticias, empleos, postulaciones, galería | 5 | 3 | Juan Manuel | T4 | 1–1,5 días | Pendiente |
-| T11. (Opcional) Push, backend: tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío en `notificarFamilias` | 4 | 4 | Iván | T1 | 2 días | Pendiente |
-| T12. (Opcional) Push, frontend: botón "Activar avisos" y manejo del aviso en el service worker (`importScripts` en la config de Workbox) | 4 | 4 | Juan Manuel | T11 | 1–2 días | Pendiente |
+| T11. Push, backend: tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío en `notificarFamilias` | 4 | 4 | Iván | T1 | 2 días | En revisión |
+| T12. Push, frontend: botón "Activar avisos" y manejo del aviso en el service worker (`importScripts` en la config de Workbox) | 4 | 4 | Juan Manuel | T11 | 1–2 días | Pendiente |
 
 **Ícono provisorio.** El texto del logo no se lee a tamaño de ícono, así que el
 ícono definitivo usa solo las figuras de colores del centro, sobre fondo blanco.
@@ -347,7 +348,7 @@ interface NavItem { key: string; icon: string; label: string }
   con la API real ni en un teléfono real (no se puede levantar el backend en
   este entorno).
 
-### T8 — Aviso "Sin conexión" (Juan Manuel): en revisión, rama `feat/pwa-t8-sin-conexion`
+### T8 — Aviso "Sin conexión" (Juan Manuel): hecho, mergeado en el PR #15
 
 - **Qué quedó:**
   - `ui/useEnLinea.ts`: hook (`useSyncExternalStore`, mismo patrón que
@@ -414,6 +415,60 @@ interface NavItem { key: string; icon: string; label: string }
   ancho mínimo a las tablas dentro de `TablaScroll` o pasar las más usadas a
   `ResponsiveTable`.
 
+### T11 — Push, backend (Iván): en revisión, rama `feat/pwa-t11-push-backend`
+
+- **Qué quedó** (en `backend/`):
+  - Tabla `push_subscriptions` (modelo `PushSuscripcion`, migración
+    `20260926200000_push_subscriptions`): una fila por navegador o teléfono,
+    con `endpoint` único y las claves `p256dh` y `auth`. Se borra en cascada
+    con el usuario. El contenedor aplica la migración solo al arrancar.
+  - Claves VAPID en `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y `VAPID_SUBJECT`
+    (`lib/config.ts`, `.env.example`, README). **Sin claves el push queda
+    apagado** y la app funciona igual.
+  - `services/push.ts`: envía con `web-push` (TTL de un día) y borra las
+    suscripciones que el servicio de push da por vencidas (404/410).
+  - `notificarFamilias` manda el push después de guardar la notificación, sin
+    `await`: no demora la respuesta y, si falla, la notificación igual queda.
+    Cubre notas, inasistencias, cuotas vencidas y noticias con aviso.
+  - **Amonestaciones:** no notificaban a la familia, y el criterio de la
+    fase 4 lo pide ("al cargar una nota o una amonestación"). Ahora
+    `POST /api/amonestaciones` llama a `notificarFamilias` con tipo
+    `Amonestación`.
+- **Contrato para T12 (frontend)**, todo con sesión iniciada:
+  - `GET /api/push/clave-publica` → `{ clave: string | null }`. Con `null`
+    (push apagado) no se muestra el botón "Activar avisos".
+  - `POST /api/push/suscribir` con el `subscription.toJSON()` del navegador
+    (`{ endpoint, keys: { p256dh, auth } }`) → 201. Si ese teléfono ya estaba
+    suscripto con otro usuario, pasa al usuario actual.
+  - `POST /api/push/desuscribir` con `{ endpoint }` → borra solo si es del
+    usuario logueado. **Hay que llamarlo al cerrar sesión** (antes de borrar
+    el token) y hacer `subscription.unsubscribe()`: si no, un teléfono
+    compartido sigue recibiendo los avisos del usuario anterior.
+  - El evento `push` del service worker recibe
+    `{ titulo, mensaje, tipo, url }`, con `url = '/portal?seccion=notificaciones'`.
+    El portal todavía no lee `?seccion=`: T12 tiene que abrir esa sección al
+    tocar el aviso.
+  - `applicationServerKey`: Chrome acepta la clave en base64url, Safari
+    necesita convertirla a `Uint8Array`. En iPhone solo funciona con la app
+    instalada (iOS 16.4+) y la suscripción tiene que salir de un toque del
+    usuario.
+  - El manejo del aviso va en un archivo de `public/` que se suma con
+    `workbox.importScripts` en `vite.config.ts` (archivo de Iván: se puede
+    tocar en T12 avisando). Falta también un color para el tipo
+    `Amonestación` en `NOTIF_COLOR` del portal (hoy usa el violeta por defecto).
+- **Verificado:** `tsc`, `prisma validate` y `npm run build` sin errores. La
+  migración escrita a mano es idéntica a la que genera
+  `prisma migrate diff` entre el schema de `main` y el nuevo. El envío se
+  probó de punta a punta sin base de datos, contra un servicio de push falso
+  por HTTPS con claves de navegador generadas en el momento: el aviso llega
+  cifrado (`aes128gcm`), con firma VAPID y TTL, se descifra con la clave del
+  "navegador" y trae el JSON esperado; una respuesta 410 marca la suscripción
+  como vencida. Sin claves VAPID, no consulta la base ni falla. **No se
+  probaron las rutas ni el borrado contra una base real** (no hay Postgres en
+  este entorno), ni un aviso en un teléfono real, que necesita T12.
+- **Para activarlo en producción:** generar las claves una sola vez con
+  `npx web-push generate-vapid-keys` y cargarlas en Coolify.
+
 ## Pruebas
 
 Cada fase se prueba con los usuarios de `npm run seed:demo` (hay Admin,
@@ -449,5 +504,5 @@ más tiempo que la PWA en sí.
 - [x] ¿El dominio de producción en Coolify tiene HTTPS? Sí.
 - [x] ¿Hay un logo en alta resolución? No: se vectoriza uno provisorio en T2 y se pide el original a la escuela.
 - [x] ¿Se reparte el trabajo entre Iván y Juan Manuel? Sí: ver *Reparto del trabajo*.
-- [ ] ¿Los avisos push (fase 4) entran en el alcance del TP o quedan como mejora?
-- [ ] ¿Los administrativos van a usar el panel desde el celular, o alcanza con que sea usable (fase 5)?
+- [x] ¿Los avisos push (fase 4) entran en el alcance del TP o quedan como mejora? Entran: T11 y T12 dejan de ser opcionales.
+- [x] ¿Los administrativos van a usar el panel desde el celular, o alcanza con que sea usable (fase 5)? Alcanza con que sea usable: trabajan desde la computadora. No se pasan tablas del admin a tarjetas.

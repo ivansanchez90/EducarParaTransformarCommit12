@@ -142,5 +142,15 @@ amonestacionesRouter.post('/', async (req, res) => {
       descripcion: String(body.descripcion),
     },
   })
+  await notificarFamilias(
+    [
+      {
+        id_alumno: amonestacion.id_alumno,
+        titulo: 'Nueva amonestación',
+        mensaje: `Se registró una amonestación (${amonestacion.tipo}): ${amonestacion.descripcion}`,
+      },
+    ],
+    'Amonestación',
+  )
   res.status(201).json(amonestacion)
 })
