@@ -122,7 +122,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | Tarea | Fase | Sprint | Responsable | Depende de | Estimación | Estado |
 | --- | --- | --- | --- | --- | --- | --- |
 | T1. Base PWA: `vite-plugin-pwa`, manifest, metas de `index.html`, reglas de caché, aviso "Actualizar", `no-cache` de `sw.js` en Express | 0 | 1 | Iván | — | 1–2 días | Hecho (PR #7) |
-| T2. Íconos definitivos y generación de tamaños (64, 192, 512, maskable, 180) con `@vite-pwa/assets-generator`; reemplazar `favicon.svg`; pedir el logo original a la escuela | 0 | 1 | Juan Manuel | — | 0,5 días | Pendiente |
+| T2. Íconos definitivos y generación de tamaños (64, 192, 512, maskable, 180) con `@vite-pwa/assets-generator`; reemplazar `favicon.svg`; pedir el logo original a la escuela | 0 | 1 | Juan Manuel | — | 0,5 días | En revisión |
 | T3. Componentes compartidos en `ui/components.tsx`: `BottomNav`, `ResponsiveTable`, menú del avatar, clases de safe area | 1 | 1 | Juan Manuel | — | 1–1,5 días | Pendiente |
 | T4. Shell del panel: cabecera compacta, menú desplegable de admin, `BottomNav` del docente, estilos a Tailwind | 1 | 2 | Iván | T3 (o el contrato de `BottomNav`) | 2 días | Pendiente |
 | T5. Shell del portal: cabecera, selector de hijo, `BottomNav` de padre y alumno | 1 | 2 | Juan Manuel | T3 | 1,5–2 días | Pendiente |
@@ -169,16 +169,33 @@ interface NavItem { key: string; icon: string; label: string }
 - **Verificado:** build, lint y tipado sin errores. En Chromium a 375 px, con el backend sirviendo el build: service worker activo, Chrome no informa errores de instalación, nada de `/api` en caché, `/portal` abre sin conexión y el aviso de actualización aparece tras un deploy simulado.
 - **Falta:** probar la instalación en un Android y un iPhone reales después del deploy.
 
-### Siguiente: T2 — Íconos (Juan Manuel)
+### T2 — Íconos (Juan Manuel): en revisión, rama `feat/pwa-t2-iconos`
 
-1. `git checkout main && git pull && cd frontend && pnpm install` (T1 agregó `vite-plugin-pwa` y `workbox-window`).
-2. Crear la rama: `git checkout -b feat/pwa-t2-iconos`.
-3. Vectorizar las figuras del centro del logo (sin el texto) y guardarlas como `frontend/public/logo-icono.svg`, sobre fondo blanco.
-4. `pnpm add -D @vite-pwa/assets-generator`, crear `frontend/pwa-assets.config.ts` con el preset `minimal-2023` apuntando a `public/logo-icono.svg`, y generar los íconos. Tienen que salir con los mismos nombres que ya usa el manifest: `pwa-64x64.png`, `pwa-192x192.png`, `pwa-512x512.png`, `maskable-icon-512x512.png`, `apple-touch-icon-180x180.png`.
-5. Reemplazar también `frontend/public/favicon.svg`: hoy es el logo de Vite que vino con la plantilla, no el de la escuela.
-6. No hace falta tocar `vite.config.ts` (archivo de Iván): el manifest ya apunta a esos nombres.
-7. Probar con `pnpm build && pnpm preview` que DevTools → Application → Manifest muestre los íconos nuevos.
-8. En el mismo PR: marcar T2 como *En revisión* en la tabla y agregar su entrada acá en *Entregas*.
+- **Qué quedó:** `frontend/public/logo-icono.svg` con las 5 figuras de colores del
+  logo (sin texto ni anillo), sobre fondo blanco. Se obtuvo separando `logo.png`
+  por componentes conexas de color (una por figura) y trazando cada una con
+  `potrace` a 16x de sobremuestreo — el equivalente en línea de comandos a
+  "Trazar mapa de bits" de Inkscape, que era la sugerencia original.
+  `@vite-pwa/assets-generator` (`frontend/pwa-assets.config.ts`, preset
+  `minimal-2023`) generó desde ese SVG los 5 archivos con los mismos nombres
+  que ya usa el manifest — `pwa-64x64.png`, `pwa-192x192.png`, `pwa-512x512.png`,
+  `maskable-icon-512x512.png`, `apple-touch-icon-180x180.png` — más un
+  `favicon.ico` que la herramienta generó de regalo (no se referencia todavía).
+  También se reemplazó `frontend/public/favicon.svg` por el mismo logo.
+  `vite.config.ts` no se tocó.
+- **Corrección al paso 5 original:** `favicon.svg` no era el logo de Vite (ese
+  quedó sin usar en `src/assets/vite.svg`); tenía ya una marca abstracta propia,
+  sin relación con el logo de la escuela. Se reemplazó igual, para que el ícono
+  de la pestaña coincida con el de la app instalada.
+- **Verificado:** `tsc --noEmit` y `pnpm build` sin errores; `pnpm preview` sirve
+  el manifest y los 5 íconos con `Content-Type: image/png` (y el favicon con
+  `image/svg+xml`); a 32 px el logo todavía se distingue como las 5 figuras, a
+  16 px se pierde el detalle (esperable con 5 formas, no es un defecto del
+  trazado). No probado en un Android ni un iPhone reales.
+- **Pendiente/decisión para revisar en el PR:** el logo sigue siendo
+  provisorio (trazado desde el PNG de 202×202, no un vector original de la
+  escuela); cuando llegue el logo real, alcanza con reemplazar
+  `logo-icono.svg` y correr `pnpm run generate-pwa-assets` de nuevo.
 
 ## Pruebas
 
