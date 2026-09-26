@@ -28,9 +28,12 @@ export const btnPrimarySm =
 export const btnDanger =
   'bg-[#E74C3C1A] text-red border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
 
-/** Campo de texto / número / fecha. */
+/**
+ * Campo de texto / número / fecha. En el celular la letra es de 16 px: con
+ * menos, el iPhone hace zoom al tocar el campo.
+ */
 export const inputField =
-  'w-full px-[14px] py-[10px] rounded-input border-2 border-border text-[13px] text-text outline-none box-border'
+  'w-full px-[14px] py-[10px] rounded-input border-2 border-border text-base md:text-[13px] text-text outline-none box-border'
 
 /** Select (igual que el input pero sin la flecha nativa). */
 export const selectField = `${inputField} appearance-none`
@@ -47,9 +50,9 @@ export const thCell =
 export const tdCell =
   'py-[11px] pr-3 text-[13px] border-b border-border align-middle'
 
-/** Tarjeta / contenedor de sección. */
+/** Tarjeta / contenedor de sección (relleno más chico en el celular). */
 export const card =
-  'bg-white rounded-card p-6 shadow-card border border-border'
+  'bg-white rounded-card p-4 md:p-6 shadow-card border border-border'
 
 /**
  * Estilo del "chip" de estado coloreado.

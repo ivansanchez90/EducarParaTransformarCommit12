@@ -1,12 +1,16 @@
 /**
  * CargarCalificaciones — Carga y listado de notas por clase (rol Docente).
  * Extraído verbatim de AdminPanel.tsx (sin cambios de lógica).
+ *
+ * En el celular (PWA-T6) el formulario va en una columna (dos en tablet) y las
+ * notas cargadas se ven como tarjetas (`ResponsiveTable`).
  */
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api } from '../../lib/api'
 import type { Asignacion, Calificacion } from '../../types'
-import { card, selectField, inputField, fieldLabel, thCell, tdCell, btnPrimary } from '../../ui/styles'
+import { card, selectField, inputField, fieldLabel, btnPrimary, touchTarget } from '../../ui/styles'
+import { ResponsiveTable, type Columna } from '../../ui/components'
 
 export function CargarCalificaciones() {
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
@@ -70,18 +74,60 @@ export function CargarCalificaciones() {
   const notaColor = (n: number) =>
     n >= 8 ? '#27AE60' : n >= 6 ? '#E67E22' : '#E74C3C'
 
+  const columnas: Columna<Calificacion>[] = [
+    {
+      key: 'alumno',
+      header: 'Alumno',
+      movil: 'titulo',
+      className: 'font-bold',
+      render: (c) => `${c.alumnos?.apellido}, ${c.alumnos?.nombre}`,
+    },
+    {
+      key: 'tipo',
+      header: 'Tipo',
+      render: (c) => (
+        <span className='inline-block bg-[#5B35C51A] text-purple-700 rounded-[20px] px-[10px] py-[3px] text-[11px] font-extrabold'>
+          {c.tipo_evaluacion}
+        </span>
+      ),
+    },
+    {
+      key: 'trimestre',
+      header: 'Trimestre',
+      className: 'text-textMuted',
+      render: (c) => `T${c.trimestre}`,
+    },
+    {
+      key: 'fecha',
+      header: 'Fecha',
+      className: 'text-textMuted',
+      render: (c) => new Date(c.fecha_carga).toLocaleDateString('es-AR'),
+    },
+    {
+      key: 'nota',
+      header: 'Nota',
+      render: (c) => (
+        <div
+          className='w-9 h-9 rounded-full flex items-center justify-center font-black text-sm'
+          style={{ background: notaColor(c.nota) + '1A', color: notaColor(c.nota) }}
+        >
+          {c.nota}
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div>
-      <h2 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 20px' }}>
-        📝 Calificaciones
-      </h2>
+      <h2 className='text-[22px] font-black m-0 mb-5'>📝 Calificaciones</h2>
 
       <div className={`${card} mb-5`}>
-        <span className={fieldLabel}>
+        <label className={fieldLabel} htmlFor='cal-clase'>
           Clase / Materia
-        </span>
+        </label>
         <select
-          className={`${selectField} max-w-[360px]`}
+          id='cal-clase'
+          className={`${selectField} md:max-w-[360px]`}
           value={selAsignacion ?? ''}
           onChange={(e) => setSelAsig(Number(e.target.value))}
         >
@@ -104,17 +150,14 @@ export function CargarCalificaciones() {
             </div>
             <form
               onSubmit={handleCargar}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 1fr 1fr 1fr',
-                gap: 14,
-              }}
+              className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[2fr_1fr_1fr_1fr] gap-[14px]'
             >
-              <div>
-                <span className={fieldLabel}>
+              <div className='sm:col-span-2 md:col-span-1'>
+                <label className={fieldLabel} htmlFor='cal-alumno'>
                   Alumno
-                </span>
+                </label>
                 <select
+                  id='cal-alumno'
                   className={selectField}
                   required
                   value={form.id_alumno}
@@ -131,10 +174,11 @@ export function CargarCalificaciones() {
                 </select>
               </div>
               <div>
-                <span className={fieldLabel}>
+                <label className={fieldLabel} htmlFor='cal-trimestre'>
                   Trimestre
-                </span>
+                </label>
                 <select
+                  id='cal-trimestre'
                   className={selectField}
                   value={form.trimestre}
                   onChange={(e) =>
@@ -147,10 +191,11 @@ export function CargarCalificaciones() {
                 </select>
               </div>
               <div>
-                <span className={fieldLabel}>
+                <label className={fieldLabel} htmlFor='cal-tipo'>
                   Tipo
-                </span>
+                </label>
                 <select
+                  id='cal-tipo'
                   className={selectField}
                   value={form.tipo_evaluacion}
                   onChange={(e) =>
@@ -165,11 +210,13 @@ export function CargarCalificaciones() {
                 </select>
               </div>
               <div>
-                <span className={fieldLabel}>
+                <label className={fieldLabel} htmlFor='cal-nota'>
                   Nota (0–10)
-                </span>
+                </label>
                 <input
+                  id='cal-nota'
                   type='number'
+                  inputMode='decimal'
                   min='0'
                   max='10'
                   step='0.25'
@@ -181,19 +228,13 @@ export function CargarCalificaciones() {
                   }
                 />
               </div>
-              <div
-                style={{
-                  gridColumn: '1/-1',
-                  display: 'flex',
-                  gap: 12,
-                  alignItems: 'flex-end',
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <span className={fieldLabel}>
+              <div className='col-span-full flex flex-col md:flex-row md:items-end gap-3'>
+                <div className='flex-1'>
+                  <label className={fieldLabel} htmlFor='cal-descripcion'>
                     Descripción (opcional)
-                  </span>
+                  </label>
                   <input
+                    id='cal-descripcion'
                     className={inputField}
                     value={form.descripcion}
                     onChange={(e) =>
@@ -204,19 +245,15 @@ export function CargarCalificaciones() {
                 </div>
                 <button
                   type='submit'
-                  className={btnPrimary}
+                  className={`${btnPrimary} ${touchTarget} w-full md:w-auto`}
                 >
                   Cargar nota
                 </button>
               </div>
               {msg && (
                 <div
-                  style={{
-                    gridColumn: '1/-1',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: msg.startsWith('✅') ? '#27AE60' : '#E74C3C',
-                  }}
+                  role='status'
+                  className={`col-span-full text-[13px] font-bold ${msg.startsWith('✅') ? 'text-green' : 'text-red'}`}
                 >
                   {msg}
                 </div>
@@ -229,65 +266,12 @@ export function CargarCalificaciones() {
             <div className='text-[15px] font-extrabold text-text mb-5'>
               Notas cargadas
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th className={thCell}>
-                    Alumno
-                  </th>
-                  <th className={thCell}>
-                    Tipo
-                  </th>
-                  <th className={thCell}>
-                    Trimestre
-                  </th>
-                  <th className={thCell}>
-                    Fecha
-                  </th>
-                  <th className={thCell}>
-                    Nota
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {calificaciones.map((c) => (
-                  <tr key={c.id_calificacion}>
-                    <td className={`${tdCell} font-bold`}>
-                      {c.alumnos?.apellido}, {c.alumnos?.nombre}
-                    </td>
-                    <td className={tdCell}>
-                      <span className='inline-block bg-[#5B35C51A] text-purple-700 rounded-[20px] px-[10px] py-[3px] text-[11px] font-extrabold'>
-                        {c.tipo_evaluacion}
-                      </span>
-                    </td>
-                    <td className={`${tdCell} text-textMuted`}>
-                      T{c.trimestre}
-                    </td>
-                    <td className={`${tdCell} text-textMuted`}>
-                      {new Date(c.fecha_carga).toLocaleDateString('es-AR')}
-                    </td>
-                    <td className={tdCell}>
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: '50%',
-                          background: notaColor(c.nota) + '1A',
-                          color: notaColor(c.nota),
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 900,
-                          fontSize: 14,
-                        }}
-                      >
-                        {c.nota}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <ResponsiveTable
+              columnas={columnas}
+              filas={calificaciones}
+              filaKey={(c) => c.id_calificacion}
+              vacio='Todavía no hay notas cargadas en esta clase.'
+            />
           </div>
         </>
       )}

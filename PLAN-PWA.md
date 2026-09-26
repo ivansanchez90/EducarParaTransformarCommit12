@@ -125,8 +125,8 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T2. Íconos definitivos y generación de tamaños (64, 192, 512, maskable, 180) con `@vite-pwa/assets-generator`; reemplazar `favicon.svg`; pedir el logo original a la escuela | 0 | 1 | Juan Manuel | — | 0,5 días | Hecho (PR #8) |
 | T3. Componentes compartidos en `ui/components.tsx`: `BottomNav`, `ResponsiveTable`, menú del avatar, clases de safe area | 1 | 1 | Iván (era de Juan Manuel) | — | 1–1,5 días | Hecho (PR #9) |
 | T4. Shell del panel: cabecera compacta, menú desplegable de admin, `BottomNav` del docente, estilos a Tailwind | 1 | 2 | Juan Manuel (era de Iván) | T3 (o el contrato de `BottomNav`) | 2 días | Hecho (PR #9) |
-| T5. Shell del portal: cabecera, selector de hijo, `BottomNav` de padre y alumno | 1 | 2 | Iván (era de Juan Manuel) | T3 | 1,5–2 días | En revisión |
-| T6. Pantallas del docente en celular: Tomar asistencia, Calificaciones, Amonestaciones | 2 | 2 | Iván | T4 | 2–3 días | Pendiente |
+| T5. Shell del portal: cabecera, selector de hijo, `BottomNav` de padre y alumno | 1 | 2 | Iván (era de Juan Manuel) | T3 | 1,5–2 días | Hecho (PR #10) |
+| T6. Pantallas del docente en celular: Tomar asistencia, Calificaciones, Amonestaciones | 2 | 2 | Iván | T4 | 2–3 días | En revisión |
 | T7. Las 8 secciones del portal en celular | 2 | 2 | Juan Manuel | T5 | 2–3 días | Pendiente |
 | T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | Pendiente |
 | T9. Admin en celular, parte académica: usuarios, alumnos, docentes, cursos, materias, asignaciones, inscripciones, mensajes, actividades, reservas, legajos | 5 | 3 | Iván | T4 | 1–1,5 días | Pendiente |
@@ -248,7 +248,7 @@ interface NavItem { key: string; icon: string; label: string }
   cierra al elegir, al tocar afuera o con Escape) y Docente usa `BottomNav`.
   Los estilos en línea del shell pasaron a clases de Tailwind.
 
-### T5 — Shell del portal (Iván): en revisión, rama `feat/pwa-t5-shell-portal`
+### T5 — Shell del portal (Iván): hecho, mergeado en el PR #10
 
 - **Cambio de responsable:** T5 era de Juan Manuel; la hizo Iván, a cambio de T4.
 - **Qué quedó** (en `frontend/src/StudentPortal.tsx`):
@@ -279,6 +279,37 @@ interface NavItem { key: string; icon: string; label: string }
   No probado en un teléfono real.
 - **Queda para T7:** el contenido de las 8 secciones (las tarjetas de Inicio
   siguen en 4 columnas y las tablas desbordan en el celular).
+
+### T6 — Pantallas del docente (Iván): en revisión, rama `feat/pwa-t6-docente`
+
+- **Qué quedó** (en `frontend/src/features/`):
+  - **Tomar asistencia:** filtros en una columna en el celular; cada alumno en
+    una fila con el botón de estado de 44 px y ancho fijo a la derecha (el
+    avatar con iniciales se oculta debajo de 640 px para dejar lugar al nombre);
+    la leyenda muestra cuántos hay en cada estado; "Guardar asistencia" ocupa
+    todo el ancho.
+  - **Calificaciones:** formulario en 1 columna en el celular y 2 en tablet
+    (`inputMode='decimal'` en la nota, para el teclado numérico); "Notas
+    cargadas" pasó a `ResponsiveTable` (tarjetas en el celular).
+  - **Amonestaciones:** formulario en 1 columna, botones de curso de 44 px y
+    el historial con `ResponsiveTable`. Se sacaron los `as any`: el tipo
+    `Asignacion` ahora declara `cursos.id_curso`, que `/asignaciones/mias` ya
+    devolvía.
+  - Los estilos en línea de las tres pantallas pasaron a clases de Tailwind, y
+    las etiquetas quedaron asociadas a su campo (`<label htmlFor>`).
+- **Cambios globales en `ui/styles.ts`** (archivo de Juan Manuel, conviene que
+  lo revise): `inputField` usa letra de 16 px debajo de `md`, para que el
+  iPhone no haga zoom al tocar un campo (plan, sección *Tacto*), y `card` usa
+  `p-4` en el celular en lugar de `p-6`. Alcanza a todas las pantallas, así
+  que adelanta parte de T9/T10.
+- **Verificado:** `tsc` de la app y `pnpm build` sin errores; el lint de las
+  tres pantallas bajó de 7 errores a 2 (los dos que quedan ya estaban: carga
+  de datos dentro de un efecto). Con `pnpm preview` y la API simulada, como
+  docente con un curso de 30 alumnos, en Chromium a 375 px con modo táctil:
+  sin scroll horizontal en las tres pantallas, campos con letra de 16 px,
+  botones de estado de 44 px, los toques cambian el estado y el guardado
+  envía los estados correctos; a 1280 px se ven como antes. No probado en un
+  teléfono real.
 
 ## Pruebas
 
