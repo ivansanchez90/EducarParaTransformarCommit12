@@ -6,13 +6,19 @@
  *
  * Este archivo es solo el "shell": autenticación, layout (header + sidebar) y
  * enrutado entre secciones. Cada sección vive en su propio módulo en `features/`.
+ *
+ * En el celular (debajo de `md`) el shell cambia según el rol: Admin/Directivo
+ * tienen 21 módulos, así que el menú lateral se convierte en un panel
+ * deslizable que abre un botón ☰; Docente tiene 6, así que usa `BottomNav`.
  */
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getSession, logout, onAuthChange } from './lib/auth'
 import type { UsuarioPanel } from './types'
 import { NAV_ADMIN, NAV_DOCENTE } from './constants'
+import { AvatarMenu, BottomNav, type NavItem } from './ui/components'
+import { conBottomNav, safeAreaBottom, safeAreaX, touchTarget } from './ui/styles'
 
 import { Dashboard } from './features/dashboard/Dashboard'
 import { GestionUsuarios } from './features/usuarios/GestionUsuarios'
@@ -42,6 +48,33 @@ import { CargarCalificaciones } from './features/calificaciones/CargarCalificaci
 import { GestionAmonestaciones } from './features/amonestaciones/GestionAmonestaciones'
 import { LegajosDocente } from './features/legajos-docente/LegajosDocente'
 
+/** Ítem del menú lateral, en escritorio o en el panel deslizable del celular. */
+function ItemMenu({
+  item,
+  activo,
+  onClick,
+}: {
+  item: NavItem
+  activo: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      aria-current={activo ? 'page' : undefined}
+      className={`w-full flex items-center gap-2.5 px-5 py-[11px] text-[13px] text-left bg-transparent border-0 border-l-[3px] cursor-pointer font-[inherit] ${
+        activo
+          ? 'font-extrabold text-purple-700 bg-purpleLight border-l-purple-700'
+          : 'font-semibold text-textMuted border-l-transparent'
+      }`}
+    >
+      <span aria-hidden='true'>{item.icon}</span>
+      <span>{item.label}</span>
+    </button>
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════
@@ -51,6 +84,7 @@ export default function AdminPanel() {
   const [authChecked, setAuthChecked] = useState(false)
   const [activeNav, setActiveNav] = useState('dashboard')
   const [cambiandoPassword, setCambiandoPassword] = useState(false)
+  const [menuAbierto, setMenuAbierto] = useState(false)
   // La sesión devuelve el perfil completo (el backend ya rechaza a los
   // usuarios desactivados), así que no hace falta una segunda consulta.
   useEffect(() => {
@@ -65,31 +99,25 @@ export default function AdminPanel() {
     if (authChecked && !perfil) navigate('/login', { replace: true })
   }, [authChecked, perfil, navigate])
 
+  useEffect(() => {
+    if (!menuAbierto) return
+    const alApretar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuAbierto(false)
+    }
+    document.addEventListener('keydown', alApretar)
+    return () => document.removeEventListener('keydown', alApretar)
+  }, [menuAbierto])
+
   if (!authChecked || !perfil) return null
 
   if (!['Admin', 'Directivo', 'Docente'].includes(perfil.rol)) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          fontFamily: "'Nunito',sans-serif",
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: '#E74C3C' }}>
-            Sin acceso
-          </div>
-          <p style={{ color: '#6B6B8A' }}>
-            Tu usuario no tiene permisos para este panel.
-          </p>
-          <button
-            className='bg-gradient-to-br from-purple-700 to-purpleMid text-white border-0 rounded-btn py-[10px] px-5 text-[13px] font-extrabold cursor-pointer'
-            onClick={logout}
-          >
+      <div className='flex items-center justify-center min-h-screen font-sans'>
+        <div className='text-center'>
+          <div className='text-5xl mb-4'>🚫</div>
+          <div className='text-lg font-extrabold text-red'>Sin acceso</div>
+          <p className='text-textMuted'>Tu usuario no tiene permisos para este panel.</p>
+          <button className='bg-gradient-to-br from-purple-700 to-purpleMid text-white border-0 rounded-btn py-[10px] px-5 text-[13px] font-extrabold cursor-pointer' onClick={logout}>
             Salir
           </button>
         </div>
@@ -101,155 +129,101 @@ export default function AdminPanel() {
   const navItems = esAdmin ? NAV_ADMIN : NAV_DOCENTE
   const initials = `${perfil.nombre[0]}${perfil.apellido[0]}`
 
+  const elegirNav = (key: string) => {
+    setActiveNav(key)
+    setMenuAbierto(false)
+  }
+
   return (
-    <div
-      style={{
-        fontFamily: "'Nunito','Segoe UI',sans-serif",
-        background: '#F5F4FB',
-        minHeight: '100vh',
-        color: '#1A1A2E',
-      }}
-    >
+    <div className='font-sans bg-bg min-h-screen text-text'>
       {/* ── HEADER ── */}
       <header
-        style={{
-          background: '#FFFFFF',
-          borderBottom: `3px solid ${'#5B35C5'}`,
-          padding: '0 28px',
-          height: 68,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-          boxShadow: '0 2px 16px rgba(91,53,197,0.08)',
-        }}
+        className={`bg-white border-b-[3px] border-purple-700 px-4 md:px-7 h-16 md:h-[68px] flex items-center justify-between sticky top-0 z-[100] shadow-[0_2px_16px_rgba(91,53,197,0.08)] ${safeAreaX}`}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className='flex items-center gap-2 md:gap-2.5 min-w-0'>
+          {esAdmin && (
+            <button
+              type='button'
+              onClick={() => setMenuAbierto(true)}
+              aria-label='Abrir menú'
+              aria-haspopup='menu'
+              aria-expanded={menuAbierto}
+              className={`md:hidden ${touchTarget} flex items-center justify-center text-2xl bg-transparent border-0 cursor-pointer`}
+            >
+              ☰
+            </button>
+          )}
           <img
             src='/logo.png'
             alt='Logo'
-            style={{ height: 46 }}
+            className='h-9 md:h-[46px] shrink-0'
             onError={(e) => {
               ;(e.target as HTMLImageElement).style.display = 'none'
             }}
           />
-          <div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 900,
-                color: '#5B35C5',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-              }}
-            >
+          <div className='min-w-0'>
+            <div className='text-[11px] md:text-xs font-black text-purple-700 uppercase tracking-[0.04em] truncate'>
               Educar Para Transformar
             </div>
-            <div style={{ fontSize: 10, color: '#6B6B8A' }}>
-              Panel {perfil.rol}
-            </div>
+            <div className='text-[10px] text-textMuted hidden sm:block'>Panel {perfil.rol}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              background: `linear-gradient(135deg,${'#5B35C5'},${'#7B55E8'})`,
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: 13,
-            }}
-          >
-            {initials}
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 800 }}>
-              {perfil.nombre} {perfil.apellido}
-            </div>
-            <div style={{ fontSize: 11, color: '#6B6B8A' }}>{perfil.rol}</div>
-          </div>
-          <button
-            className='bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
-            onClick={() => setCambiandoPassword(true)}
-          >
-            🔑 Mi contraseña
-          </button>
-          <button
-            className='bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
-            onClick={() => navigate('/')}
-          >
-            ← Inicio
-          </button>
-          <button
-            className='bg-purpleLight text-purple-700 border-0 rounded-btn py-[10px] px-5 text-[13px] font-extrabold cursor-pointer !py-[7px] !px-[14px] !text-xs'
-            onClick={logout}
-          >
-            Salir
-          </button>
-        </div>
+        <AvatarMenu
+          iniciales={initials}
+          nombre={`${perfil.nombre} ${perfil.apellido}`}
+          detalle={perfil.rol}
+          opciones={[
+            { key: 'password', icon: '🔑', label: 'Mi contraseña', onClick: () => setCambiandoPassword(true) },
+            { key: 'inicio', icon: '🏠', label: 'Inicio', onClick: () => navigate('/') },
+            { key: 'salir', icon: '🚪', label: 'Salir', onClick: logout },
+          ]}
+        />
       </header>
 
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 68px)' }}>
-        {/* ── SIDEBAR ── */}
-        <aside
-          style={{
-            width: 220,
-            background: '#FFFFFF',
-            borderRight: `1px solid ${'#E8E6F5'}`,
-            padding: '20px 0',
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 10,
-              color: '#6B6B8A',
-              fontWeight: 800,
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-              padding: '0 20px 14px',
-              borderBottom: `1px solid ${'#E8E6F5'}`,
-              marginBottom: 6,
-            }}
-          >
+      <div className='flex min-h-[calc(100vh-64px)] md:min-h-[calc(100vh-68px)]'>
+        {/* ── SIDEBAR (escritorio) ── */}
+        <aside className='hidden md:block w-[220px] bg-white border-r border-border py-5 shrink-0'>
+          <div className='text-[10px] font-extrabold text-textMuted uppercase tracking-[0.1em] px-5 pb-3.5 mb-1.5 border-b border-border'>
             Menú
           </div>
           {navItems.map((item) => (
-            <div
-              key={item.key}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '11px 20px',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: activeNav === item.key ? 800 : 600,
-                color: activeNav === item.key ? '#5B35C5' : '#6B6B8A',
-                background: activeNav === item.key ? '#EEE9FF' : 'none',
-                borderLeft:
-                  activeNav === item.key
-                    ? `3px solid ${'#5B35C5'}`
-                    : '3px solid transparent',
-                transition: 'all 0.15s',
-              }}
-              onClick={() => setActiveNav(item.key)}
-            >
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </div>
+            <ItemMenu key={item.key} item={item} activo={activeNav === item.key} onClick={() => setActiveNav(item.key)} />
           ))}
         </aside>
 
+        {/* ── MENÚ DESLIZABLE (celular, solo Admin/Directivo: 21 módulos no entran en una barra inferior) ── */}
+        {esAdmin && menuAbierto && (
+          <>
+            <div
+              className='fixed inset-0 z-[120] bg-text/30 md:hidden'
+              onClick={() => setMenuAbierto(false)}
+              aria-hidden='true'
+            />
+            <aside
+              role='dialog'
+              aria-label='Menú de navegación'
+              className={`fixed inset-y-0 left-0 z-[130] w-[80vw] max-w-[280px] bg-white py-5 overflow-y-auto md:hidden ${safeAreaBottom}`}
+            >
+              <div className='flex items-center justify-between px-5 pb-3.5 mb-1.5 border-b border-border'>
+                <span className='text-[10px] font-extrabold text-textMuted uppercase tracking-[0.1em]'>Menú</span>
+                <button
+                  type='button'
+                  onClick={() => setMenuAbierto(false)}
+                  aria-label='Cerrar menú'
+                  className={`${touchTarget} flex items-center justify-center text-xl bg-transparent border-0 cursor-pointer`}
+                >
+                  ✕
+                </button>
+              </div>
+              {navItems.map((item) => (
+                <ItemMenu key={item.key} item={item} activo={activeNav === item.key} onClick={() => elegirNav(item.key)} />
+              ))}
+            </aside>
+          </>
+        )}
+
         {/* ── CONTENIDO ── */}
-        <main style={{ flex: 1, padding: 28, overflowY: 'auto' }}>
+        <main className={`flex-1 p-4 md:p-7 overflow-y-auto ${safeAreaX} ${esAdmin ? '' : conBottomNav}`}>
           {activeNav === 'dashboard' && (
             <Dashboard
               esAdmin={esAdmin}
@@ -298,6 +272,9 @@ export default function AdminPanel() {
           )}
         </main>
       </div>
+
+      {/* ── NAVEGACIÓN INFERIOR (celular, solo Docente: 6 módulos entran en la barra) ── */}
+      {!esAdmin && <BottomNav items={NAV_DOCENTE} activo={activeNav} onSelect={setActiveNav} />}
 
       {cambiandoPassword && (
         <CambiarPassword onClose={() => setCambiandoPassword(false)} />

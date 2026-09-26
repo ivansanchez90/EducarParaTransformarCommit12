@@ -123,7 +123,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | --- | --- | --- | --- | --- | --- | --- |
 | T1. Base PWA: `vite-plugin-pwa`, manifest, metas de `index.html`, reglas de caché, aviso "Actualizar", `no-cache` de `sw.js` en Express | 0 | 1 | Iván | — | 1–2 días | Hecho (PR #7) |
 | T2. Íconos definitivos y generación de tamaños (64, 192, 512, maskable, 180) con `@vite-pwa/assets-generator`; reemplazar `favicon.svg`; pedir el logo original a la escuela | 0 | 1 | Juan Manuel | — | 0,5 días | En revisión |
-| T3. Componentes compartidos en `ui/components.tsx`: `BottomNav`, `ResponsiveTable`, menú del avatar, clases de safe area | 1 | 1 | Juan Manuel | — | 1–1,5 días | Pendiente |
+| T3. Componentes compartidos en `ui/components.tsx`: `BottomNav`, `ResponsiveTable`, menú del avatar, clases de safe area | 1 | 1 | Iván (era de Juan Manuel) | — | 1–1,5 días | En revisión |
 | T4. Shell del panel: cabecera compacta, menú desplegable de admin, `BottomNav` del docente, estilos a Tailwind | 1 | 2 | Iván | T3 (o el contrato de `BottomNav`) | 2 días | Pendiente |
 | T5. Shell del portal: cabecera, selector de hijo, `BottomNav` de padre y alumno | 1 | 2 | Juan Manuel | T3 | 1,5–2 días | Pendiente |
 | T6. Pantallas del docente en celular: Tomar asistencia, Calificaciones, Amonestaciones | 2 | 2 | Iván | T4 | 2–3 días | Pendiente |
@@ -148,8 +148,10 @@ ya están en `constants/index.ts`:
 ```tsx
 interface NavItem { key: string; icon: string; label: string }
 
-<BottomNav items={NavItem[]} activo={string} onSelect={(key: string) => void} maxVisibles={4} />
-// Con más de maxVisibles ítems, el último botón es "Más" y abre el resto.
+<BottomNav items={NavItem[]} activo={string} onSelect={(key: string) => void} maxVisibles={4} contadores={{ notificaciones: 3 }} />
+// Con más de maxVisibles + 1 ítems, los primeros maxVisibles quedan en la barra
+// y el último botón es "Más", que abre el resto. Con 5 ítems o menos se ven todos.
+// `contadores` (opcional) pone un número rojo sobre el ícono de cada ítem.
 ```
 
 **Reglas para trabajar en paralelo**
@@ -196,6 +198,45 @@ interface NavItem { key: string; icon: string; label: string }
   provisorio (trazado desde el PNG de 202×202, no un vector original de la
   escuela); cuando llegue el logo real, alcanza con reemplazar
   `logo-icono.svg` y correr `pnpm run generate-pwa-assets` de nuevo.
+
+### T3 — Componentes compartidos (Iván): en revisión, rama `feat/pwa-t3-componentes`
+
+- **Cambio de responsable:** T3 figuraba a nombre de Juan Manuel; la hizo Iván
+  para destrabar T4. Juan Manuel sigue siendo dueño de `ui/components.tsx` y
+  `ui/styles.ts`, así que conviene que revise este PR.
+- **Qué quedó** (en `frontend/src/ui/`):
+  - `BottomNav`: barra inferior fija, solo debajo de `md` (768 px). Respeta el
+    contrato de arriba; agrega `contadores` opcional. "Más" abre un panel con el
+    resto de las secciones, se resalta si la sección activa está ahí y suma sus
+    contadores; se cierra al elegir, al tocar afuera o con Escape. Botones de 64 px de alto.
+  - `ResponsiveTable`: recibe `columnas` (`key`, `header`, `render`, `className`,
+    `movil`) y `filas`. En escritorio es la tabla de siempre (`thCell`/`tdCell`)
+    con scroll horizontal; en el celular, una tarjeta por fila. `movil: 'titulo'`
+    va arriba en negrita, `'pie'` abajo sin etiqueta (botones), `'oculta'` no se
+    muestra. Renderiza una sola de las dos versiones (con `useEsMovil`), así que
+    las celdas pueden tener inputs sin duplicarlos.
+  - `TablaScroll`: contenedor con scroll horizontal, para envolver las tablas que
+    no pasen a `ResponsiveTable` (fase 5).
+  - `AvatarMenu`: avatar con menú desplegable (nombre, detalle y opciones como
+    "Mi contraseña", "Inicio", "Salir"). Se cierra al elegir, tocar afuera o con
+    Escape; opciones de 44 px de alto.
+  - `useEsMovil()` (`ui/useEsMovil.ts`): `true` por debajo de `md`.
+  - En `ui/styles.ts`: `safeAreaBottom`, `safeAreaX`, `conBottomNav` (relleno
+    inferior del `<main>` para que la barra no tape el contenido) y `touchTarget`.
+  - El aviso "Hay una versión nueva" (`src/pwa/ActualizarApp.tsx`) sube en el
+    celular para no quedar encima de la barra inferior.
+- **Cómo usarlos en T4/T5:** `<main className={`... ${conBottomNav}`}>` y
+  `<BottomNav items={NAV_ITEMS} activo={activeNav} onSelect={setActiveNav} />`
+  al final del shell; en la cabecera, `<AvatarMenu iniciales=... nombre=... opciones=[...] />`
+  en lugar de los botones sueltos (al menos debajo de `md`).
+- **Verificado:** `tsc` de la app, lint de los archivos tocados y `pnpm build`
+  sin errores (`tsc -b` y `pnpm lint` completos ya fallaban en `main` por
+  `Home.tsx` y `pwa-assets.config.ts`, igual que antes). Con una página de
+  prueba temporal (no incluida) en Chromium a 375 px: sin scroll horizontal,
+  barra con 4 secciones + "Más", el panel abre y cierra, el menú del avatar
+  cierra con Escape, y las tarjetas se ven bien; a 1200 px la barra no aparece
+  y la tabla es la de siempre. No probado en un teléfono real (todavía no se
+  usa en ninguna pantalla).
 
 ## Pruebas
 
