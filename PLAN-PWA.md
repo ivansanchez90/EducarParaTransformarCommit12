@@ -127,7 +127,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T4. Shell del panel: cabecera compacta, menú desplegable de admin, `BottomNav` del docente, estilos a Tailwind | 1 | 2 | Juan Manuel (era de Iván) | T3 (o el contrato de `BottomNav`) | 2 días | Hecho (PR #9) |
 | T5. Shell del portal: cabecera, selector de hijo, `BottomNav` de padre y alumno | 1 | 2 | Iván (era de Juan Manuel) | T3 | 1,5–2 días | Hecho (PR #10) |
 | T6. Pantallas del docente en celular: Tomar asistencia, Calificaciones, Amonestaciones | 2 | 2 | Iván | T4 | 2–3 días | En revisión |
-| T7. Las 8 secciones del portal en celular | 2 | 2 | Juan Manuel | T5 | 2–3 días | Pendiente |
+| T7. Las 8 secciones del portal en celular | 2 | 2 | Juan Manuel | T5 | 2–3 días | En revisión |
 | T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | Pendiente |
 | T9. Admin en celular, parte académica: usuarios, alumnos, docentes, cursos, materias, asignaciones, inscripciones, mensajes, actividades, reservas, legajos | 5 | 3 | Iván | T4 | 1–1,5 días | Pendiente |
 | T10. Admin en celular, parte de gestión y sitio: cuotas, pagos, becas, sueldos, compras, servicios, reportes, noticias, empleos, postulaciones, galería | 5 | 3 | Juan Manuel | T4 | 1–1,5 días | Pendiente |
@@ -310,6 +310,42 @@ interface NavItem { key: string; icon: string; label: string }
   botones de estado de 44 px, los toques cambian el estado y el guardado
   envía los estados correctos; a 1280 px se ven como antes. No probado en un
   teléfono real.
+
+### T7 — Las 8 secciones del portal (Juan Manuel): en revisión, rama `feat/pwa-t7-portal-mobile`
+
+- **Qué quedó** (en `frontend/src/StudentPortal.tsx`):
+  - **Inicio:** las 4 tarjetas de estadísticas pasan de 4 a 2 columnas debajo de
+    `md`; "Clases de hoy" y "Notificaciones recientes" pasan de 2 columnas a 1;
+    "Últimas calificaciones" pasó a `ResponsiveTable`.
+  - **Calificaciones** (resumen y completa): las dos tablas pasaron a
+    `ResponsiveTable` con las mismas columnas de antes; en el celular, la
+    materia queda de título, la nota como un círculo al pie de la tarjeta (igual
+    que se veía en la tabla) y el resto como pares etiqueta/valor. Se creó
+    `NotaBadge` para no repetir el círculo de la nota entre las dos tablas.
+  - **Asistencias:** los 5 contadores pasan a 2 columnas en el celular, 3 en
+    tablet chica y 5 desde `md`.
+  - **Cuotas:** la tabla pasó a `ResponsiveTable`; el período queda de título y
+    el estado (chip de color) al pie de la tarjeta.
+  - **Horario:** ya era una lista de filas (no una tabla ancha), no necesitó
+    cambios.
+  - **Extracurriculares:** las tarjetas de Idiomas/Deportes pasan de 2 columnas
+    a 1 en el celular.
+  - **Transporte y comedor:** las tarjetas de recorridos pasan de 2 columnas a 1
+    en el celular.
+  - **Notificaciones:** se agregó `flex-wrap` a las dos cabeceras con botón
+    ("Marcar todas como leídas" y "Promedio") para que no corten texto en
+    pantallas angostas.
+  - Se reutilizó `Badge` de `ui/components.tsx` (ya existía desde T3) en vez de
+    repetir el `<span>` con estilo en línea para los chips de tipo/estado.
+- **No se tocó:** el shell (cabecera, selector de hijo, `BottomNav`) porque ya
+  lo dejó T5; `ui/styles.ts` porque T6 ya adelantó `inputField` a 16 px y
+  `card` a `p-4` en el celular, y esta tarea las aprovecha directo.
+- **Verificado:** `pnpm build` sin errores; el lint de `StudentPortal.tsx`
+  quedó en los mismos 3 errores que ya tenía en `main` antes de esta tarea
+  (orden de declaración de `loadAll`/`loadDatosAlumno` y `setState` dentro de
+  un efecto), confirmado comparando contra `main` con `git stash`. No probado
+  con la API real ni en un teléfono real (no se puede levantar el backend en
+  este entorno).
 
 ## Pruebas
 
