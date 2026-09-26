@@ -6,7 +6,7 @@
  * garantizando una convención visual única y sin duplicación.
  */
 import type { CSSProperties, ReactNode } from 'react'
-import { badge, btnPrimary, card, fieldLabel, inputField } from './styles'
+import { badge, btnPrimary, card, fieldLabel, inputField, msgError, msgOk } from './styles'
 
 /** Cabecera de una sección: título a la izquierda y acción opcional a la derecha. */
 export function SectionHeader({
@@ -100,4 +100,15 @@ export function Badge({
   children: ReactNode
 }) {
   return <span style={badge(color)}>{children}</span>
+}
+
+/** Resultado de un formulario: verde si salió bien, rojo con el error del backend si no. */
+export function FormMessage({ ok, children }: { ok: boolean; children: ReactNode }) {
+  return <div className={ok ? msgOk : msgError}>{children}</div>
+}
+
+/** Chip Activo/Inactivo (el femenino para "Activa/Inactiva"). */
+export function EstadoBadge({ activo, femenino }: { activo: boolean; femenino?: boolean }) {
+  const texto = activo ? 'Activo' : 'Inactivo'
+  return <Badge color={activo ? '#27AE60' : '#E74C3C'}>{femenino ? texto.slice(0, -1) + 'a' : texto}</Badge>
 }
