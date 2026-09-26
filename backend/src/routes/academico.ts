@@ -114,7 +114,29 @@ cursosRouter.patch('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
   if ('capacidad_maxima' in body) data.capacidad_maxima = capacidadCurso(body.capacidad_maxima)
   if (cambiaClave) await assertCursoNoDuplicado(clave, actual.id_periodo, idCurso)
 
-  const curso = await prisma.curso.update({ where: { id_curso: idCurso }, data })
+  if ('activo' in body) {
+    if (typeof body.activo !== 'boolean') throw new HttpError(400, 'El campo activo debe ser true o false')
+    data.activo = body.activo
+  }
+  const esBaja = data.activo === false && actual.activo
+
+  const curso = await prisma.$transaction(async (tx) => {
+    // La baja no toca alumnos ni asignaciones, por eso se rechaza mientras el
+    // curso tenga alumnos activos. El lock es el mismo que toma verificarCupoCurso:
+    // una asignación simultánea no puede colarse entre el conteo y la baja.
+    if (esBaja) {
+      await tx.$queryRaw`SELECT 1 FROM cursos WHERE id_curso = ${idCurso} FOR UPDATE`
+      const alumnos = await tx.alumno.count({ where: { id_curso: idCurso, activo: true } })
+      if (alumnos > 0) {
+        throw new HttpError(
+          409,
+          `${nombreCurso(clave)} tiene ${alumnos} ${alumnos === 1 ? 'alumno activo' : 'alumnos activos'}. Reasignalos a otro curso antes de darlo de baja.`,
+          'CURSO_CON_ALUMNOS',
+        )
+      }
+    }
+    return tx.curso.update({ where: { id_curso: idCurso }, data })
+  })
   res.json(curso)
 })
 
