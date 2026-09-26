@@ -126,10 +126,10 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T3. Componentes compartidos en `ui/components.tsx`: `BottomNav`, `ResponsiveTable`, menú del avatar, clases de safe area | 1 | 1 | Iván (era de Juan Manuel) | — | 1–1,5 días | Hecho (PR #9) |
 | T4. Shell del panel: cabecera compacta, menú desplegable de admin, `BottomNav` del docente, estilos a Tailwind | 1 | 2 | Juan Manuel (era de Iván) | T3 (o el contrato de `BottomNav`) | 2 días | Hecho (PR #9) |
 | T5. Shell del portal: cabecera, selector de hijo, `BottomNav` de padre y alumno | 1 | 2 | Iván (era de Juan Manuel) | T3 | 1,5–2 días | Hecho (PR #10) |
-| T6. Pantallas del docente en celular: Tomar asistencia, Calificaciones, Amonestaciones | 2 | 2 | Iván | T4 | 2–3 días | En revisión |
-| T7. Las 8 secciones del portal en celular | 2 | 2 | Juan Manuel | T5 | 2–3 días | En revisión |
+| T6. Pantallas del docente en celular: Tomar asistencia, Calificaciones, Amonestaciones | 2 | 2 | Iván | T4 | 2–3 días | Hecho (PR #12) |
+| T7. Las 8 secciones del portal en celular | 2 | 2 | Juan Manuel | T5 | 2–3 días | Hecho (PR #13) |
 | T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | Pendiente |
-| T9. Admin en celular, parte académica: usuarios, alumnos, docentes, cursos, materias, asignaciones, inscripciones, mensajes, actividades, reservas, legajos | 5 | 3 | Iván | T4 | 1–1,5 días | Pendiente |
+| T9. Admin en celular, parte académica: usuarios, alumnos, docentes, cursos, materias, asignaciones, inscripciones, mensajes, actividades, reservas, legajos | 5 | 3 | Iván | T4 | 1–1,5 días | En revisión |
 | T10. Admin en celular, parte de gestión y sitio: cuotas, pagos, becas, sueldos, compras, servicios, reportes, noticias, empleos, postulaciones, galería | 5 | 3 | Juan Manuel | T4 | 1–1,5 días | Pendiente |
 | T11. (Opcional) Push, backend: tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío en `notificarFamilias` | 4 | 4 | Iván | T1 | 2 días | Pendiente |
 | T12. (Opcional) Push, frontend: botón "Activar avisos" y manejo del aviso en el service worker (`importScripts` en la config de Workbox) | 4 | 4 | Juan Manuel | T11 | 1–2 días | Pendiente |
@@ -280,7 +280,7 @@ interface NavItem { key: string; icon: string; label: string }
 - **Queda para T7:** el contenido de las 8 secciones (las tarjetas de Inicio
   siguen en 4 columnas y las tablas desbordan en el celular).
 
-### T6 — Pantallas del docente (Iván): en revisión, rama `feat/pwa-t6-docente`
+### T6 — Pantallas del docente (Iván): hecho, mergeado en el PR #12
 
 - **Qué quedó** (en `frontend/src/features/`):
   - **Tomar asistencia:** filtros en una columna en el celular; cada alumno en
@@ -311,7 +311,7 @@ interface NavItem { key: string; icon: string; label: string }
   envía los estados correctos; a 1280 px se ven como antes. No probado en un
   teléfono real.
 
-### T7 — Las 8 secciones del portal (Juan Manuel): en revisión, rama `feat/pwa-t7-portal-mobile`
+### T7 — Las 8 secciones del portal (Juan Manuel): hecho, mergeado en el PR #13
 
 - **Qué quedó** (en `frontend/src/StudentPortal.tsx`):
   - **Inicio:** las 4 tarjetas de estadísticas pasan de 4 a 2 columnas debajo de
@@ -346,6 +346,44 @@ interface NavItem { key: string; icon: string; label: string }
   un efecto), confirmado comparando contra `main` con `git stash`. No probado
   con la API real ni en un teléfono real (no se puede levantar el backend en
   este entorno).
+
+### T9 — Admin en celular, parte académica (Iván): en revisión, rama `feat/pwa-t9-admin-academico`
+
+- **Qué quedó** (en `frontend/src/features/`: usuarios, alumnos y legajo del
+  alumno, docentes, cursos, materias, asignaciones, inscripciones y su
+  detalle, mensajes, actividades, reservas y legajos del docente):
+  - Las 12 tablas quedaron dentro de `TablaScroll`: en el celular se deslizan
+    de costado en vez de estirar la pantalla. En Actividades, la tabla de
+    inscriptos va anidada dentro de una fila, así que se envolvió solo la de
+    afuera.
+  - Formularios y grillas en 1 columna en el celular (2 en tablet): los
+    `gridTemplateColumns` en línea pasaron a clases de Tailwind y
+    `grid-cols-2` fijo a `grid-cols-1 sm:grid-cols-2`.
+  - Las cabeceras con botón (`justify-between`) ahora bajan de línea si no
+    entran. En Mensajes, un email largo corta en vez de desbordar.
+- **Cambios globales** (archivos de Juan Manuel, conviene que los revise):
+  `formGrid4` en `ui/styles.ts` pasa a 1 columna en el celular, 2 en tablet y
+  4 desde `md` (como dice *Adaptación mobile*); por eso el `col-span-2` de
+  Materias pasó a `sm:col-span-2`. `SectionHeader` en `ui/components.tsx`
+  ahora hace `flex-wrap`. Los dos alcanzan también a las pantallas de T10.
+- **Cómo se midió:** el `<main>` del panel tiene `overflow-y-auto`, así que
+  también recorta en horizontal y el desborde no se ve en el scroll de la
+  página: se mide `main.scrollWidth` contra su ancho visible y se buscan
+  elementos que se salgan de `main` fuera de un `TablaScroll`. **Sirve para
+  T10.**
+- **Verificado:** `tsc` de la app y `pnpm build` sin errores; el lint de estas
+  pantallas y de `ui/` da los mismos 12 errores que en `main` (todos
+  `setState` dentro de un efecto al cargar datos). Con `pnpm preview` y la API
+  simulada (nombres y emails largos), en Chromium a 375 px, como Admin y como
+  Docente, con el formulario de alta abierto donde hay: en `main` desbordaban
+  10 de 12 pantallas (Usuarios llegaba a 789 px de ancho); en la rama, ninguna.
+  A 1280 px sin cambios visibles y sin errores de JS. No probado en un
+  teléfono real.
+- **Queda como mejora (no hace falta para la fase 5):** en el celular las
+  tablas se achican hasta el ancho de la pantalla antes de deslizarse, así
+  que los nombres largos ocupan varias líneas. Si molesta, se puede dar un
+  ancho mínimo a las tablas dentro de `TablaScroll` o pasar las más usadas a
+  `ResponsiveTable`.
 
 ## Pruebas
 

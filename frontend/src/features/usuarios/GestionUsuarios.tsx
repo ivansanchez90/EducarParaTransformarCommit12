@@ -18,6 +18,7 @@ import {
   card,
   badge,
 } from '../../ui/styles'
+import { TablaScroll } from '../../ui/components'
 
 export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
   // Jerarquía (solo UX): un Directivo no puede activar/desactivar a un Admin u
@@ -128,6 +129,8 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
         style={{
           display: 'flex',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          rowGap: 12,
           alignItems: 'center',
           marginBottom: 20,
         }}
@@ -164,7 +167,7 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
           </div>
           <form
             onSubmit={handleCreate}
-            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}
+            className='grid grid-cols-1 sm:grid-cols-2 gap-[14px]'
           >
             <div>
               <span className={fieldLabel}>
@@ -253,11 +256,7 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
                   Datos del alumno asociado
                 </div>
                 <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: 14,
-                  }}
+                  className='grid grid-cols-1 sm:grid-cols-2 gap-[14px]'
                 >
                   <div>
                     <span className={fieldLabel}>
@@ -396,116 +395,118 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
 
       {/* Tabla */}
       <div className={card}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th className={thCell}>
-                Nombre
-              </th>
-              <th className={thCell}>
-                Email
-              </th>
-              <th className={thCell}>
-                Rol
-              </th>
-              <th className={thCell}>
-                Estado
-              </th>
-              <th className={thCell}>
-                Acción
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {usuarios.map((u) => (
-              <Fragment key={u.id_usuario}>
+        <TablaScroll>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
               <tr>
-                <td className={`${tdCell} font-bold`}>
-                  {u.apellido}, {u.nombre}
-                </td>
-                <td className={`${tdCell} text-textMuted`}>
-                  {u.email}
-                </td>
-                <td className={tdCell}>
-                  <span
-                    style={badge(
-                      u.rol === 'Admin' || u.rol === 'Directivo'
-                        ? '#5B35C5'
-                        : '#2980B9',
-                    )}
-                  >
-                    {u.rol}
-                  </span>
-                </td>
-                <td className={tdCell}>
-                  <span style={badge(u.activo ? '#27AE60' : '#E74C3C')}>
-                    {u.activo ? 'Activo' : 'Inactivo'}
-                  </span>
-                </td>
-                <td className={tdCell}>
-                  {puedeGestionar(u.rol) ? (
-                    <div className='flex gap-2'>
-                      <button
-                        className={
-                          u.activo
-                            ? btnDanger
-                            : 'bg-[#27AE601A] text-green border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
-                        }
-                        onClick={() => toggleActivo(u.id_usuario, u.activo)}
-                      >
-                        {u.activo ? 'Desactivar' : 'Activar'}
-                      </button>
-                      <button
-                        className='bg-purpleLight text-purple-700 border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
-                        onClick={() => {
-                          setPassUsuario(passUsuario === u.id_usuario ? null : u.id_usuario)
-                          setPassNueva('')
-                          setMsg('')
-                        }}
-                      >
-                        🔑 Contraseña
-                      </button>
-                    </div>
-                  ) : (
-                    <span className='text-[11px] text-textMuted'>—</span>
-                  )}
-                </td>
+                <th className={thCell}>
+                  Nombre
+                </th>
+                <th className={thCell}>
+                  Email
+                </th>
+                <th className={thCell}>
+                  Rol
+                </th>
+                <th className={thCell}>
+                  Estado
+                </th>
+                <th className={thCell}>
+                  Acción
+                </th>
               </tr>
-              {passUsuario === u.id_usuario && (
+            </thead>
+            <tbody>
+              {usuarios.map((u) => (
+                <Fragment key={u.id_usuario}>
                 <tr>
-                  <td colSpan={5} className='bg-purpleLight border-b border-border py-4 px-4'>
-                    <div className='flex items-end gap-3 flex-wrap'>
-                      <div>
-                        <span className={fieldLabel}>Contraseña nueva para {u.email}</span>
-                        <input
-                          type='text'
-                          className={inputField}
-                          autoFocus
-                          placeholder='Mínimo 6 caracteres'
-                          value={passNueva}
-                          onChange={(e) => setPassNueva(e.target.value)}
-                        />
+                  <td className={`${tdCell} font-bold`}>
+                    {u.apellido}, {u.nombre}
+                  </td>
+                  <td className={`${tdCell} text-textMuted`}>
+                    {u.email}
+                  </td>
+                  <td className={tdCell}>
+                    <span
+                      style={badge(
+                        u.rol === 'Admin' || u.rol === 'Directivo'
+                          ? '#5B35C5'
+                          : '#2980B9',
+                      )}
+                    >
+                      {u.rol}
+                    </span>
+                  </td>
+                  <td className={tdCell}>
+                    <span style={badge(u.activo ? '#27AE60' : '#E74C3C')}>
+                      {u.activo ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
+                  <td className={tdCell}>
+                    {puedeGestionar(u.rol) ? (
+                      <div className='flex gap-2'>
+                        <button
+                          className={
+                            u.activo
+                              ? btnDanger
+                              : 'bg-[#27AE601A] text-green border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
+                          }
+                          onClick={() => toggleActivo(u.id_usuario, u.activo)}
+                        >
+                          {u.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                        <button
+                          className='bg-purpleLight text-purple-700 border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
+                          onClick={() => {
+                            setPassUsuario(passUsuario === u.id_usuario ? null : u.id_usuario)
+                            setPassNueva('')
+                            setMsg('')
+                          }}
+                        >
+                          🔑 Contraseña
+                        </button>
                       </div>
-                      <button className={btnPrimary} onClick={() => guardarPassword(u)}>
-                        Guardar contraseña
-                      </button>
-                      <button
-                        className='bg-transparent border border-border rounded-[8px] px-3.5 py-[9px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
-                        onClick={() => setPassUsuario(null)}
-                      >
-                        Cancelar
-                      </button>
-                      <span className='text-[11px] text-textMuted self-center'>
-                        La contraseña se muestra a propósito, para que puedas comunicársela.
-                      </span>
-                    </div>
+                    ) : (
+                      <span className='text-[11px] text-textMuted'>—</span>
+                    )}
                   </td>
                 </tr>
-              )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
+                {passUsuario === u.id_usuario && (
+                  <tr>
+                    <td colSpan={5} className='bg-purpleLight border-b border-border py-4 px-4'>
+                      <div className='flex items-end gap-3 flex-wrap'>
+                        <div>
+                          <span className={fieldLabel}>Contraseña nueva para {u.email}</span>
+                          <input
+                            type='text'
+                            className={inputField}
+                            autoFocus
+                            placeholder='Mínimo 6 caracteres'
+                            value={passNueva}
+                            onChange={(e) => setPassNueva(e.target.value)}
+                          />
+                        </div>
+                        <button className={btnPrimary} onClick={() => guardarPassword(u)}>
+                          Guardar contraseña
+                        </button>
+                        <button
+                          className='bg-transparent border border-border rounded-[8px] px-3.5 py-[9px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
+                          onClick={() => setPassUsuario(null)}
+                        >
+                          Cancelar
+                        </button>
+                        <span className='text-[11px] text-textMuted self-center'>
+                          La contraseña se muestra a propósito, para que puedas comunicársela.
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </TablaScroll>
       </div>
     </div>
   )

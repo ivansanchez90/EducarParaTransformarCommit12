@@ -5,7 +5,7 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 import type { Curso } from '../../types'
-import { Badge, Card, EstadoBadge, FormMessage, SectionHeader, ToggleFormButton } from '../../ui/components'
+import { Badge, Card, EstadoBadge, FormMessage, SectionHeader, ToggleFormButton, TablaScroll } from '../../ui/components'
 import {
   btnDanger,
   btnPrimary,
@@ -167,50 +167,52 @@ export function GestionCursos() {
       )}
 
       <Card>
-        <table className={tableBase}>
-          <thead>
-            <tr>
-              <th className={thCell}>Nivel</th>
-              <th className={thCell}>Grado / Año</th>
-              <th className={thCell}>División</th>
-              <th className={thCell}>Capacidad</th>
-              <th className={thCell}>Estado</th>
-              <th className={thCell} />
-            </tr>
-          </thead>
-          <tbody>
-            {cursos.map((c) => (
-              <tr key={c.id_curso} className={c.activo ? '' : 'opacity-60'}>
-                <td className={tdCell}>
-                  <Badge color={COLOR_NIVEL[c.nivel] ?? '#6B6B8A'}>{c.nivel}</Badge>
-                </td>
-                <td className={`${tdCell} font-bold`}>{c.grado_anio}</td>
-                <td className={tdCell}>División {c.division}</td>
-                <td className={`${tdCell} text-textMuted`}>
-                  {c.capacidad_maxima === null ? 'Sin límite' : `${c.capacidad_maxima} alumnos`}
-                </td>
-                <td className={tdCell}>
-                  <EstadoBadge activo={c.activo} />
-                </td>
-                <td className={tdCell}>
-                  <div className={rowActions}>
-                    <button
-                      className={btnSecondarySm}
-                      onClick={() => {
-                        abrirEdicion(c)
-                      }}
-                    >
-                      Editar
-                    </button>
-                    <button className={c.activo ? btnDanger : btnSecondarySm} onClick={() => void handleEstado(c)}>
-                      {c.activo ? 'Dar de baja' : 'Reactivar'}
-                    </button>
-                  </div>
-                </td>
+        <TablaScroll>
+          <table className={tableBase}>
+            <thead>
+              <tr>
+                <th className={thCell}>Nivel</th>
+                <th className={thCell}>Grado / Año</th>
+                <th className={thCell}>División</th>
+                <th className={thCell}>Capacidad</th>
+                <th className={thCell}>Estado</th>
+                <th className={thCell} />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {cursos.map((c) => (
+                <tr key={c.id_curso} className={c.activo ? '' : 'opacity-60'}>
+                  <td className={tdCell}>
+                    <Badge color={COLOR_NIVEL[c.nivel] ?? '#6B6B8A'}>{c.nivel}</Badge>
+                  </td>
+                  <td className={`${tdCell} font-bold`}>{c.grado_anio}</td>
+                  <td className={tdCell}>División {c.division}</td>
+                  <td className={`${tdCell} text-textMuted`}>
+                    {c.capacidad_maxima === null ? 'Sin límite' : `${c.capacidad_maxima} alumnos`}
+                  </td>
+                  <td className={tdCell}>
+                    <EstadoBadge activo={c.activo} />
+                  </td>
+                  <td className={tdCell}>
+                    <div className={rowActions}>
+                      <button
+                        className={btnSecondarySm}
+                        onClick={() => {
+                          abrirEdicion(c)
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button className={c.activo ? btnDanger : btnSecondarySm} onClick={() => void handleEstado(c)}>
+                        {c.activo ? 'Dar de baja' : 'Reactivar'}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TablaScroll>
       </Card>
     </div>
   )

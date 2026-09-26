@@ -9,6 +9,7 @@ import type { Inscripcion } from '../../types'
 import { ESTADOS_INSCRIPCION, INSC_COLOR } from '../../constants'
 import { badge, btnPrimarySm, card, selectField, tdCell, thCell } from '../../ui/styles'
 import { DetalleInscripcion } from './DetalleInscripcion'
+import { TablaScroll } from '../../ui/components'
 
 export function GestionInscripciones() {
   const [inscripciones, setInscripciones] = useState<Inscripcion[]>([])
@@ -67,78 +68,80 @@ export function GestionInscripciones() {
           </select>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th className={thCell}>Aspirante</th>
-              <th className={thCell}>Tutor</th>
-              <th className={thCell}>Nivel</th>
-              <th className={thCell}>Fecha</th>
-              <th className={thCell}>Documentación</th>
-              <th className={thCell}>Estado</th>
-              <th className={thCell}>Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtradas.map((i) => (
-              <tr key={i.id_inscripcion}>
-                <td className={`${tdCell} font-bold`}>
-                  {i.nombre_aspirante} {i.apellido_aspirante ?? ''}
-                  <br />
-                  <span style={{ fontSize: 11, color: '#6B6B8A' }}>
-                    DNI: {i.dni_aspirante}
-                    {i.fecha_nacimiento_aspirante &&
-                      ` · Nac: ${new Date(
-                        i.fecha_nacimiento_aspirante,
-                      ).toLocaleDateString('es-AR')}`}
-                  </span>
-                </td>
-                <td className={tdCell}>
-                  {i.nombre_tutor}
-                  <br />
-                  <span style={{ fontSize: 11, color: '#6B6B8A' }}>{i.email_tutor}</span>
-                </td>
-                <td className={tdCell}>
-                  <span className='inline-block bg-[#5B35C51A] text-purple-700 rounded-[20px] px-[10px] py-[3px] text-[11px] font-extrabold'>
-                    {i.nivel_solicitado}
-                    {i.grado_anio_solicitado ? ` · ${i.grado_anio_solicitado}` : ''}
-                  </span>
-                </td>
-                <td className={`${tdCell} text-textMuted text-xs`}>
-                  {new Date(i.fecha_solicitud).toLocaleDateString('es-AR')}
-                </td>
-                <td className={tdCell}>
-                  <span style={badge(i.documentacion_completa ? '#27AE60' : '#6B6B8A')}>
-                    {i.documentacion_completa ? 'Completa' : 'Pendiente'}
-                  </span>
-                </td>
-                <td className={tdCell}>
-                  <span style={badge(INSC_COLOR[i.estado] ?? '#6B6B8A')}>{i.estado}</span>
-                  {i.id_alumno_creado && (
-                    <div className='text-[11px] font-extrabold text-green mt-1'>
-                      ✓ Alumno dado de alta
-                    </div>
-                  )}
-                </td>
-                <td className={tdCell}>
-                  <button
-                    className={btnPrimarySm}
-                    onClick={() => setDetalleId(i.id_inscripcion)}
-                  >
-                    Revisar
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filtradas.length === 0 && (
+        <TablaScroll>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
               <tr>
-                <td className={`${tdCell} text-textMuted`} colSpan={7}>
-                  No hay solicitudes con ese estado.
-                </td>
+                <th className={thCell}>Aspirante</th>
+                <th className={thCell}>Tutor</th>
+                <th className={thCell}>Nivel</th>
+                <th className={thCell}>Fecha</th>
+                <th className={thCell}>Documentación</th>
+                <th className={thCell}>Estado</th>
+                <th className={thCell}>Acción</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtradas.map((i) => (
+                <tr key={i.id_inscripcion}>
+                  <td className={`${tdCell} font-bold`}>
+                    {i.nombre_aspirante} {i.apellido_aspirante ?? ''}
+                    <br />
+                    <span style={{ fontSize: 11, color: '#6B6B8A' }}>
+                      DNI: {i.dni_aspirante}
+                      {i.fecha_nacimiento_aspirante &&
+                        ` · Nac: ${new Date(
+                          i.fecha_nacimiento_aspirante,
+                        ).toLocaleDateString('es-AR')}`}
+                    </span>
+                  </td>
+                  <td className={tdCell}>
+                    {i.nombre_tutor}
+                    <br />
+                    <span style={{ fontSize: 11, color: '#6B6B8A' }}>{i.email_tutor}</span>
+                  </td>
+                  <td className={tdCell}>
+                    <span className='inline-block bg-[#5B35C51A] text-purple-700 rounded-[20px] px-[10px] py-[3px] text-[11px] font-extrabold'>
+                      {i.nivel_solicitado}
+                      {i.grado_anio_solicitado ? ` · ${i.grado_anio_solicitado}` : ''}
+                    </span>
+                  </td>
+                  <td className={`${tdCell} text-textMuted text-xs`}>
+                    {new Date(i.fecha_solicitud).toLocaleDateString('es-AR')}
+                  </td>
+                  <td className={tdCell}>
+                    <span style={badge(i.documentacion_completa ? '#27AE60' : '#6B6B8A')}>
+                      {i.documentacion_completa ? 'Completa' : 'Pendiente'}
+                    </span>
+                  </td>
+                  <td className={tdCell}>
+                    <span style={badge(INSC_COLOR[i.estado] ?? '#6B6B8A')}>{i.estado}</span>
+                    {i.id_alumno_creado && (
+                      <div className='text-[11px] font-extrabold text-green mt-1'>
+                        ✓ Alumno dado de alta
+                      </div>
+                    )}
+                  </td>
+                  <td className={tdCell}>
+                    <button
+                      className={btnPrimarySm}
+                      onClick={() => setDetalleId(i.id_inscripcion)}
+                    >
+                      Revisar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filtradas.length === 0 && (
+                <tr>
+                  <td className={`${tdCell} text-textMuted`} colSpan={7}>
+                    No hay solicitudes con ese estado.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </TablaScroll>
       </div>
     </div>
   )

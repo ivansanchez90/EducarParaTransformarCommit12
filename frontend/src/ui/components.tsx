@@ -33,7 +33,7 @@ export function SectionHeader({
   action?: ReactNode
 }) {
   return (
-    <div className='flex justify-between items-center mb-5'>
+    <div className='flex flex-wrap gap-3 justify-between items-center mb-5'>
       <h2 className='text-[22px] font-black m-0'>{title}</h2>
       {action}
     </div>

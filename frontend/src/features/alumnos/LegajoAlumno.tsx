@@ -19,6 +19,7 @@ import {
   tdCell,
   thCell,
 } from '../../ui/styles'
+import { TablaScroll } from '../../ui/components'
 
 export function LegajoAlumno({
   idAlumno,
@@ -133,6 +134,8 @@ export function LegajoAlumno({
         style={{
           display: 'flex',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          rowGap: 12,
           alignItems: 'center',
           marginBottom: 20,
         }}
@@ -152,11 +155,7 @@ export function LegajoAlumno({
         </div>
         {alumno ? (
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 18,
-            }}
+            className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-[18px]'
           >
             {dato('Apellido y nombre', `${alumno.apellido}, ${alumno.nombre}`)}
             {dato('DNI', alumno.dni)}
@@ -184,12 +183,7 @@ export function LegajoAlumno({
 
       {/* Resumen académico */}
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 16,
-          marginBottom: 20,
-        }}
+        className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-5'
       >
         <div className={card}>
           <div className={fieldLabel}>Promedio general</div>
@@ -227,47 +221,49 @@ export function LegajoAlumno({
         <div className='text-[15px] font-extrabold text-text mb-5'>
           Historial de calificaciones
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th className={thCell}>Materia</th>
-              <th className={thCell}>Trimestre</th>
-              <th className={thCell}>Evaluación</th>
-              <th className={thCell}>Nota</th>
-              <th className={thCell}>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            {califs.map((c) => (
-              <tr key={c.id_calificacion}>
-                <td className={`${tdCell} font-bold`}>
-                  {c.asignaciones?.materias?.nombre ?? '—'}
-                </td>
-                <td className={tdCell}>{c.trimestre}°</td>
-                <td className={`${tdCell} text-textMuted`}>
-                  {c.tipo_evaluacion}
-                </td>
-                <td className={tdCell}>
-                  <span
-                    style={badge(Number(c.nota) >= 6 ? '#27AE60' : '#E74C3C')}
-                  >
-                    {c.nota}
-                  </span>
-                </td>
-                <td className={`${tdCell} text-textMuted text-xs`}>
-                  {new Date(c.fecha_carga).toLocaleDateString('es-AR')}
-                </td>
-              </tr>
-            ))}
-            {califs.length === 0 && (
+        <TablaScroll>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
               <tr>
-                <td className={`${tdCell} text-textMuted`} colSpan={5}>
-                  Sin calificaciones registradas.
-                </td>
+                <th className={thCell}>Materia</th>
+                <th className={thCell}>Trimestre</th>
+                <th className={thCell}>Evaluación</th>
+                <th className={thCell}>Nota</th>
+                <th className={thCell}>Fecha</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {califs.map((c) => (
+                <tr key={c.id_calificacion}>
+                  <td className={`${tdCell} font-bold`}>
+                    {c.asignaciones?.materias?.nombre ?? '—'}
+                  </td>
+                  <td className={tdCell}>{c.trimestre}°</td>
+                  <td className={`${tdCell} text-textMuted`}>
+                    {c.tipo_evaluacion}
+                  </td>
+                  <td className={tdCell}>
+                    <span
+                      style={badge(Number(c.nota) >= 6 ? '#27AE60' : '#E74C3C')}
+                    >
+                      {c.nota}
+                    </span>
+                  </td>
+                  <td className={`${tdCell} text-textMuted text-xs`}>
+                    {new Date(c.fecha_carga).toLocaleDateString('es-AR')}
+                  </td>
+                </tr>
+              ))}
+              {califs.length === 0 && (
+                <tr>
+                  <td className={`${tdCell} text-textMuted`} colSpan={5}>
+                    Sin calificaciones registradas.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </TablaScroll>
       </div>
 
       {/* Amonestaciones */}
@@ -374,53 +370,55 @@ export function LegajoAlumno({
             {msg}
           </div>
         )}
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th className={thCell}>Documento</th>
-              <th className={thCell}>Tipo</th>
-              <th className={thCell}>Fecha</th>
-              <th className={thCell}>Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {documentos.map((d) => (
-              <tr key={d.id_documento}>
-                <td className={`${tdCell} font-bold`}>{d.nombre}</td>
-                <td className={tdCell}>
-                  <span className='inline-block bg-[#2980B91A] text-blue rounded-[20px] px-[10px] py-[3px] text-[11px] font-extrabold'>
-                    {d.tipo ?? 'Documento'}
-                  </span>
-                </td>
-                <td className={`${tdCell} text-textMuted text-xs`}>
-                  {new Date(d.fecha_carga).toLocaleDateString('es-AR')}
-                </td>
-                <td className={tdCell}>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <a
-                      href={d.url_archivo}
-                      target='_blank'
-                      rel='noreferrer'
-                      className='bg-purpleLight text-purple-700 border-0 rounded-btn py-[6px] px-[12px] text-xs font-extrabold cursor-pointer no-underline'
-                    >
-                      Ver
-                    </a>
-                    <button className={btnDanger} onClick={() => eliminarDocumento(d)}>
-                      Eliminar
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {documentos.length === 0 && (
+        <TablaScroll>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
               <tr>
-                <td className={`${tdCell} text-textMuted`} colSpan={4}>
-                  Sin documentación cargada.
-                </td>
+                <th className={thCell}>Documento</th>
+                <th className={thCell}>Tipo</th>
+                <th className={thCell}>Fecha</th>
+                <th className={thCell}>Acción</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {documentos.map((d) => (
+                <tr key={d.id_documento}>
+                  <td className={`${tdCell} font-bold`}>{d.nombre}</td>
+                  <td className={tdCell}>
+                    <span className='inline-block bg-[#2980B91A] text-blue rounded-[20px] px-[10px] py-[3px] text-[11px] font-extrabold'>
+                      {d.tipo ?? 'Documento'}
+                    </span>
+                  </td>
+                  <td className={`${tdCell} text-textMuted text-xs`}>
+                    {new Date(d.fecha_carga).toLocaleDateString('es-AR')}
+                  </td>
+                  <td className={tdCell}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <a
+                        href={d.url_archivo}
+                        target='_blank'
+                        rel='noreferrer'
+                        className='bg-purpleLight text-purple-700 border-0 rounded-btn py-[6px] px-[12px] text-xs font-extrabold cursor-pointer no-underline'
+                      >
+                        Ver
+                      </a>
+                      <button className={btnDanger} onClick={() => eliminarDocumento(d)}>
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {documentos.length === 0 && (
+                <tr>
+                  <td className={`${tdCell} text-textMuted`} colSpan={4}>
+                    Sin documentación cargada.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </TablaScroll>
       </div>
     </div>
   )

@@ -14,6 +14,7 @@ import {
   tdCell,
   card,
 } from '../../ui/styles'
+import { TablaScroll } from '../../ui/components'
 
 export function GestionReservas() {
   const [instalaciones, setInstalaciones] = useState<Instalacion[]>([])
@@ -91,11 +92,7 @@ export function GestionReservas() {
           style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
         >
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 1fr 1fr 1fr',
-              gap: 14,
-            }}
+            className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[2fr_1fr_1fr_1fr] gap-[14px]'
           >
             <div>
               <span className={fieldLabel}>
@@ -192,71 +189,73 @@ export function GestionReservas() {
         <div className='text-[15px] font-extrabold text-text mb-5'>
           Próximas reservas
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th className={thCell}>
-                Instalación
-              </th>
-              <th className={thCell}>
-                Fecha
-              </th>
-              <th className={thCell}>
-                Horario
-              </th>
-              <th className={thCell}>
-                Motivo
-              </th>
-              <th className={thCell}>
-                Reservó
-              </th>
-              <th className={thCell}>
-                Acción
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {reservas.map((r) => (
-              <tr key={r.id_reserva}>
-                <td className={`${tdCell} font-bold`}>
-                  {r.instalaciones?.nombre ?? '—'}
-                </td>
-                <td className={tdCell}>
-                  {new Date(r.fecha + 'T00:00:00').toLocaleDateString('es-AR')}
-                </td>
-                <td className={tdCell}>
-                  {r.hora_inicio.slice(0, 5)} – {r.hora_fin.slice(0, 5)}
-                </td>
-                <td className={`${tdCell} text-textMuted`}>
-                  {r.motivo ?? '—'}
-                </td>
-                <td className={`${tdCell} text-textMuted text-xs`}>
-                  {r.usuarios
-                    ? `${r.usuarios.nombre} ${r.usuarios.apellido}`
-                    : '—'}
-                </td>
-                <td className={tdCell}>
-                  <button
-                    className={btnDanger}
-                    onClick={() => eliminar(r.id_reserva)}
-                  >
-                    Cancelar
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {reservas.length === 0 && (
+        <TablaScroll>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
               <tr>
-                <td
-                  className={`${tdCell} text-textMuted`}
-                  colSpan={6}
-                >
-                  No hay reservas próximas.
-                </td>
+                <th className={thCell}>
+                  Instalación
+                </th>
+                <th className={thCell}>
+                  Fecha
+                </th>
+                <th className={thCell}>
+                  Horario
+                </th>
+                <th className={thCell}>
+                  Motivo
+                </th>
+                <th className={thCell}>
+                  Reservó
+                </th>
+                <th className={thCell}>
+                  Acción
+                </th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {reservas.map((r) => (
+                <tr key={r.id_reserva}>
+                  <td className={`${tdCell} font-bold`}>
+                    {r.instalaciones?.nombre ?? '—'}
+                  </td>
+                  <td className={tdCell}>
+                    {new Date(r.fecha + 'T00:00:00').toLocaleDateString('es-AR')}
+                  </td>
+                  <td className={tdCell}>
+                    {r.hora_inicio.slice(0, 5)} – {r.hora_fin.slice(0, 5)}
+                  </td>
+                  <td className={`${tdCell} text-textMuted`}>
+                    {r.motivo ?? '—'}
+                  </td>
+                  <td className={`${tdCell} text-textMuted text-xs`}>
+                    {r.usuarios
+                      ? `${r.usuarios.nombre} ${r.usuarios.apellido}`
+                      : '—'}
+                  </td>
+                  <td className={tdCell}>
+                    <button
+                      className={btnDanger}
+                      onClick={() => eliminar(r.id_reserva)}
+                    >
+                      Cancelar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {reservas.length === 0 && (
+                <tr>
+                  <td
+                    className={`${tdCell} text-textMuted`}
+                    colSpan={6}
+                  >
+                    No hay reservas próximas.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </TablaScroll>
       </div>
     </div>
   )
