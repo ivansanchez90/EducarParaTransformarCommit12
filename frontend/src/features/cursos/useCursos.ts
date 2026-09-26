@@ -53,7 +53,7 @@ export function useCursos() {
   }, [])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
   /** Crea un curso (el backend asigna el período activo). Devuelve el error si lo hay. */
