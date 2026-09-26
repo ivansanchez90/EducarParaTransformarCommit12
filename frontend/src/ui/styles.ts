@@ -91,6 +91,14 @@ export const safeAreaBottom = 'pb-[env(safe-area-inset-bottom)]'
 export const safeAreaX = 'pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]'
 
 /**
+ * Relleno lateral de 16 px en el celular que se agranda si el área segura es
+ * mayor. Va en lugar de `px-4` + `safeAreaX`: `safeAreaX` pisaría el `px-4`
+ * (vale 0 sin notch). Desde `md`, un `md:px-*` lo reemplaza.
+ */
+export const conPaddingX =
+  'pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]'
+
+/**
  * Relleno inferior del contenido cuando hay `BottomNav`: en el celular deja
  * lugar para la barra (64 px, `h-16`), un margen y el área segura; desde `md`
  * vuelve al relleno normal del panel.

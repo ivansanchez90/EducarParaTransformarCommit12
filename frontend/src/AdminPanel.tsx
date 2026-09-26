@@ -18,7 +18,7 @@ import { getSession, logout, onAuthChange } from './lib/auth'
 import type { UsuarioPanel } from './types'
 import { NAV_ADMIN, NAV_DOCENTE } from './constants'
 import { AvatarMenu, BottomNav, type NavItem } from './ui/components'
-import { conBottomNav, safeAreaBottom, safeAreaX, touchTarget } from './ui/styles'
+import { conBottomNav, conPaddingX, safeAreaBottom, touchTarget } from './ui/styles'
 
 import { Dashboard } from './features/dashboard/Dashboard'
 import { GestionUsuarios } from './features/usuarios/GestionUsuarios'
@@ -138,7 +138,7 @@ export default function AdminPanel() {
     <div className='font-sans bg-bg min-h-screen text-text'>
       {/* ── HEADER ── */}
       <header
-        className={`bg-white border-b-[3px] border-purple-700 px-4 md:px-7 h-16 md:h-[68px] flex items-center justify-between sticky top-0 z-[100] shadow-[0_2px_16px_rgba(91,53,197,0.08)] ${safeAreaX}`}
+        className={`bg-white border-b-[3px] border-purple-700 md:px-7 h-16 md:h-[68px] flex items-center justify-between sticky top-0 z-[100] shadow-[0_2px_16px_rgba(91,53,197,0.08)] ${conPaddingX}`}
       >
         <div className='flex items-center gap-2 md:gap-2.5 min-w-0'>
           {esAdmin && (
@@ -223,7 +223,7 @@ export default function AdminPanel() {
         )}
 
         {/* ── CONTENIDO ── */}
-        <main className={`flex-1 p-4 md:p-7 overflow-y-auto ${safeAreaX} ${esAdmin ? '' : conBottomNav}`}>
+        <main className={`flex-1 min-w-0 py-4 md:p-7 overflow-y-auto ${conPaddingX} ${esAdmin ? '' : conBottomNav}`}>
           {activeNav === 'dashboard' && (
             <Dashboard
               esAdmin={esAdmin}
