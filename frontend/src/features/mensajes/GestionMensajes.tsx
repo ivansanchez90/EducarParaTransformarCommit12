@@ -56,6 +56,8 @@ export function GestionMensajes() {
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    rowGap: 12,
                     alignItems: 'center',
                     cursor: 'pointer',
                   }}
@@ -63,7 +65,7 @@ export function GestionMensajes() {
                     setAbierto(abierto === m.id_mensaje ? null : m.id_mensaje)
                   }
                 >
-                  <div>
+                  <div className='min-w-0 break-words'>
                     <span style={{ fontWeight: 800, fontSize: 14 }}>
                       {m.nombre}
                     </span>
@@ -72,6 +74,7 @@ export function GestionMensajes() {
                         fontSize: 12,
                         color: '#6B6B8A',
                         marginLeft: 8,
+                        overflowWrap: 'anywhere',
                       }}
                     >
                       {m.email}

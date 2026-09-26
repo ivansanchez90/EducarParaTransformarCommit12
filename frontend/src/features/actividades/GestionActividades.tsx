@@ -18,6 +18,7 @@ import {
   card,
   badge,
 } from '../../ui/styles'
+import { TablaScroll } from '../../ui/components'
 
 export function GestionActividades() {
   const [actividades, setActividades] = useState<ActividadEx[]>([])
@@ -157,244 +158,246 @@ export function GestionActividades() {
   const renderGrupo = (titulo: string, items: ActividadEx[]) => (
     <div className={`${card} mb-5`}>
       <div className='text-[15px] font-extrabold text-text mb-5'>{titulo}</div>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th className={thCell}>
-              Actividad
-            </th>
-            <th className={thCell}>
-              Cupo
-            </th>
-            <th className={thCell}>
-              Inscriptos
-            </th>
-            <th className={thCell}>
-              Estado
-            </th>
-            <th className={thCell}>
-              Acción
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((a) => {
-            const ocupados = conteos[a.id_actividad] ?? 0
-            const completo = ocupados >= a.cupo_maximo
-            const expandida = verInscriptosId === a.id_actividad
-            return (
-              <Fragment key={a.id_actividad}>
-                <tr>
-                  <td className={`${tdCell} font-bold`}>
-                    {a.nombre}
-                    {a.descripcion && (
-                      <>
-                        <br />
-                        <span style={{ fontSize: 11, color: '#6B6B8A' }}>
-                          {a.descripcion}
-                        </span>
-                      </>
-                    )}
-                  </td>
-                  <td className={tdCell}>
-                    {a.cupo_maximo}
-                  </td>
-                  <td className={tdCell}>
-                    <span
-                      style={badge(
-                        completo
-                          ? '#E74C3C'
-                          : ocupados > 0
-                            ? '#27AE60'
-                            : '#6B6B8A',
-                      )}
-                    >
-                      {ocupados} / {a.cupo_maximo}
-                      {completo ? ' · COMPLETO' : ''}
-                    </span>
-                  </td>
-                  <td className={tdCell}>
-                    <span style={badge(a.activo ? '#27AE60' : '#6B6B8A')}>
-                      {a.activo ? 'Activa' : 'Inactiva'}
-                    </span>
-                  </td>
-                  <td className={tdCell}>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <button
-                        className={
-                          expandida
-                            ? btnPrimarySm
-                            : btnSecondarySm
-                        }
-                        onClick={() => toggleVerInscriptos(a.id_actividad)}
-                      >
-                        {expandida
-                          ? '▲ Ocultar'
-                          : `👥 Inscriptos (${ocupados})`}
-                      </button>
-                      <button
-                        className={btnSecondarySm}
-                        onClick={() => abrirEdicion(a)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className={btnDanger}
-                        onClick={() => toggleActivo(a)}
-                      >
-                        {a.activo ? 'Desactivar' : 'Activar'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                {expandida && (
+      <TablaScroll>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th className={thCell}>
+                Actividad
+              </th>
+              <th className={thCell}>
+                Cupo
+              </th>
+              <th className={thCell}>
+                Inscriptos
+              </th>
+              <th className={thCell}>
+                Estado
+              </th>
+              <th className={thCell}>
+                Acción
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((a) => {
+              const ocupados = conteos[a.id_actividad] ?? 0
+              const completo = ocupados >= a.cupo_maximo
+              const expandida = verInscriptosId === a.id_actividad
+              return (
+                <Fragment key={a.id_actividad}>
                   <tr>
-                    <td
-                      colSpan={5}
-                      className='bg-purpleLight/50 border-b border-border p-5'
-                    >
-                      {/* Formulario de inscripción */}
-                      <div className='flex items-end gap-3 flex-wrap mb-4'>
-                        <div className='flex-1' style={{ minWidth: 280 }}>
-                          <span className={fieldLabel}>
-                            Inscribir alumno a {a.nombre}
+                    <td className={`${tdCell} font-bold`}>
+                      {a.nombre}
+                      {a.descripcion && (
+                        <>
+                          <br />
+                          <span style={{ fontSize: 11, color: '#6B6B8A' }}>
+                            {a.descripcion}
                           </span>
-                          <select
-                            className={`${selectField} bg-white`}
-                            value={selAlumno}
-                            onChange={(e) => setSelAlumno(e.target.value)}
-                          >
-                            <option value=''>Seleccioná un alumno...</option>
-                            {alumnos
-                              .filter(
-                                (al) =>
-                                  !inscriptos.some(
-                                    (i) => i.id_alumno === al.id_alumno,
-                                  ),
-                              )
-                              .map((al) => (
-                                <option key={al.id_alumno} value={al.id_alumno}>
-                                  {al.apellido}, {al.nombre} — DNI {al.dni}
-                                  {al.cursos
-                                    ? ` (${al.cursos.nivel} ${al.cursos.grado_anio} "${al.cursos.division}")`
-                                    : ''}
-                                </option>
-                              ))}
-                          </select>
-                        </div>
-                        <button
-                          disabled={!selAlumno || inscribiendo || completo}
-                          className={
-                            !selAlumno || inscribiendo || completo
-                              ? 'bg-border text-textMuted border-0 rounded-btn py-[10px] px-5 text-[13px] font-extrabold cursor-not-allowed'
-                              : btnPrimary
-                          }
-                          onClick={() => inscribirAlumno(a.id_actividad)}
-                        >
-                          {inscribiendo
-                            ? 'Inscribiendo...'
-                            : completo
-                              ? 'Cupo completo'
-                              : '+ Inscribir'}
-                        </button>
-                      </div>
-
-                      {inscMsg && (
-                        <div
-                          className='text-[12px] font-bold mb-4'
-                          style={{
-                            color: inscMsg.startsWith('✅')
-                              ? '#27AE60'
-                              : '#E74C3C',
-                          }}
-                        >
-                          {inscMsg}
-                        </div>
-                      )}
-
-                      {/* Listado de inscriptos */}
-                      {inscriptos.length === 0 ? (
-                        <div className='text-[13px] text-textMuted py-3'>
-                          No hay alumnos inscriptos en esta actividad.
-                        </div>
-                      ) : (
-                        <table
-                          style={{ width: '100%', borderCollapse: 'collapse' }}
-                        >
-                          <thead>
-                            <tr>
-                              <th className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-2 pr-3 border-b border-border'>
-                                Alumno
-                              </th>
-                              <th className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-2 pr-3 border-b border-border'>
-                                DNI
-                              </th>
-                              <th className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-2 pr-3 border-b border-border'>
-                                Curso
-                              </th>
-                              <th className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-2 pr-3 border-b border-border'>
-                                Fecha de inscripción
-                              </th>
-                              <th className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-2 pr-3 border-b border-border'>
-                                Acción
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {inscriptos.map((i) => (
-                              <tr key={i.id_inscripcion_act}>
-                                <td className='py-2 pr-3 text-[13px] border-b border-border align-middle font-bold'>
-                                  {i.alumnos?.apellido}, {i.alumnos?.nombre}
-                                </td>
-                                <td className='py-2 pr-3 text-[13px] border-b border-border align-middle text-textMuted'>
-                                  {i.alumnos?.dni}
-                                </td>
-                                <td className='py-2 pr-3 text-[13px] border-b border-border align-middle'>
-                                  {i.alumnos?.cursos
-                                    ? `${i.alumnos.cursos.nivel} ${i.alumnos.cursos.grado_anio} "${i.alumnos.cursos.division}"`
-                                    : 'Sin curso'}
-                                </td>
-                                <td className='py-2 pr-3 text-[13px] border-b border-border align-middle text-textMuted text-xs'>
-                                  {new Date(
-                                    i.fecha_inscripcion,
-                                  ).toLocaleDateString('es-AR')}
-                                </td>
-                                <td className='py-2 pr-3 text-[13px] border-b border-border align-middle'>
-                                  <button
-                                    className='bg-[#E74C3C1A] text-red border-0 rounded-lg py-[5px] px-3 text-xs font-extrabold cursor-pointer'
-                                    onClick={() =>
-                                      quitarInscripcion(
-                                        i.id_alumno,
-                                        a.id_actividad,
-                                      )
-                                    }
-                                  >
-                                    Quitar
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        </>
                       )}
                     </td>
+                    <td className={tdCell}>
+                      {a.cupo_maximo}
+                    </td>
+                    <td className={tdCell}>
+                      <span
+                        style={badge(
+                          completo
+                            ? '#E74C3C'
+                            : ocupados > 0
+                              ? '#27AE60'
+                              : '#6B6B8A',
+                        )}
+                      >
+                        {ocupados} / {a.cupo_maximo}
+                        {completo ? ' · COMPLETO' : ''}
+                      </span>
+                    </td>
+                    <td className={tdCell}>
+                      <span style={badge(a.activo ? '#27AE60' : '#6B6B8A')}>
+                        {a.activo ? 'Activa' : 'Inactiva'}
+                      </span>
+                    </td>
+                    <td className={tdCell}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button
+                          className={
+                            expandida
+                              ? btnPrimarySm
+                              : btnSecondarySm
+                          }
+                          onClick={() => toggleVerInscriptos(a.id_actividad)}
+                        >
+                          {expandida
+                            ? '▲ Ocultar'
+                            : `👥 Inscriptos (${ocupados})`}
+                        </button>
+                        <button
+                          className={btnSecondarySm}
+                          onClick={() => abrirEdicion(a)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          className={btnDanger}
+                          onClick={() => toggleActivo(a)}
+                        >
+                          {a.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                      </div>
+                    </td>
                   </tr>
-                )}
-              </Fragment>
-            )
-          })}
-          {items.length === 0 && (
-            <tr>
-              <td
-                className={`${tdCell} text-textMuted`}
-                colSpan={5}
-              >
-                Sin actividades cargadas.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+                  {expandida && (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className='bg-purpleLight/50 border-b border-border p-5'
+                      >
+                        {/* Formulario de inscripción */}
+                        <div className='flex items-end gap-3 flex-wrap mb-4'>
+                          <div className='flex-1' style={{ minWidth: 280 }}>
+                            <span className={fieldLabel}>
+                              Inscribir alumno a {a.nombre}
+                            </span>
+                            <select
+                              className={`${selectField} bg-white`}
+                              value={selAlumno}
+                              onChange={(e) => setSelAlumno(e.target.value)}
+                            >
+                              <option value=''>Seleccioná un alumno...</option>
+                              {alumnos
+                                .filter(
+                                  (al) =>
+                                    !inscriptos.some(
+                                      (i) => i.id_alumno === al.id_alumno,
+                                    ),
+                                )
+                                .map((al) => (
+                                  <option key={al.id_alumno} value={al.id_alumno}>
+                                    {al.apellido}, {al.nombre} — DNI {al.dni}
+                                    {al.cursos
+                                      ? ` (${al.cursos.nivel} ${al.cursos.grado_anio} "${al.cursos.division}")`
+                                      : ''}
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+                          <button
+                            disabled={!selAlumno || inscribiendo || completo}
+                            className={
+                              !selAlumno || inscribiendo || completo
+                                ? 'bg-border text-textMuted border-0 rounded-btn py-[10px] px-5 text-[13px] font-extrabold cursor-not-allowed'
+                                : btnPrimary
+                            }
+                            onClick={() => inscribirAlumno(a.id_actividad)}
+                          >
+                            {inscribiendo
+                              ? 'Inscribiendo...'
+                              : completo
+                                ? 'Cupo completo'
+                                : '+ Inscribir'}
+                          </button>
+                        </div>
+
+                        {inscMsg && (
+                          <div
+                            className='text-[12px] font-bold mb-4'
+                            style={{
+                              color: inscMsg.startsWith('✅')
+                                ? '#27AE60'
+                                : '#E74C3C',
+                            }}
+                          >
+                            {inscMsg}
+                          </div>
+                        )}
+
+                        {/* Listado de inscriptos */}
+                        {inscriptos.length === 0 ? (
+                          <div className='text-[13px] text-textMuted py-3'>
+                            No hay alumnos inscriptos en esta actividad.
+                          </div>
+                        ) : (
+                          <table
+                            style={{ width: '100%', borderCollapse: 'collapse' }}
+                          >
+                            <thead>
+                              <tr>
+                                <th className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-2 pr-3 border-b border-border'>
+                                  Alumno
+                                </th>
+                                <th className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-2 pr-3 border-b border-border'>
+                                  DNI
+                                </th>
+                                <th className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-2 pr-3 border-b border-border'>
+                                  Curso
+                                </th>
+                                <th className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-2 pr-3 border-b border-border'>
+                                  Fecha de inscripción
+                                </th>
+                                <th className='text-left text-[10px] font-extrabold text-textMuted uppercase tracking-[0.07em] pb-2 pr-3 border-b border-border'>
+                                  Acción
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {inscriptos.map((i) => (
+                                <tr key={i.id_inscripcion_act}>
+                                  <td className='py-2 pr-3 text-[13px] border-b border-border align-middle font-bold'>
+                                    {i.alumnos?.apellido}, {i.alumnos?.nombre}
+                                  </td>
+                                  <td className='py-2 pr-3 text-[13px] border-b border-border align-middle text-textMuted'>
+                                    {i.alumnos?.dni}
+                                  </td>
+                                  <td className='py-2 pr-3 text-[13px] border-b border-border align-middle'>
+                                    {i.alumnos?.cursos
+                                      ? `${i.alumnos.cursos.nivel} ${i.alumnos.cursos.grado_anio} "${i.alumnos.cursos.division}"`
+                                      : 'Sin curso'}
+                                  </td>
+                                  <td className='py-2 pr-3 text-[13px] border-b border-border align-middle text-textMuted text-xs'>
+                                    {new Date(
+                                      i.fecha_inscripcion,
+                                    ).toLocaleDateString('es-AR')}
+                                  </td>
+                                  <td className='py-2 pr-3 text-[13px] border-b border-border align-middle'>
+                                    <button
+                                      className='bg-[#E74C3C1A] text-red border-0 rounded-lg py-[5px] px-3 text-xs font-extrabold cursor-pointer'
+                                      onClick={() =>
+                                        quitarInscripcion(
+                                          i.id_alumno,
+                                          a.id_actividad,
+                                        )
+                                      }
+                                    >
+                                      Quitar
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+            {items.length === 0 && (
+              <tr>
+                <td
+                  className={`${tdCell} text-textMuted`}
+                  colSpan={5}
+                >
+                  Sin actividades cargadas.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </TablaScroll>
     </div>
   )
 
@@ -404,6 +407,8 @@ export function GestionActividades() {
         style={{
           display: 'flex',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          rowGap: 12,
           alignItems: 'center',
           marginBottom: 20,
         }}
@@ -429,11 +434,7 @@ export function GestionActividades() {
             style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
           >
             <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 1fr 1fr',
-                gap: 14,
-              }}
+              className='grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-[14px]'
             >
               <div>
                 <span className={fieldLabel}>

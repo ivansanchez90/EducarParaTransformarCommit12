@@ -14,6 +14,7 @@ import {
   tdCell,
   thCell,
 } from '../../ui/styles'
+import { TablaScroll } from '../../ui/components'
 
 export function GestionAsignaciones() {
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
@@ -69,6 +70,8 @@ export function GestionAsignaciones() {
         style={{
           display: 'flex',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          rowGap: 12,
           alignItems: 'center',
           marginBottom: 20,
         }}
@@ -90,11 +93,7 @@ export function GestionAsignaciones() {
           </div>
           <form
             onSubmit={handleCreate}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr',
-              gap: 14,
-            }}
+            className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-[14px]'
           >
             <div>
               <span className={fieldLabel}>
@@ -180,38 +179,40 @@ export function GestionAsignaciones() {
         </div>
       )}
       <div className={card}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th className={thCell}>
-                Docente
-              </th>
-              <th className={thCell}>
-                Materia
-              </th>
-              <th className={thCell}>
-                Curso
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {asignaciones.map((a) => (
-              <tr key={a.id_asignacion}>
-                <td className={`${tdCell} font-bold`}>
-                  {a.docentes?.usuarios?.apellido},{' '}
-                  {a.docentes?.usuarios?.nombre}
-                </td>
-                <td className={tdCell}>
-                  {a.materias?.nombre}
-                </td>
-                <td className={tdCell}>
-                  {a.cursos?.nivel} — {a.cursos?.grado_anio} "
-                  {a.cursos?.division}"
-                </td>
+        <TablaScroll>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th className={thCell}>
+                  Docente
+                </th>
+                <th className={thCell}>
+                  Materia
+                </th>
+                <th className={thCell}>
+                  Curso
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {asignaciones.map((a) => (
+                <tr key={a.id_asignacion}>
+                  <td className={`${tdCell} font-bold`}>
+                    {a.docentes?.usuarios?.apellido},{' '}
+                    {a.docentes?.usuarios?.nombre}
+                  </td>
+                  <td className={tdCell}>
+                    {a.materias?.nombre}
+                  </td>
+                  <td className={tdCell}>
+                    {a.cursos?.nivel} — {a.cursos?.grado_anio} "
+                    {a.cursos?.division}"
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TablaScroll>
       </div>
     </div>
   )
