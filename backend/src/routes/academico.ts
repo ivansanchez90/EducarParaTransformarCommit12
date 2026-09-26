@@ -2,6 +2,7 @@
  * Estructura académica: cursos, materias, docentes, asignaciones y horarios.
  */
 import { Router } from 'express'
+import { Prisma } from '../generated/prisma/client.js'
 import { HttpError, bool, id, numOrNull, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { cursoResumen, materiaNombre, nombreApellido } from '../lib/selects.js'
@@ -21,27 +22,100 @@ async function idPeriodoActivo(): Promise<number | null> {
 export const cursosRouter = Router()
 cursosRouter.use(requireAuth, requireRole(...ROLES_STAFF))
 
-cursosRouter.get('/', async (_req, res) => {
+type ClaveCurso = { nivel: string; grado_anio: string; division: string }
+
+const CAMPOS_CURSO = { nivel: 'nivel', grado_anio: 'grado/año', division: 'división' } as const
+
+/** "1 A de Primario", para los mensajes. */
+const nombreCurso = (c: ClaveCurso) => `${c.grado_anio} ${c.division} de ${c.nivel}`
+
+/** Capacidad del curso: null o '' = sin límite; si no, entero mayor a 0. */
+function capacidadCurso(valor: unknown): number | null {
+  if (valor === null || valor === '') return null
+  const n = Number(valor)
+  if (!Number.isInteger(n) || n < 1) {
+    throw new HttpError(400, 'La capacidad debe ser un número entero mayor a 0, o quedar vacía para no limitar el cupo')
+  }
+  return n
+}
+
+/**
+ * No hay unique en la base: se evita a nivel aplicación que haya dos cursos
+ * iguales en el mismo ciclo lectivo (el mismo curso sí puede repetirse entre ciclos).
+ */
+async function assertCursoNoDuplicado(clave: ClaveCurso, idPeriodo: number | null, idExcluido?: number) {
+  const otro = await prisma.curso.findFirst({
+    where: {
+      nivel: { equals: clave.nivel, mode: 'insensitive' },
+      grado_anio: { equals: clave.grado_anio, mode: 'insensitive' },
+      division: { equals: clave.division, mode: 'insensitive' },
+      id_periodo: idPeriodo,
+      id_curso: idExcluido ? { not: idExcluido } : undefined,
+    },
+    select: { activo: true },
+  })
+  if (!otro) return
+  throw new HttpError(
+    409,
+    otro.activo
+      ? `Ya existe el curso ${nombreCurso(clave)} en este ciclo lectivo.`
+      : `Ya existe el curso ${nombreCurso(clave)} en este ciclo lectivo, dado de baja: reactivalo en lugar de crear otro.`,
+    '23505',
+  )
+}
+
+/** Sin filtro, solo los activos (los selects de otras pantallas dependen de eso). ?activo=false: los dados de baja; ?activo=todos: todos. */
+cursosRouter.get('/', async (req, res) => {
+  const activo = req.query.activo === 'todos' ? undefined : (bool(req.query.activo) ?? true)
   const cursos = await prisma.curso.findMany({
-    where: { activo: true },
+    where: { activo },
     orderBy: [{ nivel: 'asc' }, { grado_anio: 'asc' }, { division: 'asc' }],
   })
   res.json(cursos)
 })
 
 cursosRouter.post('/', requireRole(...ROLES_ADMIN), async (req, res) => {
-  const { nivel, grado_anio, division, capacidad_maxima } = req.body ?? {}
-  if (!nivel || !grado_anio || !division) throw new HttpError(400, 'Nivel, grado/año y división son obligatorios')
+  const body = req.body ?? {}
+  const clave = { nivel: textOrNull(body.nivel), grado_anio: textOrNull(body.grado_anio), division: textOrNull(body.division) }
+  if (!clave.nivel || !clave.grado_anio || !clave.division) {
+    throw new HttpError(400, 'Nivel, grado/año y división son obligatorios')
+  }
+  const idPeriodo = await idPeriodoActivo()
+  await assertCursoNoDuplicado(clave as ClaveCurso, idPeriodo)
   const curso = await prisma.curso.create({
     data: {
-      nivel,
-      grado_anio: String(grado_anio),
-      division: String(division),
-      capacidad_maxima: numOrNull(capacidad_maxima) ?? undefined,
-      id_periodo: await idPeriodoActivo(),
+      ...(clave as ClaveCurso),
+      // Sin el campo, el default del schema (30); con null explícito, sin límite.
+      capacidad_maxima: 'capacidad_maxima' in body ? capacidadCurso(body.capacidad_maxima) : undefined,
+      id_periodo: idPeriodo,
     },
   })
   res.status(201).json(curso)
+})
+
+/** Edición del curso: solo se tocan los campos que vienen en el body. */
+cursosRouter.patch('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
+  const idCurso = id(req.params.id)
+  const body = req.body ?? {}
+  const actual = await prisma.curso.findUnique({ where: { id_curso: idCurso } })
+  if (!actual) throw new HttpError(404, 'Curso no encontrado')
+
+  const data: Prisma.CursoUncheckedUpdateInput = {}
+  const clave: ClaveCurso = { nivel: actual.nivel, grado_anio: actual.grado_anio, division: actual.division }
+  let cambiaClave = false
+  for (const campo of Object.keys(CAMPOS_CURSO) as (keyof ClaveCurso)[]) {
+    if (campo in body) {
+      const valor = textOrNull(body[campo])
+      if (!valor) throw new HttpError(400, `El campo ${CAMPOS_CURSO[campo]} no puede quedar vacío`)
+      data[campo] = clave[campo] = valor
+      cambiaClave = true
+    }
+  }
+  if ('capacidad_maxima' in body) data.capacidad_maxima = capacidadCurso(body.capacidad_maxima)
+  if (cambiaClave) await assertCursoNoDuplicado(clave, actual.id_periodo, idCurso)
+
+  const curso = await prisma.curso.update({ where: { id_curso: idCurso }, data })
+  res.json(curso)
 })
 
 // ── Materias ───────────────────────────────────────────────────
