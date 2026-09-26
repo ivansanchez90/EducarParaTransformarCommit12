@@ -18,6 +18,9 @@ import { CambiarPassword } from './features/cuenta/CambiarPassword'
 import type { RecorridoTransporte, ServiciosAlumno } from './types'
 import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/auth'
 import type { Perfil } from './lib/auth'
+import { AvatarMenu, BottomNav } from './ui/components'
+import { conBottomNav, conPaddingX, touchTarget } from './ui/styles'
+import { useEsMovil } from './ui/useEsMovil'
 
 // ═══════════════════════════════════════════════════════════════
 //  TIPOS — coinciden con el schema de la base de datos
@@ -163,6 +166,50 @@ const NAV_ITEMS = [
   { key: 'notificaciones', icon: '🔔', label: 'Notificaciones' },
 ]
 
+/**
+ * Alumno que se está viendo. Un padre/tutor con más de un hijo lo elige con un
+ * `<select>`; con un solo hijo, o si es el propio alumno, solo se muestra el nombre.
+ */
+function SelectorHijo({
+  esTutor,
+  hijos,
+  alumno,
+  onSeleccionar,
+}: {
+  esTutor: boolean
+  hijos: Alumno[]
+  alumno: Alumno
+  onSeleccionar: (id: number) => void
+}) {
+  return (
+    <div className='flex flex-col min-w-0'>
+      {esTutor && (
+        <span className='text-[10px] font-extrabold text-purple-700 uppercase tracking-[0.06em]'>
+          Perfil padre/tutor · viendo a
+        </span>
+      )}
+      {esTutor && hijos.length > 1 ? (
+        <select
+          value={alumno.id_alumno}
+          onChange={(e) => onSeleccionar(Number(e.target.value))}
+          aria-label='Elegir hijo/a'
+          className='text-base md:text-[13px] font-extrabold text-text border border-border rounded-[8px] px-2 py-1 min-h-11 md:min-h-0 font-[inherit] cursor-pointer bg-white'
+        >
+          {hijos.map((h) => (
+            <option key={h.id_alumno} value={h.id_alumno}>
+              {h.nombre} {h.apellido}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <span className='text-[13px] font-extrabold text-text truncate'>
+          {alumno.nombre} {alumno.apellido}
+        </span>
+      )}
+    </div>
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════
@@ -184,6 +231,7 @@ export default function StudentPortal() {
   const [activeNav, setActiveNav] = useState('inicio')
   const [cambiandoPassword, setCambiandoPassword] = useState(false)
   const [loading, setLoading] = useState(true)
+  const esMovil = useEsMovil()
 
   // Un padre/tutor ve los datos de su hijo/a; un estudiante, los propios.
   // El backend resuelve cuáles alumnos corresponden al usuario logueado.
@@ -396,7 +444,7 @@ export default function StudentPortal() {
       : null
 
   const notifNoLeidas = notificaciones.filter((n) => !n.leida).length
-  const initials = alumno ? `${alumno.nombre[0]}${alumno.apellido[0]}` : '?'
+  const initials = perfil ? `${perfil.nombre[0]}${perfil.apellido[0]}` : '?'
 
   // ── Render guards ────────────────────────────────────────────
   if (!authChecked) return null
@@ -448,122 +496,110 @@ export default function StudentPortal() {
   return (
     <div className="font-[Nunito,_'Segoe_UI',_sans-serif] bg-bg min-h-screen text-text">
       {/* ── HEADER ── */}
-      <header className='bg-white border-b-[3px] border-b-purple-700 px-8 flex items-center justify-between h-[70px] sticky top-0 z-[100] shadow-[0_2px_16px_rgba(91,53,197,0.08)]'>
-        <div className='flex items-center gap-3'>
-          <Link to='/'>
+      <header
+        className={`bg-white border-b-[3px] border-b-purple-700 md:px-8 flex items-center justify-between gap-3 h-16 md:h-[70px] sticky top-0 z-[100] shadow-[0_2px_16px_rgba(91,53,197,0.08)] ${conPaddingX}`}
+      >
+        <div className='flex items-center gap-2 md:gap-3 min-w-0'>
+          <Link to='/' className='shrink-0'>
             <img
               src='/logo.png'
               alt='Educar Para Transformar'
-              className='h-[50px] w-auto'
+              className='h-9 md:h-[50px] w-auto'
               onError={(e) => {
                 ;(e.target as HTMLImageElement).style.display = 'none'
               }}
             />
           </Link>
-          <div className='flex flex-col'>
-            <span className='text-[13px] font-black text-purple-700 tracking-[0.04em] uppercase leading-tight'>
+          <div className='flex flex-col min-w-0'>
+            <span className='text-[11px] md:text-[13px] font-black text-purple-700 tracking-[0.04em] uppercase leading-tight truncate'>
               Educar Para Transformar
             </span>
-            <span className='text-[10px] text-textMuted tracking-[0.1em] uppercase'>
+            <span className='text-[10px] text-textMuted tracking-[0.1em] uppercase hidden sm:block'>
               Centro Educativo
             </span>
           </div>
         </div>
 
-        <div className='flex items-center gap-[18px]'>
-          {/* Campana notificaciones */}
-          <div
-            className='relative cursor-pointer'
-            onClick={() => setActiveNav('notificaciones')}
-            title='Ver notificaciones'
-          >
-            <span className='text-[22px]'>🔔</span>
-            {notifNoLeidas > 0 && (
-              <span className='absolute -top-1.5 -right-1.5 bg-red text-white rounded-full w-[18px] h-[18px] text-[10px] font-black flex items-center justify-center'>
-                {notifNoLeidas}
-              </span>
-            )}
-          </div>
-
-          {/* Avatar */}
-          <div
-            className='w-[38px] h-[38px] rounded-full bg-gradient-to-br from-purple-700 to-purpleMid text-white flex items-center justify-center font-black text-sm cursor-pointer shrink-0'
-            title={alumno ? `${alumno.nombre} ${alumno.apellido}` : ''}
-          >
-            {initials}
-          </div>
-
-          {/* Nombre / perfil */}
-          {alumno && (
-            <div className='flex flex-col'>
-              {esTutor && (
-                <span className='text-[10px] font-extrabold text-purple-700 uppercase tracking-[0.06em]'>
-                  Perfil padre/tutor · viendo a
-                </span>
-              )}
-              {esTutor && hijos.length > 1 ? (
-                <select
-                  value={alumno.id_alumno}
-                  onChange={(e) => seleccionarHijo(Number(e.target.value))}
-                  className='text-[13px] font-extrabold text-text border border-border rounded-[8px] px-2 py-1 font-[inherit] cursor-pointer'
-                >
-                  {hijos.map((h) => (
-                    <option key={h.id_alumno} value={h.id_alumno}>
-                      {h.nombre} {h.apellido}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span className='text-[13px] font-extrabold text-text'>
-                  {alumno.nombre} {alumno.apellido}
-                </span>
-              )}
-            </div>
+        <div className='flex items-center gap-2 md:gap-[18px] shrink-0'>
+          {/* Selector de hijo / alumno (en el celular va debajo de la cabecera) */}
+          {!esMovil && (
+            <SelectorHijo
+              esTutor={esTutor}
+              hijos={hijos}
+              alumno={alumno}
+              onSeleccionar={seleccionarHijo}
+            />
           )}
 
+          {/* Campana notificaciones */}
           <button
-            className='bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
-            onClick={() => setCambiandoPassword(true)}
+            type='button'
+            className={`relative ${touchTarget} flex items-center justify-center bg-transparent border-0 p-0 cursor-pointer`}
+            onClick={() => setActiveNav('notificaciones')}
+            aria-label={
+              notifNoLeidas > 0
+                ? `Notificaciones: ${notifNoLeidas} sin leer`
+                : 'Notificaciones'
+            }
+            title='Ver notificaciones'
           >
-            🔑 Mi contraseña
+            <span className='relative text-[22px] leading-none' aria-hidden='true'>
+              🔔
+              {notifNoLeidas > 0 && (
+                <span className='absolute -top-1.5 -right-2 bg-red text-white rounded-full min-w-[18px] h-[18px] px-1 text-[10px] font-black flex items-center justify-center'>
+                  {notifNoLeidas > 99 ? '99+' : notifNoLeidas}
+                </span>
+              )}
+            </span>
           </button>
 
-          {/* Volver al inicio */}
-          <button
-            className='bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
-            onClick={() => navigate('/')}
-          >
-            ← Inicio
-          </button>
-
-          {/* Logout */}
-          <button
-            className='bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
-            onClick={logout}
-          >
-            Salir
-          </button>
+          <AvatarMenu
+            iniciales={initials}
+            nombre={`${perfil.nombre} ${perfil.apellido}`}
+            detalle={perfil.rol}
+            opciones={[
+              { key: 'password', icon: '🔑', label: 'Mi contraseña', onClick: () => setCambiandoPassword(true) },
+              { key: 'inicio', icon: '🏠', label: 'Inicio', onClick: () => navigate('/') },
+              { key: 'salir', icon: '🚪', label: 'Salir', onClick: logout },
+            ]}
+          />
         </div>
       </header>
 
-      <div className='flex min-h-[calc(100vh-70px)]'>
-        {/* ── SIDEBAR ── */}
-        <aside className='w-[230px] bg-white border-r border-border py-5 shrink-0'>
+      {/* ── SELECTOR DE HIJO (celular, solo padre/tutor) ── */}
+      {esMovil && esTutor && (
+        <div
+          className={`bg-white border-b border-border py-2 sticky top-16 z-[95] ${conPaddingX}`}
+        >
+          <SelectorHijo
+            esTutor={esTutor}
+            hijos={hijos}
+            alumno={alumno}
+            onSeleccionar={seleccionarHijo}
+          />
+        </div>
+      )}
+
+      <div className='flex md:min-h-[calc(100vh-70px)]'>
+        {/* ── SIDEBAR (escritorio) ── */}
+        <aside className='hidden md:block w-[230px] bg-white border-r border-border py-5 shrink-0'>
           <span className='text-[10px] text-textMuted font-extrabold uppercase tracking-[0.1em] px-6 pb-4 block border-b border-border mb-2'>
             Portal Estudiantil
           </span>
           {NAV_ITEMS.map((item) => (
-            <div
+            <button
+              type='button'
               key={item.key}
-              className={`flex items-center gap-2.5 px-6 py-[11px] cursor-pointer text-sm font-semibold transition-all duration-150 border-l-[3px]
+              aria-current={activeNav === item.key ? 'page' : undefined}
+              className={`w-full flex items-center gap-2.5 px-6 py-[11px] cursor-pointer text-sm text-left bg-transparent border-0 border-l-[3px] font-[inherit] transition-all duration-150
                 ${
                   activeNav === item.key
                     ? 'text-purple-700 bg-purpleLight border-l-purple-700 font-extrabold'
-                    : 'text-textMuted border-l-transparent hover:text-purple-700 hover:bg-purpleLight'
+                    : 'text-textMuted border-l-transparent font-semibold hover:text-purple-700 hover:bg-purpleLight'
                 }`}
               onClick={() => setActiveNav(item.key)}
             >
-              <span>{item.icon}</span>
+              <span aria-hidden='true'>{item.icon}</span>
               <span className='flex-1'>{item.label}</span>
               {item.key === 'notificaciones' && notifNoLeidas > 0 && (
                 <span className='bg-purple-700 text-white rounded-[20px] px-2 py-px text-[11px] font-black'>
@@ -575,12 +611,12 @@ export default function StudentPortal() {
                   {cuotas.length}
                 </span>
               )}
-            </div>
+            </button>
           ))}
         </aside>
 
         {/* ── CONTENIDO PRINCIPAL ── */}
-        <main className='flex-1 p-7 overflow-y-auto'>
+        <main className={`flex-1 min-w-0 py-4 md:p-7 overflow-y-auto ${conPaddingX} ${conBottomNav}`}>
           {/* ━━━━━ INICIO ━━━━━ */}
           {activeNav === 'inicio' && (
             <>
@@ -1462,6 +1498,14 @@ export default function StudentPortal() {
           )}
         </main>
       </div>
+
+      {/* ── NAVEGACIÓN INFERIOR (celular): Inicio, Asistencias, Calificaciones, Cuotas y "Más" ── */}
+      <BottomNav
+        items={NAV_ITEMS}
+        activo={activeNav}
+        onSelect={setActiveNav}
+        contadores={{ notificaciones: notifNoLeidas, cuotas: cuotas.length }}
+      />
 
       {cambiandoPassword && (
         <CambiarPassword onClose={() => setCambiandoPassword(false)} />

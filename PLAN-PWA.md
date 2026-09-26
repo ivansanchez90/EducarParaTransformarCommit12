@@ -122,10 +122,10 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | Tarea | Fase | Sprint | Responsable | Depende de | Estimación | Estado |
 | --- | --- | --- | --- | --- | --- | --- |
 | T1. Base PWA: `vite-plugin-pwa`, manifest, metas de `index.html`, reglas de caché, aviso "Actualizar", `no-cache` de `sw.js` en Express | 0 | 1 | Iván | — | 1–2 días | Hecho (PR #7) |
-| T2. Íconos definitivos y generación de tamaños (64, 192, 512, maskable, 180) con `@vite-pwa/assets-generator`; reemplazar `favicon.svg`; pedir el logo original a la escuela | 0 | 1 | Juan Manuel | — | 0,5 días | En revisión |
-| T3. Componentes compartidos en `ui/components.tsx`: `BottomNav`, `ResponsiveTable`, menú del avatar, clases de safe area | 1 | 1 | Iván (era de Juan Manuel) | — | 1–1,5 días | En revisión |
-| T4. Shell del panel: cabecera compacta, menú desplegable de admin, `BottomNav` del docente, estilos a Tailwind | 1 | 2 | Iván | T3 (o el contrato de `BottomNav`) | 2 días | Pendiente |
-| T5. Shell del portal: cabecera, selector de hijo, `BottomNav` de padre y alumno | 1 | 2 | Juan Manuel | T3 | 1,5–2 días | Pendiente |
+| T2. Íconos definitivos y generación de tamaños (64, 192, 512, maskable, 180) con `@vite-pwa/assets-generator`; reemplazar `favicon.svg`; pedir el logo original a la escuela | 0 | 1 | Juan Manuel | — | 0,5 días | Hecho (PR #8) |
+| T3. Componentes compartidos en `ui/components.tsx`: `BottomNav`, `ResponsiveTable`, menú del avatar, clases de safe area | 1 | 1 | Iván (era de Juan Manuel) | — | 1–1,5 días | Hecho (PR #9) |
+| T4. Shell del panel: cabecera compacta, menú desplegable de admin, `BottomNav` del docente, estilos a Tailwind | 1 | 2 | Juan Manuel (era de Iván) | T3 (o el contrato de `BottomNav`) | 2 días | Hecho (PR #9) |
+| T5. Shell del portal: cabecera, selector de hijo, `BottomNav` de padre y alumno | 1 | 2 | Iván (era de Juan Manuel) | T3 | 1,5–2 días | En revisión |
 | T6. Pantallas del docente en celular: Tomar asistencia, Calificaciones, Amonestaciones | 2 | 2 | Iván | T4 | 2–3 días | Pendiente |
 | T7. Las 8 secciones del portal en celular | 2 | 2 | Juan Manuel | T5 | 2–3 días | Pendiente |
 | T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | Pendiente |
@@ -171,7 +171,7 @@ interface NavItem { key: string; icon: string; label: string }
 - **Verificado:** build, lint y tipado sin errores. En Chromium a 375 px, con el backend sirviendo el build: service worker activo, Chrome no informa errores de instalación, nada de `/api` en caché, `/portal` abre sin conexión y el aviso de actualización aparece tras un deploy simulado.
 - **Falta:** probar la instalación en un Android y un iPhone reales después del deploy.
 
-### T2 — Íconos (Juan Manuel): en revisión, rama `feat/pwa-t2-iconos`
+### T2 — Íconos (Juan Manuel): hecho, mergeado en el PR #8
 
 - **Qué quedó:** `frontend/public/logo-icono.svg` con las 5 figuras de colores del
   logo (sin texto ni anillo), sobre fondo blanco. Se obtuvo separando `logo.png`
@@ -199,7 +199,7 @@ interface NavItem { key: string; icon: string; label: string }
   escuela); cuando llegue el logo real, alcanza con reemplazar
   `logo-icono.svg` y correr `pnpm run generate-pwa-assets` de nuevo.
 
-### T3 — Componentes compartidos (Iván): en revisión, rama `feat/pwa-t3-componentes`
+### T3 — Componentes compartidos (Iván): hecho, mergeado en el PR #9
 
 - **Cambio de responsable:** T3 figuraba a nombre de Juan Manuel; la hizo Iván
   para destrabar T4. Juan Manuel sigue siendo dueño de `ui/components.tsx` y
@@ -237,6 +237,48 @@ interface NavItem { key: string; icon: string; label: string }
   cierra con Escape, y las tarjetas se ven bien; a 1200 px la barra no aparece
   y la tabla es la de siempre. No probado en un teléfono real (todavía no se
   usa en ninguna pantalla).
+
+### T4 — Shell del panel (Juan Manuel): hecho, mergeado en el PR #9
+
+- **Cambio de responsable:** T4 figuraba a nombre de Iván; la hizo Juan Manuel,
+  y a cambio Iván tomó T5.
+- **Qué quedó** (en `frontend/src/AdminPanel.tsx`): cabecera compacta con
+  `AvatarMenu` ("Mi contraseña", "Inicio", "Salir"); en el celular, Admin y
+  Directivo abren el menú lateral como panel deslizable con el botón ☰ (se
+  cierra al elegir, al tocar afuera o con Escape) y Docente usa `BottomNav`.
+  Los estilos en línea del shell pasaron a clases de Tailwind.
+
+### T5 — Shell del portal (Iván): en revisión, rama `feat/pwa-t5-shell-portal`
+
+- **Cambio de responsable:** T5 era de Juan Manuel; la hizo Iván, a cambio de T4.
+- **Qué quedó** (en `frontend/src/StudentPortal.tsx`):
+  - Cabecera compacta: logo, campana de notificaciones (botón de 44 px con el
+    número sin leer) y `AvatarMenu` con el nombre y el rol del usuario logueado
+    (antes el avatar mostraba las iniciales del alumno, también para el padre).
+  - Selector de hijo en el componente `SelectorHijo`: en escritorio sigue en la
+    cabecera; en el celular, el padre/tutor lo ve en una franja fija debajo de
+    la cabecera, con letra de 16 px para que el iPhone no haga zoom. Se
+    renderiza uno solo por pantalla (`useEsMovil`), así no hay dos `<select>`.
+  - Barra lateral solo desde `md`; en el celular, `BottomNav` con Inicio,
+    Asistencias, Calificaciones, Cuotas y "Más" (Mi Horario, Extracurriculares,
+    Transporte y comedor, Notificaciones), con contadores de cuotas pendientes
+    y notificaciones sin leer. Los ítems de la barra lateral pasaron a `<button>`.
+- **Corrección de T3/T4:** en el celular la cabecera y el contenido de los dos
+  shells quedaban pegados al borde, porque `safeAreaX` (`pl-[env(...)]`, que
+  vale 0 sin notch) pisaba el `px-4`. Se agregó `conPaddingX` en
+  `ui/styles.ts` (16 px o el área segura, lo que sea mayor) y se usa en
+  `StudentPortal.tsx` y `AdminPanel.tsx` en lugar de `px-4` + `safeAreaX`.
+  Toca archivos de Juan Manuel, así que conviene que lo revise.
+- **Verificado:** `tsc` de la app y `pnpm build` sin errores; el lint de
+  `StudentPortal.tsx` da los mismos 3 errores que ya había en `main` (carga de
+  datos, no el shell). Con `pnpm preview` y la API simulada, en Chromium a
+  375 px, con padre de dos hijos y con alumno: sin scroll horizontal, 16 px de
+  margen lateral en los dos shells, "Más" abre el resto de las secciones,
+  el menú del avatar cierra con Escape y cambiar de hijo recarga el portal;
+  a 1280 px, la cabecera y la barra lateral de siempre, sin barra inferior.
+  No probado en un teléfono real.
+- **Queda para T7:** el contenido de las 8 secciones (las tarjetas de Inicio
+  siguen en 4 columnas y las tablas desbordan en el celular).
 
 ## Pruebas
 
