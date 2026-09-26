@@ -74,7 +74,16 @@ const frontendDir = path.resolve(process.cwd(), config.frontendDir)
 if (fs.existsSync(path.join(frontendDir, 'index.html'))) {
   // Archivos con hash en el nombre: cache largo.
   app.use('/assets', express.static(path.join(frontendDir, 'assets'), { immutable: true, maxAge: '1y' }))
-  app.use(express.static(frontendDir, { index: false }))
+  // PWA: el service worker y el manifest se revalidan siempre, así el
+  // navegador detecta una versión nueva apenas se hace el deploy.
+  app.use(
+    express.static(frontendDir, {
+      index: false,
+      setHeaders: (res, archivo) => {
+        if (/(^|[\\/])(sw\.js|manifest\.webmanifest)$/.test(archivo)) res.setHeader('Cache-Control', 'no-cache')
+      },
+    }),
+  )
   // Cualquier otra ruta (que no sea de la API ni de archivos) es una ruta de React.
   app.get(/^\/(?!api\/|uploads\/).*/, (_req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
