@@ -211,6 +211,29 @@ materiasRouter.patch('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
   if ('descripcion' in body) data.descripcion = textOrNull(body.descripcion)
   if ('horas_semanales' in body) data.horas_semanales = horasSemanales(body.horas_semanales)
 
+  // Baja lógica y reactivación. Las asignaciones no se pueden cerrar todavía,
+  // así que la baja no se bloquea: se advierte y hace falta confirmar.
+  if ('activo' in body) {
+    if (typeof body.activo !== 'boolean') throw new HttpError(400, 'El campo activo debe ser true o false')
+    if (!body.activo && actual.activo && body.confirmar !== true) {
+      const asignaciones = await prisma.asignacion.findMany({
+        where: { id_materia: idMateria, activo: true },
+        select: { cursos: { select: { nivel: true, grado_anio: true, division: true } } },
+        orderBy: { id_curso: 'asc' },
+      })
+      if (asignaciones.length > 0) {
+        const cursos = asignaciones.map((a) => nombreCurso(a.cursos)).join(', ')
+        throw new HttpError(
+          409,
+          `${actual.nombre} tiene ${asignaciones.length} ${asignaciones.length === 1 ? 'asignación activa' : 'asignaciones activas'} (${cursos}). ` +
+            'Si la das de baja, esas asignaciones y sus horarios no se modifican. Confirmá para continuar.',
+          'MATERIA_CON_ASIGNACIONES',
+        )
+      }
+    }
+    data.activo = body.activo
+  }
+
   const materia = await prisma.materia.update({ where: { id_materia: idMateria }, data })
   res.json(materia)
 })
