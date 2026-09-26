@@ -1,11 +1,15 @@
 /**
  * TomarAsistencia — Registro diario de asistencia por clase (rol Docente).
  * Extraído verbatim de AdminPanel.tsx (sin cambios de lógica).
+ *
+ * En el celular (PWA-T6) los filtros van en una columna, cada alumno ocupa una
+ * fila con el botón de estado de 44 px a la derecha y el guardado ocupa todo
+ * el ancho, para tomar la asistencia de un curso completo con una mano.
  */
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
 import type { Asignacion, AlumnoAsistencia } from '../../types'
-import { card, inputField, selectField, fieldLabel, btnPrimary, badge } from '../../ui/styles'
+import { card, inputField, selectField, fieldLabel, btnPrimary, badge, touchTarget } from '../../ui/styles'
 
 export function TomarAsistencia() {
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
@@ -80,27 +84,24 @@ export function TomarAsistencia() {
     Justificado: '#2980B9',
   }
 
+  const conteo = alumnos.reduce<Record<string, number>>((acc, a) => {
+    acc[a.estado] = (acc[a.estado] ?? 0) + 1
+    return acc
+  }, {})
+
   return (
     <div>
-      <h2 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 20px' }}>
-        📅 Tomar asistencia
-      </h2>
+      <h2 className='text-[22px] font-black m-0 mb-5'>📅 Tomar asistencia</h2>
 
       <div className={`${card} mb-5`}>
-        <div
-          style={{
-            display: 'flex',
-            gap: 16,
-            alignItems: 'flex-end',
-            flexWrap: 'wrap',
-          }}
-        >
-          <div>
-            <span className={fieldLabel}>
+        <div className='flex flex-col md:flex-row md:items-end gap-4'>
+          <div className='w-full md:w-[280px]'>
+            <label className={fieldLabel} htmlFor='asist-clase'>
               Clase / Materia
-            </span>
+            </label>
             <select
-              className={`${selectField} w-[280px]`}
+              id='asist-clase'
+              className={selectField}
               value={selAsignacion ?? ''}
               onChange={(e) => setSelAsignacion(Number(e.target.value))}
             >
@@ -113,13 +114,14 @@ export function TomarAsistencia() {
               ))}
             </select>
           </div>
-          <div>
-            <span className={fieldLabel}>
+          <div className='w-full md:w-[160px]'>
+            <label className={fieldLabel} htmlFor='asist-fecha'>
               Fecha
-            </span>
+            </label>
             <input
+              id='asist-fecha'
               type='date'
-              className={`${inputField} w-[160px]`}
+              className={inputField}
               value={fecha}
               onChange={(e) => setFecha(e.target.value)}
             />
@@ -129,101 +131,64 @@ export function TomarAsistencia() {
 
       {selAsignacion && alumnos.length > 0 && (
         <div className={card}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 16,
-            }}
-          >
-            <div className='text-[15px] font-extrabold text-text mb-5'>
+          <div className='flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4'>
+            <div className='text-[15px] font-extrabold text-text'>
               {alumnos.length} alumnos — Tocá el estado para cambiar
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className='flex flex-wrap gap-2'>
               {(['Presente', 'Ausente', 'Tarde', 'Justificado'] as const).map(
                 (e) => (
                   <span key={e} style={badge(EST_COLOR[e])}>
-                    {e}
+                    {e} {conteo[e] ?? 0}
                   </span>
                 ),
               )}
             </div>
           </div>
 
-          {alumnos.map((a) => (
-            <div
-              key={a.id_alumno}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 0',
-                borderBottom: `1px solid ${'#E8E6F5'}`,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div
+          <ul className='list-none m-0 p-0'>
+            {alumnos.map((a) => (
+              <li
+                key={a.id_alumno}
+                className='flex items-center justify-between gap-3 py-2.5 md:py-3 border-b border-border'
+              >
+                <div className='flex items-center gap-3 min-w-0'>
+                  <div className='w-9 h-9 rounded-full bg-[#5B35C518] text-purple-700 hidden sm:flex items-center justify-center font-black text-[13px] shrink-0'>
+                    {a.nombre[0]}
+                    {a.apellido[0]}
+                  </div>
+                  <span className='font-bold text-sm md:text-base truncate'>
+                    {a.apellido}, {a.nombre}
+                  </span>
+                </div>
+                <button
+                  type='button'
+                  onClick={() => toggleEstado(a.id_alumno)}
+                  aria-label={`${a.apellido}, ${a.nombre}: ${a.estado}. Tocá para cambiar`}
+                  className={`${touchTarget} w-[118px] shrink-0 border-0 cursor-pointer font-[inherit] text-[13px] font-extrabold rounded-[20px] transition-all duration-150`}
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    background: `${'#5B35C5'}18`,
-                    color: '#5B35C5',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 900,
-                    fontSize: 13,
+                    background: EST_COLOR[a.estado] + '1A',
+                    color: EST_COLOR[a.estado],
                   }}
                 >
-                  {a.nombre[0]}
-                  {a.apellido[0]}
-                </div>
-                <span style={{ fontWeight: 700 }}>
-                  {a.apellido}, {a.nombre}
-                </span>
-              </div>
-              <button
-                onClick={() => toggleEstado(a.id_alumno)}
-                style={{
-                  ...badge(EST_COLOR[a.estado]),
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  padding: '8px 20px',
-                  fontSize: 13,
-                  fontWeight: 800,
-                  transition: 'all 0.15s',
-                }}
-              >
-                {a.estado}
-              </button>
-            </div>
-          ))}
+                  {a.estado}
+                </button>
+              </li>
+            ))}
+          </ul>
 
-          <div
-            style={{
-              marginTop: 20,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-            }}
-          >
+          <div className='mt-5 flex flex-col md:flex-row md:items-center gap-3.5'>
             <button
               onClick={guardar}
               disabled={loading}
-              className={`${btnPrimary}${loading ? ' opacity-60' : ''}`}
+              className={`${btnPrimary} ${touchTarget} w-full md:w-auto${loading ? ' opacity-60' : ''}`}
             >
               {loading ? 'Guardando...' : '💾 Guardar asistencia'}
             </button>
             {msg && (
               <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: msg.startsWith('✅') ? '#27AE60' : '#E74C3C',
-                }}
+                role='status'
+                className={`text-[13px] font-bold ${msg.startsWith('✅') ? 'text-green' : 'text-red'}`}
               >
                 {msg}
               </span>

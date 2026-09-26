@@ -63,7 +63,8 @@ export interface Asignacion {
   id_asignacion: number
   docentes: { usuarios: { nombre: string; apellido: string } | null } | null
   materias: { nombre: string } | null
-  cursos: { nivel: string; grado_anio: string; division: string } | null
+  /** `id_curso` solo viene en `/asignaciones/mias`. */
+  cursos: { id_curso?: number; nivel: string; grado_anio: string; division: string } | null
 }
 
 export interface AlumnoAsistencia {
