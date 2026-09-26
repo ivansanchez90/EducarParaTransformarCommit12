@@ -5,6 +5,7 @@ import Login from './Login'
 import AdminPanel from './AdminPanel'
 import StudentPortal from './StudentPortal'
 import NoticiaDetalle from './NoticiaDetalle'
+import { ActualizarApp } from './pwa/ActualizarApp'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path='/admin' element={<AdminPanel />} />
         <Route path='/portal' element={<StudentPortal />} />
       </Routes>
+      <ActualizarApp />
     </BrowserRouter>
   )
 }

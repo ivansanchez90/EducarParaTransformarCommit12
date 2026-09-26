@@ -134,6 +134,26 @@ git add prisma && git commit && git push                  # Coolify despliega y 
 
 > Lo que falta implementar del TP1 está listado en [`PENDIENTES.md`](PENDIENTES.md).
 
+## App instalable (PWA)
+
+El frontend se puede instalar en el celular como app (Android: "Instalar app"
+en Chrome; iPhone: Compartir → Agregar a inicio). La configuración está en
+`frontend/vite.config.ts` (`vite-plugin-pwa`):
+
+- Se guardan en caché la app y las imágenes públicas de noticias y galería.
+  **La API (`/api`) nunca se cachea**: los datos personales no quedan en el
+  teléfono.
+- Después de un deploy aparece el aviso "Hay una versión nueva de la app"
+  (`src/pwa/ActualizarApp.tsx`); la app se recarga cuando el usuario lo elige.
+- El backend sirve `sw.js` y `manifest.webmanifest` con `Cache-Control: no-cache`.
+- En `pnpm dev` el service worker está apagado. Para probarlo:
+  `pnpm build && pnpm preview` (o el backend sirviendo el build) y revisar
+  DevTools → Application.
+- Íconos: `public/pwa-64x64.png`, `pwa-192x192.png`, `pwa-512x512.png`,
+  `maskable-icon-512x512.png` y `apple-touch-icon-180x180.png`. Los actuales
+  son provisorios (generados desde `logo.png`); para cambiarlos alcanza con
+  reemplazar esos archivos manteniendo los nombres.
+
 ## Funcionalidades principales
 
 - **Gestión de usuarios**: alta, edición y desactivación de cuentas
