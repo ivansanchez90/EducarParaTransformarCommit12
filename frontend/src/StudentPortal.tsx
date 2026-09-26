@@ -172,7 +172,7 @@ const COLUMNAS_CALIFICACIONES_RESUMEN: Columna<Calificacion>[] = [
     key: 'materia',
     header: 'Materia',
     movil: 'titulo',
-    render: (c) => c.asignaciones?.materias?.nombre,
+    render: (c) => c.asignaciones.materias.nombre,
   },
   {
     key: 'tipo',
