@@ -5,7 +5,7 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 import type { Materia } from '../../types'
-import { Card, EstadoBadge, Field, FormMessage, SectionHeader, ToggleFormButton } from '../../ui/components'
+import { Card, EstadoBadge, Field, FormMessage, SectionHeader, ToggleFormButton, TablaScroll } from '../../ui/components'
 import { btnDanger, btnPrimary, btnSecondarySm, formGrid4, rowActions, tableBase, tdCell, thCell } from '../../ui/styles'
 import { MATERIA_VACIA, aFormulario, useMaterias } from './useMaterias'
 import type { DatosMateria } from './useMaterias'
@@ -88,7 +88,7 @@ export function GestionMaterias() {
             {editando ? `Editar ${editando.nombre}` : 'Crear materia'}
           </div>
           <form onSubmit={(e) => void handleSubmit(e)} className={formGrid4}>
-            <div className='col-span-2'>
+            <div className='sm:col-span-2'>
               <Field label='Nombre de la materia' required value={form.nombre} onChange={set('nombre')} />
             </div>
             <Field
@@ -118,45 +118,47 @@ export function GestionMaterias() {
       )}
 
       <Card>
-        <table className={tableBase}>
-          <thead>
-            <tr>
-              <th className={thCell}>Materia</th>
-              <th className={thCell}>Horas semanales</th>
-              <th className={thCell}>Estado</th>
-              <th className={thCell} />
-            </tr>
-          </thead>
-          <tbody>
-            {materias.map((m) => (
-              <tr key={m.id_materia} className={m.activo ? '' : 'opacity-60'}>
-                <td className={tdCell}>
-                  <div className='font-bold'>{m.nombre}</div>
-                  {m.descripcion && <div className='text-xs text-textMuted'>{m.descripcion}</div>}
-                </td>
-                <td className={tdCell}>{m.horas_semanales} hs</td>
-                <td className={tdCell}>
-                  <EstadoBadge activo={m.activo} femenino />
-                </td>
-                <td className={tdCell}>
-                  <div className={rowActions}>
-                    <button
-                      className={btnSecondarySm}
-                      onClick={() => {
-                        abrirEdicion(m)
-                      }}
-                    >
-                      Editar
-                    </button>
-                    <button className={m.activo ? btnDanger : btnSecondarySm} onClick={() => void handleEstado(m)}>
-                      {m.activo ? 'Dar de baja' : 'Reactivar'}
-                    </button>
-                  </div>
-                </td>
+        <TablaScroll>
+          <table className={tableBase}>
+            <thead>
+              <tr>
+                <th className={thCell}>Materia</th>
+                <th className={thCell}>Horas semanales</th>
+                <th className={thCell}>Estado</th>
+                <th className={thCell} />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {materias.map((m) => (
+                <tr key={m.id_materia} className={m.activo ? '' : 'opacity-60'}>
+                  <td className={tdCell}>
+                    <div className='font-bold'>{m.nombre}</div>
+                    {m.descripcion && <div className='text-xs text-textMuted'>{m.descripcion}</div>}
+                  </td>
+                  <td className={tdCell}>{m.horas_semanales} hs</td>
+                  <td className={tdCell}>
+                    <EstadoBadge activo={m.activo} femenino />
+                  </td>
+                  <td className={tdCell}>
+                    <div className={rowActions}>
+                      <button
+                        className={btnSecondarySm}
+                        onClick={() => {
+                          abrirEdicion(m)
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button className={m.activo ? btnDanger : btnSecondarySm} onClick={() => void handleEstado(m)}>
+                        {m.activo ? 'Dar de baja' : 'Reactivar'}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TablaScroll>
       </Card>
     </div>
   )

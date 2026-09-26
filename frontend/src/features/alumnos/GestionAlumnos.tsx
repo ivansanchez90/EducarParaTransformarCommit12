@@ -18,7 +18,7 @@ import {
   tdCell,
   thCell,
 } from '../../ui/styles'
-import { Badge, Card, Field, SectionHeader, ToggleFormButton } from '../../ui/components'
+import { Badge, Card, Field, SectionHeader, ToggleFormButton, TablaScroll } from '../../ui/components'
 import { useAlumnos } from './useAlumnos'
 import { LegajoAlumno } from './LegajoAlumno'
 
@@ -173,7 +173,7 @@ export function GestionAlumnos() {
           <div className='text-[15px] font-extrabold text-text mb-5'>
             {editId ? 'Editar alumno' : 'Registrar alumno'}
           </div>
-          <form onSubmit={handleSubmit} className='grid grid-cols-2 gap-[14px]'>
+          <form onSubmit={handleSubmit} className='grid grid-cols-1 sm:grid-cols-2 gap-[14px]'>
             <Field
               label='Nombre'
               required
@@ -271,110 +271,112 @@ export function GestionAlumnos() {
       </div>
 
       <div className={card}>
-        <table className='w-full border-collapse'>
-          <thead>
-            <tr>
-              <th className={thCell}>Alumno</th>
-              <th className={thCell}>DNI</th>
-              <th className={thCell}>Curso</th>
-              <th className={thCell}>Estado</th>
-              <th className={thCell}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {alumnosFiltrados.length === 0 && (
+        <TablaScroll>
+          <table className='w-full border-collapse'>
+            <thead>
               <tr>
-                <td className={`${tdCell} text-textMuted`} colSpan={5}>
-                  No se encontraron alumnos.
-                </td>
+                <th className={thCell}>Alumno</th>
+                <th className={thCell}>DNI</th>
+                <th className={thCell}>Curso</th>
+                <th className={thCell}>Estado</th>
+                <th className={thCell}>Acciones</th>
               </tr>
-            )}
-            {alumnosFiltrados.map((a) => (
-              <tr key={a.id_alumno}>
-                <td className={`${tdCell} font-bold`}>
-                  {a.apellido}, {a.nombre}
-                </td>
-                <td className={`${tdCell} text-textMuted`}>{a.dni}</td>
-                <td className={tdCell} style={{ minWidth: 260 }}>
-                  {editCursoId === a.id_alumno ? (
-                    <div className='flex items-center gap-2'>
-                      <select
-                        className={`flex-1 px-[10px] py-[6px] rounded-input border-2 border-border text-[13px] text-text outline-none appearance-none`}
-                        value={editCursoVal}
-                        onChange={(e) => setEditCursoVal(e.target.value)}
-                        autoFocus
-                      >
-                        <option value=''>Sin asignar</option>
-                        {cursos.map((c) => (
-                          <option key={c.id_curso} value={c.id_curso}>
-                            {c.nivel} — {c.grado_anio} "{c.division}"
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        className={`${btnPrimarySm} shrink-0`}
-                        disabled={savingCurso}
-                        onClick={guardarCurso}
-                      >
-                        {savingCurso ? '...' : '✓'}
-                      </button>
-                      <button
-                        className={`${btnDanger} shrink-0`}
-                        onClick={() => setEditCursoId(null)}
-                      >
-                        ✕
-                      </button>
+            </thead>
+            <tbody>
+              {alumnosFiltrados.length === 0 && (
+                <tr>
+                  <td className={`${tdCell} text-textMuted`} colSpan={5}>
+                    No se encontraron alumnos.
+                  </td>
+                </tr>
+              )}
+              {alumnosFiltrados.map((a) => (
+                <tr key={a.id_alumno}>
+                  <td className={`${tdCell} font-bold`}>
+                    {a.apellido}, {a.nombre}
+                  </td>
+                  <td className={`${tdCell} text-textMuted`}>{a.dni}</td>
+                  <td className={tdCell} style={{ minWidth: 260 }}>
+                    {editCursoId === a.id_alumno ? (
+                      <div className='flex items-center gap-2'>
+                        <select
+                          className={`flex-1 px-[10px] py-[6px] rounded-input border-2 border-border text-[13px] text-text outline-none appearance-none`}
+                          value={editCursoVal}
+                          onChange={(e) => setEditCursoVal(e.target.value)}
+                          autoFocus
+                        >
+                          <option value=''>Sin asignar</option>
+                          {cursos.map((c) => (
+                            <option key={c.id_curso} value={c.id_curso}>
+                              {c.nivel} — {c.grado_anio} "{c.division}"
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className={`${btnPrimarySm} shrink-0`}
+                          disabled={savingCurso}
+                          onClick={guardarCurso}
+                        >
+                          {savingCurso ? '...' : '✓'}
+                        </button>
+                        <button
+                          className={`${btnDanger} shrink-0`}
+                          onClick={() => setEditCursoId(null)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div className='flex items-center gap-2'>
+                        <span
+                          className={a.cursos ? 'text-text' : 'text-textMuted'}
+                        >
+                          {a.cursos
+                            ? `${a.cursos.nivel} — ${a.cursos.grado_anio} "${a.cursos.division}"`
+                            : 'Sin asignar'}
+                        </span>
+                        <button
+                          className='bg-purpleLight text-purple-700 border-0 rounded py-[3px] px-[8px] text-[10px] font-extrabold cursor-pointer shrink-0 opacity-70 hover:opacity-100 transition-opacity'
+                          onClick={() => abrirEditCurso(a)}
+                        >
+                          Cambiar
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  <td className={tdCell}>
+                    <Badge color={a.activo ? '#27AE60' : '#E74C3C'}>
+                      {a.activo ? 'Activo' : 'Inactivo'}
+                    </Badge>
+                  </td>
+                  <td className={tdCell}>
+                    <div className='flex gap-2'>
+                    <button
+                      className={btnSecondarySm}
+                      onClick={() => setLegajoId(a.id_alumno)}
+                    >
+                      Ver legajo
+                    </button>
+                    <button className={btnSecondarySm} onClick={() => abrirEdicion(a)}>
+                      Editar
+                    </button>
+                    <button
+                      className={
+                        a.activo
+                          ? btnDanger
+                          : 'bg-[#27AE601A] text-green border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
+                      }
+                      onClick={() => alternarEstado(a)}
+                    >
+                      {a.activo ? 'Dar de baja' : 'Reactivar'}
+                    </button>
                     </div>
-                  ) : (
-                    <div className='flex items-center gap-2'>
-                      <span
-                        className={a.cursos ? 'text-text' : 'text-textMuted'}
-                      >
-                        {a.cursos
-                          ? `${a.cursos.nivel} — ${a.cursos.grado_anio} "${a.cursos.division}"`
-                          : 'Sin asignar'}
-                      </span>
-                      <button
-                        className='bg-purpleLight text-purple-700 border-0 rounded py-[3px] px-[8px] text-[10px] font-extrabold cursor-pointer shrink-0 opacity-70 hover:opacity-100 transition-opacity'
-                        onClick={() => abrirEditCurso(a)}
-                      >
-                        Cambiar
-                      </button>
-                    </div>
-                  )}
-                </td>
-                <td className={tdCell}>
-                  <Badge color={a.activo ? '#27AE60' : '#E74C3C'}>
-                    {a.activo ? 'Activo' : 'Inactivo'}
-                  </Badge>
-                </td>
-                <td className={tdCell}>
-                  <div className='flex gap-2'>
-                  <button
-                    className={btnSecondarySm}
-                    onClick={() => setLegajoId(a.id_alumno)}
-                  >
-                    Ver legajo
-                  </button>
-                  <button className={btnSecondarySm} onClick={() => abrirEdicion(a)}>
-                    Editar
-                  </button>
-                  <button
-                    className={
-                      a.activo
-                        ? btnDanger
-                        : 'bg-[#27AE601A] text-green border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
-                    }
-                    onClick={() => alternarEstado(a)}
-                  >
-                    {a.activo ? 'Dar de baja' : 'Reactivar'}
-                  </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TablaScroll>
       </div>
     </div>
   )

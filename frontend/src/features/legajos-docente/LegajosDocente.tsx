@@ -7,6 +7,7 @@ import { api } from '../../lib/api'
 import type { Asignacion } from '../../types'
 import { card, fieldLabel, tdCell, thCell } from '../../ui/styles'
 import { LegajoAlumno } from '../alumnos/LegajoAlumno'
+import { TablaScroll } from '../../ui/components'
 
 export function LegajosDocente() {
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
@@ -76,35 +77,37 @@ export function LegajosDocente() {
         )}
 
         {alumnos.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th className={thCell}>
-                  Alumno
-                </th>
-                <th className={thCell}>
-                  Legajo
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {alumnos.map((a) => (
-                <tr key={a.id_alumno}>
-                  <td className={`${tdCell} font-bold`}>
-                    {a.apellido}, {a.nombre}
-                  </td>
-                  <td className={tdCell}>
-                    <button
-                      className='bg-[#5B35C51A] text-purple-700 border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
-                      onClick={() => setLegajoId(a.id_alumno)}
-                    >
-                      Ver legajo
-                    </button>
-                  </td>
+          <TablaScroll>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th className={thCell}>
+                    Alumno
+                  </th>
+                  <th className={thCell}>
+                    Legajo
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {alumnos.map((a) => (
+                  <tr key={a.id_alumno}>
+                    <td className={`${tdCell} font-bold`}>
+                      {a.apellido}, {a.nombre}
+                    </td>
+                    <td className={tdCell}>
+                      <button
+                        className='bg-[#5B35C51A] text-purple-700 border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
+                        onClick={() => setLegajoId(a.id_alumno)}
+                      >
+                        Ver legajo
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TablaScroll>
         )}
       </div>
     </div>

@@ -72,8 +72,13 @@ export const badge = (color: string): CSSProperties => ({
 /** Tabla de listado a todo el ancho. */
 export const tableBase = 'w-full border-collapse'
 
-/** Grilla de formulario de cuatro columnas (la última fila puede ocupar todo el ancho con `col-span-full`). */
-export const formGrid4 = 'grid grid-cols-4 gap-[14px]'
+/**
+ * Grilla de formulario: 1 columna en el celular, 2 en tablet y 4 desde `md`
+ * (la última fila puede ocupar todo el ancho con `col-span-full`). Para que un
+ * campo ocupe dos columnas, usar `sm:col-span-2`: un `col-span-2` sin prefijo
+ * crea una segunda columna en el celular y desborda.
+ */
+export const formGrid4 = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-[14px]'
 
 /** Acciones por fila dentro de una tabla. */
 export const rowActions = 'flex gap-2 justify-end'

@@ -152,7 +152,7 @@ export function DetalleInscripcion({
 
   return (
     <div>
-      <div className='flex justify-between items-center mb-5'>
+      <div className='flex flex-wrap gap-3 justify-between items-center mb-5'>
         <h2 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>
           📋 Solicitud #{inscripcion.id_inscripcion}
         </h2>
@@ -183,14 +183,14 @@ export function DetalleInscripcion({
 
       {/* ── Datos de la solicitud ── */}
       <div className={`${card} mb-6`}>
-        <div className='flex justify-between items-center mb-5'>
+        <div className='flex flex-wrap gap-3 justify-between items-center mb-5'>
           <div className='text-[15px] font-extrabold text-text'>Datos recibidos</div>
           <div className='text-[12px] text-textMuted'>
             Enviada el {new Date(inscripcion.fecha_solicitud).toLocaleString('es-AR')}
           </div>
         </div>
 
-        <form onSubmit={guardar} className='grid grid-cols-2 gap-[14px]'>
+        <form onSubmit={guardar} className='grid grid-cols-1 sm:grid-cols-2 gap-[14px]'>
           <div className='col-span-full text-xs font-black text-purple-700 uppercase tracking-[0.08em]'>
             Aspirante
           </div>
