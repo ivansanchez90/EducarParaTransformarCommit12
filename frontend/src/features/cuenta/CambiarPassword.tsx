@@ -9,6 +9,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { cambiarPassword } from '../../lib/auth'
 import { btnPrimary, btnSecondary, fieldLabel, inputField } from '../../ui/styles'
+import { useEnLinea } from '../../ui/useEnLinea'
 
 export function CambiarPassword({ onClose }: { onClose: () => void }) {
   const [actual, setActual] = useState('')
@@ -17,6 +18,7 @@ export function CambiarPassword({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [listo, setListo] = useState(false)
+  const enLinea = useEnLinea()
 
   const guardar = async (e: FormEvent) => {
     e.preventDefault()
@@ -101,8 +103,14 @@ export function CambiarPassword({ onClose }: { onClose: () => void }) {
               <div className='text-[13px] font-bold text-red'>{msg}</div>
             )}
 
+            {!enLinea && (
+              <div className='text-[13px] font-bold text-red'>
+                📡 Sin conexión: no se puede guardar hasta que vuelva la señal.
+              </div>
+            )}
+
             <div className='flex gap-3'>
-              <button type='submit' className={btnPrimary} disabled={loading}>
+              <button type='submit' className={btnPrimary} disabled={loading || !enLinea}>
                 {loading ? 'Guardando...' : 'Cambiar contraseña'}
               </button>
               <button type='button' className={btnSecondary} onClick={onClose}>
