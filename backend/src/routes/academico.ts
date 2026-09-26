@@ -52,14 +52,14 @@ async function assertCursoNoDuplicado(clave: ClaveCurso, idPeriodo: number | nul
       id_periodo: idPeriodo,
       id_curso: idExcluido ? { not: idExcluido } : undefined,
     },
-    select: { activo: true },
+    select: { activo: true, nivel: true, grado_anio: true, division: true },
   })
   if (!otro) return
   throw new HttpError(
     409,
     otro.activo
-      ? `Ya existe el curso ${nombreCurso(clave)} en este ciclo lectivo.`
-      : `Ya existe el curso ${nombreCurso(clave)} en este ciclo lectivo, dado de baja: reactivalo en lugar de crear otro.`,
+      ? `Ya existe el curso ${nombreCurso(otro)} en este ciclo lectivo.`
+      : `Ya existe el curso ${nombreCurso(otro)} en este ciclo lectivo, dado de baja: reactivalo en lugar de crear otro.`,
     '23505',
   )
 }
@@ -167,14 +167,14 @@ async function assertMateriaNoDuplicada(nombre: string, idExcluido?: number) {
       nombre: { equals: nombre, mode: 'insensitive' },
       id_materia: idExcluido ? { not: idExcluido } : undefined,
     },
-    select: { activo: true },
+    select: { activo: true, nombre: true },
   })
   if (!otra) return
   throw new HttpError(
     409,
     otra.activo
-      ? `Ya existe la materia ${nombre}.`
-      : `Ya existe la materia ${nombre}, dada de baja: reactivala en lugar de crear otra.`,
+      ? `Ya existe la materia ${otra.nombre}.`
+      : `Ya existe la materia ${otra.nombre}, dada de baja: reactivala en lugar de crear otra.`,
     '23505',
   )
 }
