@@ -3,6 +3,7 @@
  */
 import { Router } from 'express'
 import type { Request } from 'express'
+import { Prisma } from '../generated/prisma/client.js'
 import { HttpError, bool, id, numOrNull, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { cursoResumen } from '../lib/selects.js'
@@ -11,7 +12,11 @@ import { ROLES_ADMIN, assertAccesoAlumno, esStaff, requireAuth, requireRole } fr
 export const actividadesRouter = Router()
 actividadesRouter.use(requireAuth)
 
-const TIPOS = ['Idioma', 'Deporte']
+const TIPO_DEPORTE = 'Deporte'
+const TIPOS = ['Idioma', TIPO_DEPORTE]
+
+/** Máximo de deportes en los que puede estar inscripto un alumno (HU 2). */
+const TOPE_DEPORTES = 2
 
 /**
  * Catálogo de actividades con la cantidad de inscriptos.
@@ -91,23 +96,74 @@ async function assertPuedeInscribir(req: Request, idAlumno: number) {
   await assertAccesoAlumno(req.user!, idAlumno)
 }
 
+/** 'A' | 'A y B' | 'A, B y C' */
+function enumerar(items: string[]): string {
+  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} y ${items.at(-1)}`
+}
+
+/**
+ * Un alumno puede estar inscripto como máximo en TOPE_DEPORTES deportes, sin
+ * excepción de rol. Cuentan también los deportes desactivados: la inscripción
+ * sigue vigente aunque la familia ya no los vea en el portal.
+ */
+async function assertTopeDeportes(tx: Prisma.TransactionClient, idAlumno: number) {
+  const deportes = await tx.inscripcionActividad.findMany({
+    where: { id_alumno: idAlumno, actividades_extracurriculares: { tipo: TIPO_DEPORTE } },
+    select: { actividades_extracurriculares: { select: { nombre: true, activo: true } } },
+    orderBy: { actividades_extracurriculares: { nombre: 'asc' } },
+  })
+  if (deportes.length < TOPE_DEPORTES) return
+
+  const actividades = deportes.map((d) => d.actividades_extracurriculares)
+  const nombres = actividades.map((a) => (a.activo ? a.nombre : `${a.nombre} [desactivado]`))
+  const desactivados = actividades.filter((a) => !a.activo).map((a) => a.nombre)
+  let mensaje =
+    `El alumno ya está inscripto en ${deportes.length} deportes (${enumerar(nombres)}). ` +
+    'Para inscribirlo en otro, primero dalo de baja de alguno de ellos.'
+  if (desactivados.length > 0) {
+    mensaje +=
+      desactivados.length === 1
+        ? ` ${desactivados[0]} está desactivado y no aparece en el portal: esa baja hay que pedírsela a la administración.`
+        : ` ${enumerar(desactivados)} están desactivados y no aparecen en el portal: esas bajas hay que pedírselas a la administración.`
+  }
+  throw new HttpError(409, mensaje, 'TOPE_DEPORTES')
+}
+
 actividadesRouter.post('/:id/inscripciones', async (req, res) => {
   const idActividad = id(req.params.id)
   const idAlumno = id(req.body?.id_alumno)
   await assertPuedeInscribir(req, idAlumno)
 
   const inscripcion = await prisma.$transaction(async (tx) => {
+    // Bloquea al alumno para que dos inscripciones simultáneas suyas a deportes
+    // distintos no pasen las dos el tope. Se toma siempre antes que el de la
+    // actividad (orden fijo, sin deadlocks). NO KEY UPDATE no frena los inserts
+    // de otras tablas con FK al alumno.
+    const alumno = await tx.$queryRaw<unknown[]>`SELECT 1 FROM alumnos WHERE id_alumno = ${idAlumno} FOR NO KEY UPDATE`
+    if (alumno.length === 0) throw new HttpError(404, 'Alumno no encontrado')
+
     // Bloquea la actividad para que dos inscripciones simultáneas no superen el cupo.
     await tx.$queryRaw`SELECT 1 FROM actividades_extracurriculares WHERE id_actividad = ${idActividad} FOR UPDATE`
     const actividad = await tx.actividadExtracurricular.findUnique({
       where: { id_actividad: idActividad },
-      select: { cupo_maximo: true, activo: true, _count: { select: { inscripciones_actividades: true } } },
+      select: { tipo: true, cupo_maximo: true, activo: true, _count: { select: { inscripciones_actividades: true } } },
     })
     if (!actividad) throw new HttpError(404, 'Actividad no encontrada')
     if (!actividad.activo) throw new HttpError(400, 'La actividad no está activa')
+
+    const existente = await tx.inscripcionActividad.findUnique({
+      where: { id_actividad_id_alumno: { id_actividad: idActividad, id_alumno: idAlumno } },
+      select: { id_inscripcion_act: true },
+    })
+    // Mismo code que el P2002 del errorHandler: el frontend lo reconoce.
+    if (existente) throw new HttpError(409, 'El alumno ya está inscripto en esta actividad', '23505')
+
     if (actividad._count.inscripciones_actividades >= actividad.cupo_maximo) {
       throw new HttpError(409, 'Cupo completo para esta actividad')
     }
+
+    if (actividad.tipo === TIPO_DEPORTE) await assertTopeDeportes(tx, idAlumno)
+
     return tx.inscripcionActividad.create({ data: { id_actividad: idActividad, id_alumno: idAlumno } })
   })
   res.status(201).json(inscripcion)
