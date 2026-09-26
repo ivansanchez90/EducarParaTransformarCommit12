@@ -8,6 +8,7 @@ import type { FormEvent } from 'react'
 import { api } from '../../lib/api'
 import type { Cuota } from '../../types'
 import { MESES } from '../../constants'
+import { TablaScroll } from '../../ui/components'
 import {
   btnPrimary,
   btnSecondary,
@@ -185,6 +186,7 @@ export function GestionCuotas() {
         <div className='text-[15px] font-extrabold text-text mb-5'>
           Últimas cuotas generadas
         </div>
+        <TablaScroll>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -247,6 +249,7 @@ export function GestionCuotas() {
             })}
           </tbody>
         </table>
+        </TablaScroll>
       </div>
     </div>
   )

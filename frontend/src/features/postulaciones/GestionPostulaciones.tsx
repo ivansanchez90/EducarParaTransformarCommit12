@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { api } from '../../lib/api'
 import type { Postulacion } from '../../types'
 import { POST_ESTADOS, POST_COLOR } from '../../constants'
+import { TablaScroll } from '../../ui/components'
 import { fieldLabel, thCell, tdCell, card, badge } from '../../ui/styles'
 
 export function GestionPostulaciones() {
@@ -55,7 +56,7 @@ export function GestionPostulaciones() {
       </h2>
 
       {/* Estadísticas */}
-      <div className='grid grid-cols-5 gap-3'>
+      <div className='grid grid-cols-2 sm:grid-cols-5 gap-3'>
         {POST_ESTADOS.map((e) => (
           <button
             key={e}
@@ -143,6 +144,7 @@ export function GestionPostulaciones() {
             No hay postulaciones con los filtros seleccionados.
           </div>
         ) : (
+          <TablaScroll>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
@@ -254,6 +256,7 @@ export function GestionPostulaciones() {
               ))}
             </tbody>
           </table>
+          </TablaScroll>
         )}
       </div>
     </div>

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api } from '../../lib/api'
 import type { Alumno, Beca } from '../../types'
+import { TablaScroll } from '../../ui/components'
 import {
   btnPrimary,
   btnSecondary,
@@ -168,6 +169,7 @@ export function GestionBecas() {
         <div className='text-[15px] font-extrabold text-text mb-5'>
           Becas otorgadas
         </div>
+        <TablaScroll>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -237,6 +239,7 @@ export function GestionBecas() {
             )}
           </tbody>
         </table>
+        </TablaScroll>
       </div>
     </div>
   )

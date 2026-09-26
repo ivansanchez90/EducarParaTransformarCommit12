@@ -70,7 +70,7 @@ export function GestionEmpleos() {
 
   return (
     <div className='flex flex-col gap-6'>
-      <div className='flex justify-between items-center'>
+      <div className='flex justify-between items-center gap-2 flex-wrap'>
         <h2 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>💼 Empleos</h2>
         <button
           className={btnPrimary}
@@ -103,7 +103,7 @@ export function GestionEmpleos() {
                 }
               />
             </div>
-            <div className='grid grid-cols-3 gap-4'>
+            <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
               <div>
                 <span className={fieldLabel}>
                   Área / Departamento

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api } from '../../lib/api'
 import type { Noticia } from '../../types'
+import { TablaScroll } from '../../ui/components'
 import {
   badge,
   btnPrimary,
@@ -253,6 +254,7 @@ export function GestionNoticias() {
       )}
 
       <div className={card}>
+        <TablaScroll>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -314,6 +316,7 @@ export function GestionNoticias() {
             ))}
           </tbody>
         </table>
+        </TablaScroll>
       </div>
     </div>
   )

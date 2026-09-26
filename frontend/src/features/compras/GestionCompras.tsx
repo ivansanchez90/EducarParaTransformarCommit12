@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { api } from '../../lib/api'
 import type { Compra } from '../../types'
 import { DESTINOS_INSUMO } from '../../constants'
+import { TablaScroll } from '../../ui/components'
 import {
   btnPrimary,
   btnDanger,
@@ -76,13 +77,7 @@ export function GestionCompras() {
           onSubmit={registrar}
           style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
         >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 1.5fr',
-              gap: 14,
-            }}
-          >
+          <div className='grid grid-cols-1 md:grid-cols-[2fr_1.5fr] gap-[14px]'>
             <div>
               <span className={fieldLabel}>
                 Descripción
@@ -116,13 +111,7 @@ export function GestionCompras() {
               </select>
             </div>
           </div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1.5fr 1fr',
-              gap: 14,
-            }}
-          >
+          <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_1.5fr_1fr] gap-[14px]'>
             <div>
               <span className={fieldLabel}>
                 Cantidad
@@ -208,6 +197,7 @@ export function GestionCompras() {
             Total: ${totalGastado.toLocaleString('es-AR')}
           </span>
         </div>
+        <TablaScroll>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -279,6 +269,7 @@ export function GestionCompras() {
             )}
           </tbody>
         </table>
+        </TablaScroll>
       </div>
     </div>
   )

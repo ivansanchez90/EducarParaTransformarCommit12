@@ -9,6 +9,7 @@ import { Fragment, useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api, qs } from '../../lib/api'
 import type { AlumnoServicios, RecorridoTransporte } from '../../types'
+import { TablaScroll } from '../../ui/components'
 import {
   badge,
   btnDanger,
@@ -184,7 +185,7 @@ export function GestionServicios() {
 
   return (
     <div>
-      <div className='flex justify-between items-center mb-5'>
+      <div className='flex justify-between items-center gap-2 flex-wrap mb-5'>
         <h2 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>
           🚌 Servicios: transporte y comedor
         </h2>
@@ -213,7 +214,7 @@ export function GestionServicios() {
             {editId ? 'Editar recorrido' : 'Nuevo recorrido'}
           </div>
           <form onSubmit={guardarRecorrido} className='flex flex-col gap-4'>
-            <div className='grid grid-cols-2 gap-4'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <div>
                 <span className={fieldLabel}>Nombre del recorrido *</span>
                 <input
@@ -243,7 +244,7 @@ export function GestionServicios() {
                 placeholder={'Plaza principal\nTerminal\nAv. San Martín 500'}
               />
             </div>
-            <div className='grid grid-cols-3 gap-4'>
+            <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
               <div>
                 <span className={fieldLabel}>Hora de ida</span>
                 <input
@@ -287,6 +288,7 @@ export function GestionServicios() {
         <div className='text-[15px] font-extrabold text-text mb-5'>
           Recorridos de transporte
         </div>
+        <TablaScroll>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -351,6 +353,7 @@ export function GestionServicios() {
             )}
           </tbody>
         </table>
+        </TablaScroll>
       </div>
 
       {/* ── Alumnos y sus servicios ── */}
@@ -398,6 +401,7 @@ export function GestionServicios() {
           </div>
         </div>
 
+        <TablaScroll>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -516,6 +520,7 @@ export function GestionServicios() {
             )}
           </tbody>
         </table>
+        </TablaScroll>
       </div>
     </div>
   )
