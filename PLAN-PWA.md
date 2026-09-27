@@ -133,7 +133,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T9. Admin en celular, parte académica: usuarios, alumnos, docentes, cursos, materias, asignaciones, inscripciones, mensajes, actividades, reservas, legajos | 5 | 3 | Iván | T4 | 1–1,5 días | Hecho (PR #14) |
 | T10. Admin en celular, parte de gestión y sitio: cuotas, pagos, becas, sueldos, compras, servicios, reportes, noticias, empleos, postulaciones, galería | 5 | 3 | Juan Manuel | T4 | 1–1,5 días | Hecho (PR #16) |
 | T11. Push, backend: tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío en `notificarFamilias` | 4 | 4 | Iván | T1 | 2 días | Hecho (PR #17) |
-| T12. Push, frontend: botón "Activar avisos" y manejo del aviso en el service worker (`importScripts` en la config de Workbox) | 4 | 4 | Juan Manuel | T11 | 1–2 días | En revisión |
+| T12. Push, frontend: botón "Activar avisos" y manejo del aviso en el service worker (`importScripts` en la config de Workbox) | 4 | 4 | Juan Manuel | T11 | 1–2 días | Hecho (PR #19) |
 
 **Ícono provisorio.** El texto del logo no se lee a tamaño de ícono, así que el
 ícono definitivo usa solo las figuras de colores del centro, sobre fondo blanco.
@@ -447,7 +447,12 @@ interface NavItem { key: string; icon: string; label: string }
   se pudo levantar el backend en este entorno) — a diferencia de T1-T9, acá
   falta esa verificación visual.
 
-### T11 — Push, backend (Iván): en revisión, rama `feat/pwa-t11-push-backend`
+- **Arreglo posterior (PR #18, Iván):** al probar T10 en el navegador a 375 px,
+  Postulaciones desbordaba 53 px porque los dos filtros no bajaban de línea y
+  el de empleo tenía `minWidth: 260`. Ahora se apilan en el celular. Las otras
+  10 pantallas de T10 estaban bien.
+
+### T11 — Push, backend (Iván): hecho, mergeado en el PR #17
 
 - **Qué quedó** (en `backend/`):
   - Tabla `push_subscriptions` (modelo `PushSuscripcion`, migración
@@ -501,7 +506,7 @@ interface NavItem { key: string; icon: string; label: string }
 - **Para activarlo en producción:** generar las claves una sola vez con
   `npx web-push generate-vapid-keys` y cargarlas en Coolify.
 
-### T12 — Push, frontend (Juan Manuel): en revisión, rama `feat/pwa-t12-push-frontend`
+### T12 — Push, frontend (Juan Manuel): hecho, mergeado en el PR #19
 
 - **Qué quedó:**
   - `frontend/public/sw-push.js`: maneja `push` (muestra el aviso con
@@ -556,6 +561,49 @@ interface NavItem { key: string; icon: string; label: string }
     de automatización (Android/Chrome o escritorio) y en un iPhone instalado
     (iOS 16.4+, requiere la PWA instalada); no se pudo generar un aviso real
     de punta a punta con `notificarFamilias` disparando el push.
+
+### Revisión general del 27/09/2026 (Iván)
+
+Revisión de `main` con T1–T12 integradas:
+
+- **Compilación:** `tsc` del frontend y del backend, `prisma validate` y los
+  dos builds sin errores. `tsc -b` del frontend daba 18 errores desde T1/T2:
+  el `tsconfig.json` raíz no tenía `skipLibCheck` y revisaba los tipos de
+  Workbox y de `@vite-pwa/assets-generator` (que traen tipos de service
+  worker). Se agregó `skipLibCheck`, como ya tenía `tsconfig.node.json`, y
+  volvió a 0. No afectaba el deploy (`pnpm build` es solo `vite build`).
+- **Lint:** 46 errores, contra 51 antes de la PWA; ninguno nuevo (son
+  `setState` dentro de efectos al cargar datos y reglas de `Home.tsx`).
+- **`npm audit` del backend:** las 4 vulnerabilidades altas vienen del CLI de
+  Prisma, como dice `PENDIENTES.md`; `web-push` no tiene ninguna.
+- **Navegador** (`pnpm preview`, API simulada con textos largos, Chromium a
+  375 y 1280 px, midiendo el ancho del `<main>` y no el de la página): las 8
+  secciones del portal (padre con dos hijos y alumno), las 3 pantallas del
+  docente, las 21 pantallas del admin con los formularios de alta abiertos,
+  el detalle de inscripción y el legajo del alumno, sin desbordes ni errores
+  de JS. El aviso "Sin conexión" aparece, deshabilita el guardado sin perder
+  lo tipeado y se va al volver la señal.
+- **Avisos push (T12):** el headless de Chromium bloquea las notificaciones,
+  así que se probó en dos partes. En la página, con permiso y `pushManager`
+  simulados: "Activar avisos" pide permiso, suscribe con la clave VAPID
+  convertida a bytes (65) y manda `POST /push/suscribir` con el
+  `toJSON()`; al recargar sigue en "Desactivar avisos"; desactivar y cerrar
+  sesión mandan `POST /push/desuscribir` y hacen `unsubscribe()`; el deep
+  link `?seccion=notificaciones` abre esa sección y una sección inválida cae
+  en Inicio. El `sw-push.js` se ejecutó en Node con un `self` falso: muestra
+  el aviso, ignora pushes sin datos o con JSON inválido, y al tocarlo navega
+  la ventana abierta o abre una nueva.
+- **Arreglos de esta revisión** (archivos de Juan Manuel, conviene que los
+  mire):
+  - `sw-push.js` usaba `tag: tipo`, y un aviso nuevo con el mismo `tag`
+    reemplaza al anterior sin avisar: un padre con dos hijos ausentes el
+    mismo día veía solo el último, y lo mismo con dos notas seguidas. Se
+    sacó el `tag`, así cada aviso queda en la bandeja.
+  - Con el permiso de notificaciones bloqueado (`denegado`), el portal no
+    mostraba ningún botón ni explicaba nada. Ahora muestra cómo
+    desbloquearlo desde el navegador.
+- **Pendiente:** probar en teléfonos reales (ver *Pruebas*) y cargar las
+  claves VAPID en Coolify.
 
 ## Pruebas
 

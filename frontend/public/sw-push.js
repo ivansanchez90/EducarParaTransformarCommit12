@@ -18,7 +18,8 @@ self.addEventListener('push', (event) => {
       body: payload.mensaje,
       icon: '/pwa-192x192.png',
       badge: '/pwa-64x64.png',
-      tag: payload.tipo,
+      // Sin `tag`: un aviso con el mismo tag reemplaza al anterior sin avisar,
+      // y un padre con dos hijos ausentes el mismo día vería solo el último.
       data: { url: payload.url },
     }),
   )

@@ -1397,6 +1397,13 @@ export default function StudentPortal() {
               {push.error && (
                 <div className='text-xs text-red mb-3'>{push.error}</div>
               )}
+              {push.estado === 'denegado' && (
+                <div className='text-xs text-textMuted mb-3'>
+                  Las notificaciones están bloqueadas para este sitio. Para recibir
+                  avisos, permitilas desde la configuración del navegador (el ícono
+                  junto a la dirección) y volvé a esta sección.
+                </div>
+              )}
               {notificaciones.length === 0 ? (
                 <div className='flex items-center justify-center py-8 text-textMuted text-[13px]'>
                   Sin notificaciones
