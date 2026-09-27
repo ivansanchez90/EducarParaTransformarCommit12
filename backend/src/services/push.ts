@@ -25,13 +25,30 @@ export interface SuscripcionPush {
   auth: string
 }
 
-export const pushHabilitado = Boolean(config.vapidPublicKey && config.vapidPrivateKey)
-
-if (pushHabilitado) {
-  webpush.setVapidDetails(config.vapidSubject, config.vapidPublicKey, config.vapidPrivateKey)
-} else {
-  console.warn('Avisos push apagados: faltan VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY.')
+/**
+ * Configura `web-push`. Una clave o un `VAPID_SUBJECT` mal cargados no deben
+ * tumbar la app (el contenedor no arrancaría): el push queda apagado y el
+ * motivo sale en el log.
+ */
+function configurarPush(): boolean {
+  if (!config.vapidPublicKey || !config.vapidPrivateKey) {
+    console.warn('Avisos push apagados: faltan VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY.')
+    return false
+  }
+  try {
+    webpush.setVapidDetails(config.vapidSubject, config.vapidPublicKey, config.vapidPrivateKey)
+    return true
+  } catch (err) {
+    console.error(
+      'Avisos push apagados: configuración VAPID inválida. Revisar VAPID_PUBLIC_KEY, ' +
+        'VAPID_PRIVATE_KEY y VAPID_SUBJECT (tiene que empezar con "mailto:" o "https:").',
+      err instanceof Error ? err.message : err,
+    )
+    return false
+  }
 }
+
+export const pushHabilitado = configurarPush()
 
 /**
  * Envía un aviso a cada suscripción y devuelve los endpoints que el servicio
