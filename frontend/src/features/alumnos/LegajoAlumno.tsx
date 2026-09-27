@@ -5,11 +5,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api } from '../../lib/api'
-import type { AlumnoLegajo, Calificacion, DocumentoAlumno } from '../../types'
+import type { AlumnoLegajo, Calificacion, DocumentoAlumno, UsuarioAlumno } from '../../types'
 import { TIPOS_DOC } from '../../constants'
 import {
   badge,
   btnDanger,
+  btnPrimarySm,
+  btnSecondarySm,
   btnPrimary,
   btnSecondary,
   card,
@@ -19,7 +21,173 @@ import {
   tdCell,
   thCell,
 } from '../../ui/styles'
-import { TablaScroll } from '../../ui/components'
+import { PasswordInput, TablaScroll } from '../../ui/components'
+
+/**
+ * Usuario con el que el alumno entra a la plataforma: muestra el email y deja
+ * restablecer la contraseña al DNI, asignar otra, o crear el usuario si el
+ * alumno se cargó sin él.
+ */
+function AccesoAlumno({
+  idAlumno,
+  dni,
+  usuario,
+  onCambio,
+}: {
+  idAlumno: number
+  dni: string
+  usuario: UsuarioAlumno | null
+  onCambio: () => void
+}) {
+  const [email, setEmail] = useState('')
+  const [nueva, setNueva] = useState('')
+  const [asignando, setAsignando] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const ok = msg.startsWith('✅')
+
+  const crearAcceso = async (e: FormEvent) => {
+    e.preventDefault()
+    setGuardando(true)
+    setMsg('')
+    const { data, error } = await api.post<AlumnoLegajo>(`/alumnos/${idAlumno}/acceso`, {
+      email: email.trim() || null,
+    })
+    setGuardando(false)
+    if (error) return setMsg('Error: ' + error.message)
+    setMsg(`✅ Acceso creado. Entra con ${data.usuarios?.email} y su DNI como contraseña.`)
+    setEmail('')
+    onCambio()
+  }
+
+  const restablecer = async () => {
+    if (!window.confirm(`¿Restablecer la contraseña del alumno a su DNI (${dni})?`)) return
+    setGuardando(true)
+    setMsg('')
+    const { error } = await api.patch(`/alumnos/${idAlumno}/password`, {})
+    setGuardando(false)
+    setMsg(error ? 'Error: ' + error.message : `✅ Contraseña restablecida: ahora es el DNI (${dni}).`)
+  }
+
+  const asignar = async (e: FormEvent) => {
+    e.preventDefault()
+    setGuardando(true)
+    setMsg('')
+    const { error } = await api.patch(`/alumnos/${idAlumno}/password`, { nueva })
+    setGuardando(false)
+    if (error) return setMsg('Error: ' + error.message)
+    setMsg('✅ Contraseña actualizada. Comunicásela al alumno.')
+    setNueva('')
+    setAsignando(false)
+  }
+
+  return (
+    <div className={`${card} mb-5`}>
+      <div className='text-[15px] font-extrabold text-text mb-4'>
+        Acceso a la plataforma
+      </div>
+
+      {usuario ? (
+        <>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-[18px] mb-4'>
+            <div>
+              <div className='text-[11px] font-extrabold text-textMuted mb-[2px]'>
+                Email para ingresar
+              </div>
+              <div className='text-sm font-bold break-all'>{usuario.email}</div>
+            </div>
+            <div>
+              <div className='text-[11px] font-extrabold text-textMuted mb-[2px]'>
+                Usuario
+              </div>
+              <div className='text-sm font-bold'>
+                {usuario.activo ? 'Activo' : 'Desactivado'}
+              </div>
+            </div>
+          </div>
+
+          <div className='flex flex-wrap gap-2'>
+            <button
+              type='button'
+              className={btnSecondarySm}
+              disabled={guardando}
+              onClick={restablecer}
+            >
+              Restablecer contraseña al DNI
+            </button>
+            <button
+              type='button'
+              className={btnSecondarySm}
+              disabled={guardando}
+              onClick={() => {
+                setAsignando((v) => !v)
+                setMsg('')
+              }}
+            >
+              {asignando ? 'Cancelar' : 'Asignar otra contraseña'}
+            </button>
+          </div>
+
+          {asignando && (
+            <form onSubmit={asignar} className='flex flex-col sm:flex-row sm:items-end gap-3 mt-4'>
+              <div className='flex-1 sm:max-w-[320px]'>
+                <label className={fieldLabel} htmlFor='alumno-password-nueva'>
+                  Contraseña nueva
+                </label>
+                <PasswordInput
+                  id='alumno-password-nueva'
+                  required
+                  minLength={6}
+                  autoComplete='new-password'
+                  value={nueva}
+                  onChange={(e) => setNueva(e.target.value)}
+                  placeholder='Mínimo 6 caracteres'
+                />
+              </div>
+              <button type='submit' className={btnPrimarySm} disabled={guardando}>
+                {guardando ? 'Guardando...' : 'Guardar contraseña'}
+              </button>
+            </form>
+          )}
+        </>
+      ) : (
+        <form onSubmit={crearAcceso} className='flex flex-col gap-3'>
+          <p className='text-[13px] text-textMuted m-0'>
+            Este alumno todavía no tiene usuario para ingresar a la plataforma.
+          </p>
+          <div className='flex flex-col sm:flex-row sm:items-end gap-3'>
+            <div className='flex-1 sm:max-w-[320px]'>
+              <label className={fieldLabel} htmlFor='alumno-acceso-email'>
+                Email del alumno (opcional)
+              </label>
+              <input
+                id='alumno-acceso-email'
+                type='email'
+                className={inputField}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={`${dni}@alumno.local`}
+              />
+            </div>
+            <button type='submit' className={btnPrimarySm} disabled={guardando}>
+              {guardando ? 'Creando...' : 'Crear acceso'}
+            </button>
+          </div>
+          <p className='text-[11px] text-textMuted m-0'>
+            Sin email propio entra con {dni}@alumno.local. La contraseña inicial es su DNI.
+          </p>
+        </form>
+      )}
+
+      {msg && (
+        <div role='status' className={`text-[13px] font-bold mt-3 ${ok ? 'text-green' : 'text-red'}`}>
+          {msg}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function LegajoAlumno({
   idAlumno,
@@ -180,6 +348,15 @@ export function LegajoAlumno({
           <div style={{ color: '#6B6B8A', fontSize: 13 }}>Cargando...</div>
         )}
       </div>
+
+      {alumno && (
+        <AccesoAlumno
+          idAlumno={idAlumno}
+          dni={alumno.dni}
+          usuario={alumno.usuarios ?? null}
+          onCambio={load}
+        />
+      )}
 
       {/* Resumen académico */}
       <div

@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs'
 import { Router } from 'express'
 import { Prisma } from '../generated/prisma/client.js'
 import { HttpError, bool, fechaObligatoria, id, lista, numOrNull, textOrNull } from '../lib/http.js'
@@ -12,6 +13,7 @@ import {
   requireRole,
 } from '../middleware/auth.js'
 import { borrarArchivo, uploader, urlPublica } from '../middleware/upload.js'
+import { crearUsuario, emailInstitucionalAlumno, emailOpcional } from '../services/usuarios.js'
 
 export const alumnosRouter = Router()
 alumnosRouter.use(requireAuth)
@@ -55,12 +57,33 @@ async function assertCursoActivo(tx: Prisma.TransactionClient, idCurso: number |
   throw new HttpError(400, 'El curso está dado de baja. Elegí un curso activo.')
 }
 
+/** Usuario con el que el alumno entra a la plataforma (email y si está activo). */
+const usuarioAlumno = { select: { email: true, activo: true } } as const
+
+/**
+ * Crea el usuario del alumno: con su email si lo tiene, o con el institucional
+ * (`<dni>@alumno.local`). La contraseña inicial es el DNI.
+ */
+async function crearUsuarioAlumno(
+  tx: Prisma.TransactionClient,
+  alumno: { nombre: string; apellido: string; dni: string },
+  email: string | null,
+) {
+  return crearUsuario(tx, {
+    email: email ?? emailInstitucionalAlumno(alumno.dni),
+    password: alumno.dni,
+    nombre: alumno.nombre,
+    apellido: alumno.apellido,
+    rol: 'Alumno',
+  })
+}
+
 // ── Listados para el personal ──────────────────────────────────
 
 alumnosRouter.get('/', requireRole(...ROLES_STAFF), async (req, res) => {
   const alumnos = await prisma.alumno.findMany({
     where: { activo: bool(req.query.activo), id_curso: numOrNull(req.query.id_curso) ?? undefined },
-    include: { cursos: cursoResumen, padre: { select: { email: true } } },
+    include: { cursos: cursoResumen, padre: { select: { email: true } }, usuarios: usuarioAlumno },
     orderBy: { apellido: 'asc' },
   })
   res.json(alumnos)
@@ -91,7 +114,7 @@ alumnosRouter.get('/:id', async (req, res) => {
   await assertAccesoAlumno(req.user!, idAlumno)
   const alumno = await prisma.alumno.findUnique({
     where: { id_alumno: idAlumno },
-    include: { cursos: cursoResumen },
+    include: { cursos: cursoResumen, usuarios: usuarioAlumno },
   })
   if (!alumno) throw new HttpError(404, 'Alumno no encontrado')
   res.json(alumno)
@@ -110,14 +133,25 @@ alumnosRouter.post('/', requireRole(...ROLES_ADMIN), async (req, res) => {
     idPadre = padre?.id_usuario ?? null
   }
   const idCurso = numOrNull(body.id_curso)
+  const nombre = String(body.nombre ?? '').trim()
+  const apellido = String(body.apellido ?? '').trim()
+  const dni = String(body.dni ?? '').trim()
+  if (!nombre || !apellido || !dni) throw new HttpError(400, 'Nombre, apellido y DNI son obligatorios')
+  // Email propio del alumno (opcional); sin él se usa el institucional.
+  const email = emailOpcional(body.email)
+
   const alumno = await prisma.$transaction(async (tx) => {
+    const otro = await tx.alumno.findUnique({ where: { dni }, select: { id_alumno: true } })
+    if (otro) throw new HttpError(409, 'Ya existe un alumno registrado con ese DNI', '23505')
     await verificarCupoCurso(tx, idCurso)
     await assertCursoActivo(tx, idCurso)
+    const usuario = await crearUsuarioAlumno(tx, { nombre, apellido, dni }, email)
     return tx.alumno.create({
       data: {
-        nombre: String(body.nombre ?? '').trim(),
-        apellido: String(body.apellido ?? '').trim(),
-        dni: String(body.dni ?? '').trim(),
+        nombre,
+        apellido,
+        dni,
+        id_usuario: usuario.id_usuario,
         fecha_nacimiento: fechaObligatoria(body.fecha_nacimiento, 'fecha de nacimiento'),
         id_curso: idCurso,
         id_usuario_padre: idPadre,
@@ -127,6 +161,7 @@ alumnosRouter.post('/', requireRole(...ROLES_ADMIN), async (req, res) => {
         obra_social: textOrNull(body.obra_social),
         nro_obra_social: textOrNull(body.nro_obra_social),
       },
+      include: { cursos: cursoResumen, usuarios: usuarioAlumno },
     })
   })
   res.status(201).json(alumno)
@@ -180,6 +215,21 @@ alumnosRouter.patch('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
         data.id_usuario_padre = padre.id_usuario
       }
     }
+    // Email con el que entra el alumno: se cambia en su usuario.
+    if ('email' in body) {
+      const email = emailOpcional(body.email)
+      if (!email) throw new HttpError(400, 'El email del alumno no puede quedar vacío')
+      const actual = await tx.alumno.findUnique({ where: { id_alumno: idAlumno }, select: { id_usuario: true } })
+      if (!actual) throw new HttpError(404, 'Alumno no encontrado')
+      if (!actual.id_usuario) {
+        throw new HttpError(400, 'El alumno no tiene usuario: crealo desde el legajo')
+      }
+      const otro = await tx.usuario.findUnique({ where: { email }, select: { id_usuario: true } })
+      if (otro && otro.id_usuario !== actual.id_usuario) {
+        throw new HttpError(409, `Ya existe un usuario con el email ${email}`, '23505')
+      }
+      await tx.usuario.update({ where: { id_usuario: actual.id_usuario }, data: { email } })
+    }
     for (const campo of [
       'direccion',
       'telefono_emergencia',
@@ -192,10 +242,59 @@ alumnosRouter.patch('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
     return tx.alumno.update({
       where: { id_alumno: idAlumno },
       data,
-      include: { cursos: cursoResumen },
+      include: { cursos: cursoResumen, usuarios: usuarioAlumno },
     })
   })
   res.json(alumno)
+})
+
+/**
+ * Crea el usuario de un alumno que no lo tiene (los que se cargaron antes de
+ * que el alta lo creara). Body: `{ email? }`; sin email, el institucional.
+ */
+alumnosRouter.post('/:id/acceso', requireRole(...ROLES_ADMIN), async (req, res) => {
+  const idAlumno = id(req.params.id)
+  const email = emailOpcional(req.body?.email)
+  const alumno = await prisma.$transaction(async (tx) => {
+    const actual = await tx.alumno.findUnique({
+      where: { id_alumno: idAlumno },
+      select: { nombre: true, apellido: true, dni: true, id_usuario: true },
+    })
+    if (!actual) throw new HttpError(404, 'Alumno no encontrado')
+    if (actual.id_usuario) throw new HttpError(409, 'El alumno ya tiene usuario')
+    const usuario = await crearUsuarioAlumno(tx, actual, email)
+    return tx.alumno.update({
+      where: { id_alumno: idAlumno },
+      data: { id_usuario: usuario.id_usuario },
+      include: { cursos: cursoResumen, usuarios: usuarioAlumno },
+    })
+  })
+  res.status(201).json(alumno)
+})
+
+/**
+ * Cambia la contraseña del usuario del alumno. Body: `{ nueva? }`; sin
+ * `nueva` la restablece al DNI. No pide la anterior: es una acción del
+ * personal administrativo (por ejemplo, si el alumno la olvidó).
+ */
+alumnosRouter.patch('/:id/password', requireRole(...ROLES_ADMIN), async (req, res) => {
+  const idAlumno = id(req.params.id)
+  const alumno = await prisma.alumno.findUnique({
+    where: { id_alumno: idAlumno },
+    select: { dni: true, id_usuario: true, usuarios: { select: { email: true } } },
+  })
+  if (!alumno) throw new HttpError(404, 'Alumno no encontrado')
+  if (!alumno.id_usuario) throw new HttpError(400, 'El alumno no tiene usuario: crealo desde el legajo')
+
+  const alDni = req.body?.nueva === undefined || req.body?.nueva === null || req.body?.nueva === ''
+  const nueva = alDni ? alumno.dni : String(req.body.nueva)
+  if (!alDni && nueva.length < 6) throw new HttpError(400, 'La contraseña debe tener al menos 6 caracteres')
+
+  await prisma.usuario.update({
+    where: { id_usuario: alumno.id_usuario },
+    data: { password_hash: await bcrypt.hash(nueva, 10) },
+  })
+  res.json({ ok: true, email: alumno.usuarios?.email, al_dni: alDni })
 })
 
 // ── Datos académicos y administrativos de un alumno ────────────

@@ -31,6 +31,14 @@ export interface Alumno {
   cursos: { nivel: string; grado_anio: string; division: string } | null
   /** Padre/tutor vinculado (solo en el listado del panel). */
   padre?: { email: string } | null
+  /** Usuario con el que el alumno entra a la plataforma; `null` si no tiene. */
+  usuarios?: UsuarioAlumno | null
+}
+
+/** Acceso del alumno a la plataforma. */
+export interface UsuarioAlumno {
+  email: string
+  activo: boolean
 }
 
 export interface Docente {
@@ -334,6 +342,7 @@ export interface AlumnoLegajo {
   obra_social: string | null
   activo: boolean
   cursos: { nivel: string; grado_anio: string; division: string } | null
+  usuarios?: UsuarioAlumno | null
 }
 
 export interface InscripcionActividad {

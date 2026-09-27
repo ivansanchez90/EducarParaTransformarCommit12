@@ -178,7 +178,11 @@ en Chrome; iPhone: Compartir → Agregar a inicio). La configuración está en
   planes de estudio.
 - **Alumnos**: alta y edición completa (datos personales, curso, tutor, obra
   social y contacto de emergencia), baja y reactivación, legajo,
-  inscripciones, calificaciones, asistencia y amonestaciones.
+  inscripciones, calificaciones, asistencia y amonestaciones. El alta crea
+  también el usuario del alumno: con su email si lo tiene, o con el
+  institucional `<dni>@alumno.local`, y el DNI como contraseña inicial. El
+  legajo muestra ese email y deja restablecer la contraseña al DNI, asignar
+  otra o, si el alumno se cargó sin usuario, crearle el acceso.
 - **Preinscripciones**: las solicitudes enviadas desde la web se revisan una
   por una (todos los datos, observaciones internas y control de
   documentación). Al aprobarlas se da de alta al alumno y, opcionalmente, se

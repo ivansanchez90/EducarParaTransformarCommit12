@@ -22,6 +22,8 @@ export interface DatosAlumno {
   direccion: string
   telefono_emergencia: string
   nombre_contacto_emergencia: string
+  /** Email con el que entra el alumno; vacío = el institucional (`<dni>@alumno.local`). */
+  email: string
 }
 
 /** Convierte el formulario en el cuerpo que espera la API. */
@@ -38,6 +40,9 @@ function aPayload(form: DatosAlumno) {
     direccion: form.direccion || null,
     telefono_emergencia: form.telefono_emergencia || null,
     nombre_contacto_emergencia: form.nombre_contacto_emergencia || null,
+    // Solo si se completó: vacío en el alta = email institucional, y en la
+    // edición deja el que ya tenía.
+    ...(form.email.trim() ? { email: form.email.trim() } : {}),
   }
 }
 
@@ -58,13 +63,16 @@ export function useAlumnos() {
     load()
   }, [load])
 
-  /** Crea un alumno (el backend vincula al padre por email). Devuelve el error si lo hay. */
+  /**
+   * Crea un alumno y su usuario (el backend vincula al padre por email).
+   * Devuelve el error, o el email con el que va a entrar el alumno.
+   */
   const crearAlumno = useCallback(
-    async (form: DatosAlumno): Promise<string | null> => {
-      const { error } = await api.post('/alumnos', aPayload(form))
-      if (error) return error.message
+    async (form: DatosAlumno): Promise<{ error: string } | { email: string }> => {
+      const { data, error } = await api.post<Alumno>('/alumnos', aPayload(form))
+      if (error) return { error: error.message }
       await load()
-      return null
+      return { email: data.usuarios?.email ?? '' }
     },
     [load],
   )

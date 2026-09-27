@@ -8,7 +8,7 @@ import { Router } from 'express'
 import { HttpError, bool, fecha, id, numOrNull, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { ROLES_ADMIN, requireAuth, requireRole } from '../middleware/auth.js'
-import { crearUsuario, partirNombre } from '../services/usuarios.js'
+import { crearUsuario, partirNombre, emailInstitucionalAlumno } from '../services/usuarios.js'
 import { verificarCupoCurso } from './alumnos.js'
 import { borrarArchivo, uploader, urlPublica } from '../middleware/upload.js'
 import { notificarFamilias } from '../services/notificaciones.js'
@@ -375,7 +375,7 @@ inscripcionesRouter.post('/:id/aprobar', ...soloAdmin, async (req, res) => {
     // Usuario del propio alumno (para que entre al portal).
     let idUsuarioAlumno: string | null = null
     if (crearAccesos) {
-      const emailAlumno = `${dni}@alumno.local`
+      const emailAlumno = emailInstitucionalAlumno(dni)
       const existente = await tx.usuario.findUnique({
         where: { email: emailAlumno },
         select: { id_usuario: true },
@@ -417,7 +417,7 @@ inscripcionesRouter.post('/:id/aprobar', ...soloAdmin, async (req, res) => {
       accesos: crearAccesos
         ? {
             tutor: { email: solicitud.email_tutor, creado: tutorCreado },
-            alumno: { email: `${dni}@alumno.local`, password_inicial: dni },
+            alumno: { email: emailInstitucionalAlumno(dni), password_inicial: dni },
           }
         : null,
     }

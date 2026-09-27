@@ -48,6 +48,24 @@ export async function crearUsuario(tx: Prisma.TransactionClient, datos: DatosUsu
   return usuario
 }
 
+/**
+ * Email con el que entra un alumno que no tiene correo propio. Es solo el
+ * usuario para iniciar sesión: no es una casilla real.
+ */
+export function emailInstitucionalAlumno(dni: string): string {
+  return `${dni}@alumno.local`
+}
+
+/** Normaliza un email opcional del body: `null` si viene vacío, 400 si es inválido. */
+export function emailOpcional(valor: unknown): string | null {
+  const email = String(valor ?? '').trim().toLowerCase()
+  if (!email) return null
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new HttpError(400, `El email ${email} no es válido`)
+  }
+  return email
+}
+
 /** Separa "Juan Manuel Cantero" en nombre y apellido para el alta del tutor. */
 export function partirNombre(completo: string): { nombre: string; apellido: string } {
   const partes = completo.trim().split(/\s+/)

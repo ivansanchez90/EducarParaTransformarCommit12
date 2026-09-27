@@ -34,6 +34,7 @@ const FORM_INICIAL = {
   direccion: '',
   telefono_emergencia: '',
   nombre_contacto_emergencia: '',
+  email: '',
 }
 
 export function GestionAlumnos() {
@@ -86,6 +87,7 @@ export function GestionAlumnos() {
       direccion: a.direccion ?? '',
       telefono_emergencia: a.telefono_emergencia ?? '',
       nombre_contacto_emergencia: a.nombre_contacto_emergencia ?? '',
+      email: a.usuarios?.email ?? '',
     })
     setMsg('')
     setShowForm(true)
@@ -95,11 +97,21 @@ export function GestionAlumnos() {
     e.preventDefault()
     setLoading(true)
     setMsg('')
-    const error = editId ? await editarAlumno(editId, form) : await crearAlumno(form)
+    let error: string | null
+    let exito = '✅ Datos actualizados.'
+    if (editId) {
+      error = await editarAlumno(editId, form)
+    } else {
+      const res = await crearAlumno(form)
+      error = 'error' in res ? res.error : null
+      if ('email' in res) {
+        exito = `✅ Alumno registrado. Entra a la plataforma con ${res.email} y su DNI como contraseña.`
+      }
+    }
     if (error) {
       setMsg('Error: ' + error)
     } else {
-      setMsg(editId ? '✅ Datos actualizados.' : '✅ Alumno registrado.')
+      setMsg(exito)
       setShowForm(false)
       setEditId(null)
     }
@@ -214,6 +226,24 @@ export function GestionAlumnos() {
                 ))}
               </select>
             </div>
+            <div>
+              <label className={fieldLabel} htmlFor='alumno-email'>
+                {editId ? 'Email para ingresar a la plataforma' : 'Email del alumno (opcional)'}
+              </label>
+              <input
+                id='alumno-email'
+                type='email'
+                className={inputField}
+                value={form.email}
+                onChange={(e) => setCampo('email')(e.target.value)}
+                placeholder={`${form.dni.trim() || 'dni'}@alumno.local`}
+              />
+              <p className='text-[11px] text-textMuted mt-1 mb-0'>
+                {editId
+                  ? 'Es el usuario con el que entra el alumno.'
+                  : `Si no tiene correo, entra con ${form.dni.trim() || '<dni>'}@alumno.local. La contraseña inicial es su DNI.`}
+              </p>
+            </div>
             <Field
               label='Email del padre/tutor'
               type='email'
@@ -292,8 +322,13 @@ export function GestionAlumnos() {
               )}
               {alumnosFiltrados.map((a) => (
                 <tr key={a.id_alumno}>
-                  <td className={`${tdCell} font-bold`}>
-                    {a.apellido}, {a.nombre}
+                  <td className={tdCell}>
+                    <div className='font-bold'>
+                      {a.apellido}, {a.nombre}
+                    </div>
+                    <div className='text-[11px] text-textMuted break-all'>
+                      {a.usuarios?.email ?? 'Sin usuario para ingresar'}
+                    </div>
                   </td>
                   <td className={`${tdCell} text-textMuted`}>{a.dni}</td>
                   <td className={tdCell} style={{ minWidth: 260 }}>
