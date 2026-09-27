@@ -45,6 +45,10 @@ export default defineConfig({
         // Se precachea la app; los íconos del manifest los agrega el plugin.
         // Las imágenes grandes del sitio público quedan afuera.
         globPatterns: ['**/*.{js,css,html}'],
+        // Avisos push (T12): generateSW no admite código propio en el service
+        // worker, así que el manejo de `push`/`notificationclick` se agrega
+        // como un script aparte (public/sw-push.js) con `importScripts`.
+        importScripts: ['sw-push.js'],
         // Las rutas de React funcionan sin conexión; la API y los archivos nunca reciben el HTML.
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/uploads\//],
