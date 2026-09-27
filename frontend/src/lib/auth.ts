@@ -9,6 +9,7 @@
 import { api, getToken, setToken, setUnauthorizedHandler } from './api'
 import type { ApiError, ApiResult } from './api'
 import type { UsuarioPanel } from '../types'
+import { desuscribirPushAlSalir } from '../pwa/push'
 
 export type Perfil = UsuarioPanel
 
@@ -49,6 +50,9 @@ export async function cambiarPassword(
 }
 
 export function logout() {
+  // Se captura el token antes de borrarlo: desuscribir pide sesión.
+  const token = getToken()
+  if (token) void desuscribirPushAlSalir(token)
   setToken(null)
   emitir(null)
 }

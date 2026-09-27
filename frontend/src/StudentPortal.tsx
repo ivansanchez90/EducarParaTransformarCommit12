@@ -19,8 +19,9 @@ import type { RecorridoTransporte, ServiciosAlumno } from './types'
 import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/auth'
 import type { Perfil } from './lib/auth'
 import { AvatarMenu, Badge, BottomNav, ResponsiveTable, type Columna } from './ui/components'
-import { conBottomNav, conPaddingX, touchTarget } from './ui/styles'
+import { btnPrimarySm, conBottomNav, conPaddingX, touchTarget } from './ui/styles'
 import { useEsMovil } from './ui/useEsMovil'
+import { usePush } from './ui/usePush'
 
 // ═══════════════════════════════════════════════════════════════
 //  TIPOS — coinciden con el schema de la base de datos
@@ -150,6 +151,7 @@ const NOTIF_COLOR: Record<string, string> = {
   Cuota: '#E74C3C',
   Novedad: '#2980B9',
   Urgente: '#C0392B',
+  Amonestación: '#D35400',
 }
 
 /** Círculo con la nota, coloreado según `notaColor`. */
@@ -264,6 +266,7 @@ const NAV_ITEMS = [
   { key: 'servicios', icon: '🚌', label: 'Transporte y comedor' },
   { key: 'notificaciones', icon: '🔔', label: 'Notificaciones' },
 ]
+const NAV_KEYS = new Set(NAV_ITEMS.map((i) => i.key))
 
 /**
  * Alumno que se está viendo. Un padre/tutor con más de un hijo lo elige con un
@@ -327,7 +330,11 @@ export default function StudentPortal() {
   const [servicios, setServicios] = useState<ServiciosAlumno | null>(null)
   const [recorridos, setRecorridos] = useState<RecorridoTransporte[]>([])
   const [servMsg, setServMsg] = useState('')
-  const [activeNav, setActiveNav] = useState('inicio')
+  // El aviso push abre el portal en `?seccion=notificaciones` (ver pwa/push.ts / sw-push.js).
+  const [activeNav, setActiveNav] = useState(() => {
+    const seccion = new URLSearchParams(window.location.search).get('seccion')
+    return seccion && NAV_KEYS.has(seccion) ? seccion : 'inicio'
+  })
   const [cambiandoPassword, setCambiandoPassword] = useState(false)
   const [loading, setLoading] = useState(true)
   const esMovil = useEsMovil()
@@ -544,6 +551,7 @@ export default function StudentPortal() {
 
   const notifNoLeidas = notificaciones.filter((n) => !n.leida).length
   const initials = perfil ? `${perfil.nombre[0]}${perfil.apellido[0]}` : '?'
+  const push = usePush()
 
   // ── Render guards ────────────────────────────────────────────
   if (!authChecked) return null
@@ -1357,15 +1365,45 @@ export default function StudentPortal() {
                 <div className='text-[15px] font-extrabold text-text flex items-center gap-2'>
                   🔔 Todas mis Notificaciones
                 </div>
-                {notifNoLeidas > 0 && (
-                  <button
-                    className='bg-transparent border border-purple-700 rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-purple-700 cursor-pointer font-[inherit]'
-                    onClick={marcarTodasLeidas}
-                  >
-                    Marcar todas como leídas
-                  </button>
-                )}
+                <div className='flex items-center gap-2 flex-wrap'>
+                  {push.estado === 'inactivo' && (
+                    <button
+                      className={btnPrimarySm}
+                      disabled={push.cargando}
+                      onClick={push.activar}
+                    >
+                      Activar avisos
+                    </button>
+                  )}
+                  {push.estado === 'activo' && (
+                    <button
+                      className='bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
+                      disabled={push.cargando}
+                      onClick={push.desactivar}
+                    >
+                      Desactivar avisos
+                    </button>
+                  )}
+                  {notifNoLeidas > 0 && (
+                    <button
+                      className='bg-transparent border border-purple-700 rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-purple-700 cursor-pointer font-[inherit]'
+                      onClick={marcarTodasLeidas}
+                    >
+                      Marcar todas como leídas
+                    </button>
+                  )}
+                </div>
               </div>
+              {push.error && (
+                <div className='text-xs text-red mb-3'>{push.error}</div>
+              )}
+              {push.estado === 'denegado' && (
+                <div className='text-xs text-textMuted mb-3'>
+                  Las notificaciones están bloqueadas para este sitio. Para recibir
+                  avisos, permitilas desde la configuración del navegador (el ícono
+                  junto a la dirección) y volvé a esta sección.
+                </div>
+              )}
               {notificaciones.length === 0 ? (
                 <div className='flex items-center justify-center py-8 text-textMuted text-[13px]'>
                   Sin notificaciones
