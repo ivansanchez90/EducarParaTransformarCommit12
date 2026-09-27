@@ -132,8 +132,8 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | Hecho (PR #15) |
 | T9. Admin en celular, parte académica: usuarios, alumnos, docentes, cursos, materias, asignaciones, inscripciones, mensajes, actividades, reservas, legajos | 5 | 3 | Iván | T4 | 1–1,5 días | Hecho (PR #14) |
 | T10. Admin en celular, parte de gestión y sitio: cuotas, pagos, becas, sueldos, compras, servicios, reportes, noticias, empleos, postulaciones, galería | 5 | 3 | Juan Manuel | T4 | 1–1,5 días | Hecho (PR #16) |
-| T11. Push, backend: tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío en `notificarFamilias` | 4 | 4 | Iván | T1 | 2 días | En revisión |
-| T12. Push, frontend: botón "Activar avisos" y manejo del aviso en el service worker (`importScripts` en la config de Workbox) | 4 | 4 | Juan Manuel | T11 | 1–2 días | Pendiente |
+| T11. Push, backend: tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío en `notificarFamilias` | 4 | 4 | Iván | T1 | 2 días | Hecho (PR #17) |
+| T12. Push, frontend: botón "Activar avisos" y manejo del aviso en el service worker (`importScripts` en la config de Workbox) | 4 | 4 | Juan Manuel | T11 | 1–2 días | En revisión |
 
 **Ícono provisorio.** El texto del logo no se lee a tamaño de ícono, así que el
 ícono definitivo usa solo las figuras de colores del centro, sobre fondo blanco.
@@ -500,6 +500,62 @@ interface NavItem { key: string; icon: string; label: string }
   este entorno), ni un aviso en un teléfono real, que necesita T12.
 - **Para activarlo en producción:** generar las claves una sola vez con
   `npx web-push generate-vapid-keys` y cargarlas en Coolify.
+
+### T12 — Push, frontend (Juan Manuel): en revisión, rama `feat/pwa-t12-push-frontend`
+
+- **Qué quedó:**
+  - `frontend/public/sw-push.js`: maneja `push` (muestra el aviso con
+    `titulo`/`mensaje`, ícono del manifest y `tag: tipo`) y `notificationclick`
+    (si ya hay una pestaña abierta, la navega a la URL del aviso —no solo la
+    enfoca, porque trae `?seccion=`— y si no, abre una nueva). Se suma al
+    `sw.js` que genera Workbox con `workbox.importScripts` (`vite.config.ts`),
+    porque el modo `generateSW` no admite código propio.
+  - `frontend/src/pwa/push.ts`: pide permiso, pide la clave pública
+    (`GET /push/clave-publica`), suscribe con `pushManager.subscribe` y guarda
+    la suscripción (`POST /push/suscribir`). `desactivarPush()` la borra
+    (botón "Desactivar avisos"); `desuscribirPushAlSalir(token)` hace lo mismo
+    al cerrar sesión, con el token que `logout()` (`lib/auth.ts`) captura
+    *antes* de borrarlo, porque desuscribir pide sesión.
+  - `frontend/src/ui/usePush.ts`: hook con el estado del botón
+    (`no-soportado`/`denegado`/`inactivo`/`activo`), mismo patrón que
+    `useEnLinea`/`useEsMovil`.
+  - Botón "Activar avisos" / "Desactivar avisos" en la cabecera de
+    Notificaciones del portal (`StudentPortal.tsx`), al lado de "Marcar todas
+    como leídas"; con error, muestra el motivo debajo.
+  - `StudentPortal.tsx` ahora lee `?seccion=` al montar (validado contra las
+    claves de `NAV_ITEMS`) para abrir la sección que pide la URL del aviso
+    (`/portal?seccion=notificaciones`), como pedía el contrato de T11.
+  - `NOTIF_COLOR` suma `Amonestación: '#D35400'` (usaba el violeta por
+    defecto, quedó pendiente de T11).
+- **No se tocó** `backend/` ni el contrato de T11 (`GET /push/clave-publica`,
+  `POST /push/suscribir`, `POST /push/desuscribir`).
+- **Verificado:** con Postgres local disponible en este entorno (a diferencia
+  de T8-T11) se pudieron generar claves VAPID de prueba, levantar el backend
+  y el build del frontend juntos (mismo origen, como en producción) y probar
+  de punta a punta en un Chromium real:
+  - `pnpm build`, `tsc --noEmit` y `eslint` sin errores propios (los mismos 3
+    de `StudentPortal.tsx` que ya estaban en `main`, confirmado con
+    `git stash`, y los de `node_modules`/tipos de Workbox que no dependen de
+    esta rama).
+  - Service worker activo, botón "Activar avisos" visible en la sección de
+    Notificaciones, sin errores de consola. Al aceptar el permiso, el intento
+    de `pushManager.subscribe()` reveló un bug real: la excepción del
+    navegador no se atajaba y quedaba sin capturar; se corrigió envolviendo
+    la suscripción en `try/catch` y devolviendo un mensaje de error. La
+    suscripción real no se pudo completar en este entorno porque Chrome
+    **no admite la Push API en contexto de automatización/incógnito**
+    (limitación del navegador, no de la app); con el error atajado, el botón
+    vuelve a "Activar avisos" y muestra el motivo, sin quedar colgado.
+  - A 375 px, la sección de Notificaciones con el botón nuevo no desborda
+    (`main.scrollWidth === clientWidth`).
+  - `/portal?seccion=notificaciones` abre directo en esa sección (simula el
+    toque del aviso).
+  - Cerrar sesión no tira errores con el módulo de push cargado (sin
+    suscripción activa, que es el caso normal en este entorno).
+  - **Falta:** probar una suscripción y un aviso reales en un navegador fuera
+    de automatización (Android/Chrome o escritorio) y en un iPhone instalado
+    (iOS 16.4+, requiere la PWA instalada); no se pudo generar un aviso real
+    de punta a punta con `notificarFamilias` disparando el push.
 
 ## Pruebas
 
