@@ -6,7 +6,7 @@
  * garantizando una convención visual única y sin duplicación.
  */
 import { useEffect, useId, useRef, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties, InputHTMLAttributes, ReactNode } from 'react'
 import {
   badge,
   btnPrimary,
@@ -103,6 +103,36 @@ export function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
+    </div>
+  )
+}
+
+/**
+ * Campo de contraseña con botón para mostrar u ocultar lo escrito (el "ojito").
+ * Acepta las mismas props que un `<input>`; `type` lo maneja el componente.
+ */
+export function PasswordInput({
+  className = inputField,
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <div className='relative'>
+      <input {...props} type={visible ? 'text' : 'password'} className={`${className} pr-12`} />
+      <button
+        type='button'
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        aria-pressed={visible}
+        title={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        className={`${touchTarget} absolute right-0 top-1/2 -translate-y-1/2 flex items-center justify-center bg-transparent border-0 cursor-pointer text-textMuted hover:text-purple-700`}
+      >
+        <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+          <path d='M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z' />
+          <circle cx='12' cy='12' r='3' />
+          {visible && <path d='M3 3l18 18' />}
+        </svg>
+      </button>
     </div>
   )
 }

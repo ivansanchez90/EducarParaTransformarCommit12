@@ -18,7 +18,7 @@ import {
   card,
   badge,
 } from '../../ui/styles'
-import { TablaScroll } from '../../ui/components'
+import { PasswordInput, TablaScroll } from '../../ui/components'
 
 export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
   // Jerarquía (solo UX): un Directivo no puede activar/desactivar a un Admin u
@@ -213,11 +213,10 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
               <span className={fieldLabel}>
                 Contraseña
               </span>
-              <input
-                type='password'
-                className={inputField}
+              <PasswordInput
                 required
                 minLength={6}
+                autoComplete='new-password'
                 value={form.password}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, password: e.target.value }))

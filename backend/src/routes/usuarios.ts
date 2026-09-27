@@ -3,7 +3,7 @@ import { Router } from 'express'
 import { HttpError, bool, fechaObligatoria, lista, numOrNull, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { ROLES_ADMIN, requireAuth, requireRole } from '../middleware/auth.js'
-import { crearUsuario, validarUsuario } from '../services/usuarios.js'
+import { crearUsuario, emailInstitucionalAlumno, validarUsuario } from '../services/usuarios.js'
 import { verificarCupoCurso } from './alumnos.js'
 
 export const usuariosRouter = Router()
@@ -47,7 +47,7 @@ usuariosRouter.post('/', async (req, res) => {
     const dni = String(alumno.dni ?? '').trim()
     if (!dni) throw new HttpError(400, 'El DNI del alumno es obligatorio')
     const usuarioAlumno = await crearUsuario(tx, {
-      email: `${dni}@alumno.local`,
+      email: emailInstitucionalAlumno(dni),
       password: dni,
       nombre: String(alumno.nombre ?? '').trim(),
       apellido: String(alumno.apellido ?? '').trim(),

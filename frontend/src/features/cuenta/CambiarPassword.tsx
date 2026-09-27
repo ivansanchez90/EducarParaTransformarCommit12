@@ -8,8 +8,9 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { cambiarPassword } from '../../lib/auth'
-import { btnPrimary, btnSecondary, fieldLabel, inputField } from '../../ui/styles'
+import { btnPrimary, btnSecondary, fieldLabel } from '../../ui/styles'
 import { useEnLinea } from '../../ui/useEnLinea'
+import { PasswordInput } from '../../ui/components'
 
 export function CambiarPassword({ onClose }: { onClose: () => void }) {
   const [actual, setActual] = useState('')
@@ -67,9 +68,7 @@ export function CambiarPassword({ onClose }: { onClose: () => void }) {
           <form onSubmit={guardar} className='flex flex-col gap-4'>
             <div>
               <span className={fieldLabel}>Contraseña actual</span>
-              <input
-                type='password'
-                className={inputField}
+              <PasswordInput
                 required
                 autoFocus
                 value={actual}
@@ -78,9 +77,7 @@ export function CambiarPassword({ onClose }: { onClose: () => void }) {
             </div>
             <div>
               <span className={fieldLabel}>Contraseña nueva</span>
-              <input
-                type='password'
-                className={inputField}
+              <PasswordInput
                 required
                 minLength={6}
                 value={nueva}
@@ -90,9 +87,7 @@ export function CambiarPassword({ onClose }: { onClose: () => void }) {
             </div>
             <div>
               <span className={fieldLabel}>Repetir contraseña nueva</span>
-              <input
-                type='password'
-                className={inputField}
+              <PasswordInput
                 required
                 value={repetir}
                 onChange={(e) => setRepetir(e.target.value)}

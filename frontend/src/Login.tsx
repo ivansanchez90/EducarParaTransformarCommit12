@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { getSession, login } from './lib/auth'
+import { PasswordInput } from './ui/components'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -110,16 +111,17 @@ export default function Login() {
           </div>
 
           <div>
-            <label className='text-[11px] font-extrabold text-textMuted block mb-[5px]'>
+            <label htmlFor='login-password' className='text-[11px] font-extrabold text-textMuted block mb-[5px]'>
               Contraseña
             </label>
-            <input
-              type='password'
+            <PasswordInput
+              id='login-password'
               required
+              autoComplete='current-password'
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder='••••••••'
-              className='w-full px-[14px] py-[11px] rounded-input border-2 border-border text-[13px] text-text outline-none box-border'
+              className='w-full px-[14px] py-[11px] rounded-input border-2 border-border text-base md:text-[13px] text-text outline-none box-border'
             />
           </div>
 
