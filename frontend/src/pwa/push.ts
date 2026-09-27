@@ -18,9 +18,7 @@ function base64UrlAUint8Array(base64Url: string): BufferSource {
     .replace(/-/g, '+')
     .replace(/_/g, '/')
   const binario = atob(base64)
-  const bytes = new Uint8Array(binario.length)
-  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i)
-  return bytes.buffer
+  return Uint8Array.from(binario, (c) => c.charCodeAt(0)).buffer
 }
 
 async function suscripcionActual(): Promise<PushSubscription | null> {
@@ -66,18 +64,18 @@ export async function activarPush(): Promise<string | null> {
 }
 
 async function borrarSuscripcion(sub: PushSubscription, tokenAlSalir?: string): Promise<void> {
-  if (tokenAlSalir) {
-    try {
+  try {
+    if (tokenAlSalir) {
       await fetch(`${API_URL}/api/push/desuscribir`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenAlSalir}` },
         body: JSON.stringify({ endpoint: sub.endpoint }),
       })
-    } catch {
-      // Sin conexión al cerrar sesión: la suscripción vieja se descarta igual localmente.
+    } else {
+      await api.post('/push/desuscribir', { endpoint: sub.endpoint })
     }
-  } else {
-    await api.post('/push/desuscribir', { endpoint: sub.endpoint })
+  } catch {
+    // Sin conexión al cerrar sesión: la suscripción vieja se descarta igual localmente.
   }
   try {
     await sub.unsubscribe()
@@ -88,8 +86,12 @@ async function borrarSuscripcion(sub: PushSubscription, tokenAlSalir?: string): 
 
 /** Cancela la suscripción de este navegador (botón "Desactivar avisos"). */
 export async function desactivarPush(): Promise<void> {
-  const sub = await suscripcionActual()
-  if (sub) await borrarSuscripcion(sub)
+  try {
+    const sub = await suscripcionActual()
+    if (sub) await borrarSuscripcion(sub)
+  } catch {
+    // El navegador no dejó consultar la suscripción actual: no hay más para hacer acá.
+  }
 }
 
 /**
@@ -99,6 +101,10 @@ export async function desactivarPush(): Promise<void> {
  * porque `desuscribir` necesita sesión y el token se borra antes de que esto termine.
  */
 export async function desuscribirPushAlSalir(token: string): Promise<void> {
-  const sub = await suscripcionActual()
-  if (sub) await borrarSuscripcion(sub, token)
+  try {
+    const sub = await suscripcionActual()
+    if (sub) await borrarSuscripcion(sub, token)
+  } catch {
+    // El navegador no dejó consultar la suscripción actual: no hay más para hacer acá.
+  }
 }

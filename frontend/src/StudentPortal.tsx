@@ -1370,7 +1370,7 @@ export default function StudentPortal() {
                     <button
                       className={btnPrimarySm}
                       disabled={push.cargando}
-                      onClick={push.activar}
+                      onClick={() => void push.activar()}
                     >
                       Activar avisos
                     </button>
@@ -1379,7 +1379,7 @@ export default function StudentPortal() {
                     <button
                       className='bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
                       disabled={push.cargando}
-                      onClick={push.desactivar}
+                      onClick={() => void push.desactivar()}
                     >
                       Desactivar avisos
                     </button>
