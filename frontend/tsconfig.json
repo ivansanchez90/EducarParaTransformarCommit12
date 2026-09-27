@@ -10,6 +10,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "skipLibCheck": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "target": "ESNext",
     "allowJs": true,

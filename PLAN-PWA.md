@@ -132,7 +132,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T8. Aviso "Sin conexión" y guardado deshabilitado sin señal | 3 | 3 | Juan Manuel | T1 | 1–2 días | Hecho (PR #15) |
 | T9. Admin en celular, parte académica: usuarios, alumnos, docentes, cursos, materias, asignaciones, inscripciones, mensajes, actividades, reservas, legajos | 5 | 3 | Iván | T4 | 1–1,5 días | Hecho (PR #14) |
 | T10. Admin en celular, parte de gestión y sitio: cuotas, pagos, becas, sueldos, compras, servicios, reportes, noticias, empleos, postulaciones, galería | 5 | 3 | Juan Manuel | T4 | 1–1,5 días | Hecho (PR #16) |
-| T11. Push, backend: tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío en `notificarFamilias` | 4 | 4 | Iván | T1 | 2 días | En revisión |
+| T11. Push, backend: tabla `push_subscriptions`, claves VAPID, `POST /api/push/suscribir`, envío en `notificarFamilias` | 4 | 4 | Iván | T1 | 2 días | Hecho (PR #17) |
 | T12. Push, frontend: botón "Activar avisos" y manejo del aviso en el service worker (`importScripts` en la config de Workbox) | 4 | 4 | Juan Manuel | T11 | 1–2 días | Pendiente |
 
 **Ícono provisorio.** El texto del logo no se lee a tamaño de ícono, así que el
@@ -447,7 +447,12 @@ interface NavItem { key: string; icon: string; label: string }
   se pudo levantar el backend en este entorno) — a diferencia de T1-T9, acá
   falta esa verificación visual.
 
-### T11 — Push, backend (Iván): en revisión, rama `feat/pwa-t11-push-backend`
+- **Arreglo posterior (PR #18, Iván):** al probar T10 en el navegador a 375 px,
+  Postulaciones desbordaba 53 px porque los dos filtros no bajaban de línea y
+  el de empleo tenía `minWidth: 260`. Ahora se apilan en el celular. Las otras
+  10 pantallas de T10 estaban bien.
+
+### T11 — Push, backend (Iván): hecho, mergeado en el PR #17
 
 - **Qué quedó** (en `backend/`):
   - Tabla `push_subscriptions` (modelo `PushSuscripcion`, migración
@@ -500,6 +505,28 @@ interface NavItem { key: string; icon: string; label: string }
   este entorno), ni un aviso en un teléfono real, que necesita T12.
 - **Para activarlo en producción:** generar las claves una sola vez con
   `npx web-push generate-vapid-keys` y cargarlas en Coolify.
+
+### Revisión general del 27/09/2026 (Iván)
+
+Revisión de `main` con T1–T11 integradas:
+
+- **Compilación:** `tsc` del frontend y del backend, `prisma validate` y los
+  dos builds sin errores. `tsc -b` del frontend daba 18 errores desde T1/T2:
+  el `tsconfig.json` raíz no tenía `skipLibCheck` y revisaba los tipos de
+  Workbox y de `@vite-pwa/assets-generator` (que traen tipos de service
+  worker). Se agregó `skipLibCheck`, como ya tenía `tsconfig.node.json`, y
+  volvió a 0. No afectaba el deploy (`pnpm build` es solo `vite build`).
+- **Lint:** 46 errores, contra 51 antes de la PWA; ninguno nuevo (son
+  `setState` dentro de efectos al cargar datos y reglas de `Home.tsx`).
+- **`npm audit` del backend:** las 4 vulnerabilidades altas vienen del CLI de
+  Prisma, como dice `PENDIENTES.md`; `web-push` no tiene ninguna.
+- **Navegador** (`pnpm preview`, API simulada con textos largos, Chromium a
+  375 y 1280 px, midiendo el ancho del `<main>` y no el de la página): las 8
+  secciones del portal (padre con dos hijos y alumno), las 3 pantallas del
+  docente, las 21 pantallas del admin con los formularios de alta abiertos,
+  el detalle de inscripción y el legajo del alumno, sin desbordes ni errores
+  de JS. El aviso "Sin conexión" aparece, deshabilita el guardado sin perder
+  lo tipeado y se va al volver la señal.
 
 ## Pruebas
 
