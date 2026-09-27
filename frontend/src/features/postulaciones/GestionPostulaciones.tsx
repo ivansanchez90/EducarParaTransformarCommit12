@@ -81,14 +81,13 @@ export function GestionPostulaciones() {
       </div>
 
       {/* Filtros */}
-      <div className='flex gap-4 items-center'>
+      <div className='flex flex-col sm:flex-row gap-4 sm:items-center'>
         <div>
           <span className={fieldLabel}>
             Filtrar por empleo
           </span>
           <select
-            className='px-[14px] py-[10px] rounded-input border-2 border-border text-[13px] text-text outline-none appearance-none'
-            style={{ minWidth: 260 }}
+            className='w-full sm:w-auto sm:min-w-[260px] px-[14px] py-[10px] rounded-input border-2 border-border text-base md:text-[13px] text-text outline-none appearance-none'
             value={filtroEmpleo}
             onChange={(e) => setFiltroEmpleo(e.target.value)}
           >
@@ -105,7 +104,7 @@ export function GestionPostulaciones() {
             Filtrar por estado
           </span>
           <select
-            className='px-[14px] py-[10px] rounded-input border-2 border-border text-[13px] text-text outline-none appearance-none'
+            className='w-full sm:w-auto px-[14px] py-[10px] rounded-input border-2 border-border text-base md:text-[13px] text-text outline-none appearance-none'
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
           >
@@ -119,7 +118,7 @@ export function GestionPostulaciones() {
         </div>
         {(filtroEmpleo || filtroEstado) && (
           <button
-            className='mt-5 text-[12px] font-bold text-purple-700 bg-purpleLight border-0 rounded-lg px-3 py-[7px] cursor-pointer'
+            className='self-start sm:mt-5 text-[12px] font-bold text-purple-700 bg-purpleLight border-0 rounded-lg px-3 py-[7px] cursor-pointer'
             onClick={() => {
               setFiltroEmpleo('')
               setFiltroEstado('')
