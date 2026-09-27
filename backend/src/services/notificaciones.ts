@@ -3,9 +3,11 @@
  *
  * Cada notificación de un alumno se dirige a su padre/tutor si lo tiene, o al
  * propio alumno si no. (El envío de emails de la antigua Edge Function
- * `enviar-notificacion` estaba desactivado y no se migró.)
+ * `enviar-notificacion` estaba desactivado y no se migró.) Además del aviso
+ * in-app, se manda un aviso push a los teléfonos suscriptos (ver `push.ts`).
  */
 import { prisma } from '../lib/prisma.js'
+import { enviarPushAUsuarios } from './push.js'
 
 export interface ItemNotificacion {
   id_alumno: number
@@ -37,5 +39,17 @@ export async function notificarFamilias(items: ItemNotificacion[], tipo: string)
     }))
 
   if (data.length) await prisma.notificacion.createMany({ data })
+
+  // Sin await: el push no demora la respuesta al docente/administrativo, y si
+  // falla la notificación igual quedó guardada.
+  enviarPushAUsuarios(
+    data.map((n) => ({
+      id_usuario: n.id_usuario_destino,
+      payload: { titulo: n.titulo, mensaje: n.mensaje, tipo, url: '/portal?seccion=notificaciones' },
+    })),
+  ).catch((err: unknown) => {
+    console.error('Error al enviar avisos push:', err)
+  })
+
   return data.length
 }

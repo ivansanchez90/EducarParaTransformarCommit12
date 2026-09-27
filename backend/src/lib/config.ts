@@ -23,4 +23,10 @@ export const config = {
   // Build del frontend que sirve el backend (si la carpeta existe).
   frontendDir: process.env.FRONTEND_DIR ?? 'public',
   zonaHoraria: process.env.TZ_APP ?? 'America/Argentina/Buenos_Aires',
+  // Avisos push (PWA). Sin las dos claves el push queda apagado y el resto de
+  // la app funciona igual. Se generan con `npx web-push generate-vapid-keys`.
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? '',
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? '',
+  // Contacto que ven los servicios de push (Google, Apple, Mozilla) si hay un problema.
+  vapidSubject: process.env.VAPID_SUBJECT ?? 'mailto:admin@educar.local',
 }

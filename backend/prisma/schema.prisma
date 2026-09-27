@@ -35,6 +35,7 @@ model Usuario {
   alumnos        Alumno[]             @relation("AlumnoUsuario")
   hijos          Alumno[]             @relation("AlumnoPadre")
   notificaciones Notificacion[]
+  push           PushSuscripcion[]
   reservas       ReservaInstalacion[]
   sueldos        Sueldo[]
   noticias       Noticia[]
@@ -361,6 +362,25 @@ model Notificacion {
 
   @@index([id_usuario_destino])
   @@map("notificaciones")
+}
+
+/// Suscripción de un navegador o teléfono a los avisos push (PWA). Un usuario
+/// puede tener varias (celular y computadora). El `endpoint` identifica al
+/// navegador: si otro usuario inicia sesión en el mismo teléfono, la fila pasa
+/// a ese usuario.
+model PushSuscripcion {
+  id_suscripcion Int      @id @default(autoincrement())
+  id_usuario     String   @db.Uuid
+  endpoint       String   @unique
+  p256dh         String
+  auth           String
+  user_agent     String?
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  usuarios Usuario @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+
+  @@index([id_usuario])
+  @@map("push_subscriptions")
 }
 
 // ─────────────────────────────────────────────────────────────

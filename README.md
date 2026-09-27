@@ -110,6 +110,8 @@ puerto **4000**.
 | `DATABASE_URL` | URL interna del Postgres de Coolify (con `?schema=public`) |
 | `JWT_SECRET` | valor largo y aleatorio (`openssl rand -hex 32`) |
 | `JWT_EXPIRES_IN` | opcional, por defecto `8h` |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | claves de los avisos push (ver *App instalable*); sin ellas el push queda apagado |
+| `VAPID_SUBJECT` | `mailto:` de contacto de la escuela para los servicios de push |
 
 Montar un **volumen persistente en `/app/uploads`** (si no, los archivos
 subidos se pierden en cada deploy). Seed inicial, una sola vez, desde la
@@ -156,6 +158,15 @@ en Chrome; iPhone: Compartir → Agregar a inicio). La configuración está en
   `maskable-icon-512x512.png` y `apple-touch-icon-180x180.png`. Los actuales
   son provisorios (generados desde `logo.png`); para cambiarlos alcanza con
   reemplazar esos archivos manteniendo los nombres.
+- **Avisos push:** cuando el backend crea una notificación para una familia
+  (`notificarFamilias`: notas, inasistencias, amonestaciones, cuotas
+  vencidas y noticias con aviso), además la manda como aviso push a los teléfonos suscriptos, aunque
+  la app esté cerrada. Las suscripciones se guardan en la tabla
+  `push_subscriptions` (`POST /api/push/suscribir`, `POST /api/push/desuscribir`,
+  `GET /api/push/clave-publica`). Para activarlo, generar las claves **una sola
+  vez** con `npx web-push generate-vapid-keys` (desde `backend/`) y cargarlas
+  en `.env` y en Coolify; si se cambian, las suscripciones existentes dejan de
+  funcionar y cada usuario tiene que volver a activar los avisos.
 
 ## Funcionalidades principales
 

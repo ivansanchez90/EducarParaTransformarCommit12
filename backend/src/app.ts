@@ -14,6 +14,7 @@ import { authRouter } from './routes/auth.js'
 import { becasRouter, comprasRouter, cuotasRouter, sueldosRouter } from './routes/administracion.js'
 import { dashboardRouter } from './routes/dashboard.js'
 import { notificacionesRouter } from './routes/notificaciones.js'
+import { pushRouter } from './routes/push.js'
 import { reportesRouter } from './routes/reportes.js'
 import { instalacionesRouter, reservasRouter } from './routes/reservas.js'
 import { recorridosRouter, serviciosRouter } from './routes/servicios.js'
@@ -63,6 +64,7 @@ app.use('/api/postulaciones', postulacionesRouter)
 app.use('/api/inscripciones', inscripcionesRouter)
 app.use('/api/mensajes', mensajesRouter)
 app.use('/api/notificaciones', notificacionesRouter)
+app.use('/api/push', pushRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/recorridos', recorridosRouter)
 app.use('/api/servicios', serviciosRouter)
