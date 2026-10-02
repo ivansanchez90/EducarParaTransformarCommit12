@@ -4,9 +4,9 @@
 import { Router } from 'express'
 import type { Request } from 'express'
 import { Prisma } from '../generated/prisma/client.js'
-import { HttpError, bool, id, numOrNull, textOrNull } from '../lib/http.js'
+import { HttpError, bool, hora, id, numOrNull, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
-import { cursoResumen } from '../lib/selects.js'
+import { cursoResumen, nombreApellido } from '../lib/selects.js'
 import { ROLES_ADMIN, assertAccesoAlumno, esStaff, requireAuth, requireRole } from '../middleware/auth.js'
 
 export const actividadesRouter = Router()
@@ -17,6 +17,18 @@ const TIPOS = ['Idioma', TIPO_DEPORTE]
 
 /** Máximo de deportes en los que puede estar inscripto un alumno (HU 2). */
 const TOPE_DEPORTES = 2
+
+const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+
+/** Profesor y horarios de cada actividad, en el orden de la semana. */
+const includeProfesorYHorarios = {
+  docentes: { select: { id_docente: true, usuarios: nombreApellido } },
+  horarios: { orderBy: { hora_inicio: 'asc' } },
+} as const
+
+function ordenarHorarios<T extends { dia_semana: string }>(horarios: T[]): T[] {
+  return [...horarios].sort((a, b) => DIAS_SEMANA.indexOf(a.dia_semana) - DIAS_SEMANA.indexOf(b.dia_semana))
+}
 
 /**
  * Catálogo de actividades con la cantidad de inscriptos.
@@ -31,42 +43,92 @@ actividadesRouter.get('/', async (req, res) => {
   const actividades = await prisma.actividadExtracurricular.findMany({
     where: { activo },
     include: {
+      ...includeProfesorYHorarios,
       _count: { select: { inscripciones_actividades: true } },
       inscripciones_actividades: idAlumno ? { where: { id_alumno: idAlumno }, select: { id_alumno: true } } : false,
     },
     orderBy: [{ tipo: 'asc' }, { nombre: 'asc' }],
   })
   res.json(
-    actividades.map(({ _count, inscripciones_actividades, ...a }) => ({
+    actividades.map(({ _count, inscripciones_actividades, horarios, ...a }) => ({
       ...a,
+      horarios: ordenarHorarios(horarios),
       inscriptos: _count.inscripciones_actividades,
       ...(idAlumno ? { inscripto: (inscripciones_actividades ?? []).length > 0 } : {}),
     })),
   )
 })
 
-function datosActividad(body: Record<string, unknown>) {
+const hhmm = (d: Date) => d.toISOString().slice(11, 16)
+
+/**
+ * Días y franjas de la actividad: `[{ dia_semana, hora_inicio, hora_fin }]`.
+ * La franja tiene que terminar después de empezar y dos franjas del mismo
+ * día no pueden superponerse. Sin el campo, `null` (no se tocan los que hay).
+ */
+function horariosValidos(valor: unknown) {
+  if (valor === undefined) return null
+  if (!Array.isArray(valor)) throw new HttpError(400, 'Horarios inválidos')
+  const horarios = valor.map((h: Record<string, unknown>) => {
+    const dia = String(h?.dia_semana ?? '')
+    if (!DIAS_SEMANA.includes(dia)) throw new HttpError(400, `Día inválido: ${dia}`)
+    const inicio = hora(h.hora_inicio)
+    const fin = hora(h.hora_fin)
+    if (fin <= inicio) throw new HttpError(400, `El horario del ${dia} tiene que terminar después de empezar`)
+    return { dia_semana: dia, hora_inicio: inicio, hora_fin: fin }
+  })
+  for (const [i, a] of horarios.entries()) {
+    const choca = horarios.find(
+      (b, j) => j > i && b.dia_semana === a.dia_semana && b.hora_inicio < a.hora_fin && a.hora_inicio < b.hora_fin,
+    )
+    if (choca) {
+      throw new HttpError(
+        400,
+        `Los horarios del ${a.dia_semana} se superponen (${hhmm(a.hora_inicio)}–${hhmm(a.hora_fin)} y ${hhmm(choca.hora_inicio)}–${hhmm(choca.hora_fin)})`,
+      )
+    }
+  }
+  return horarios
+}
+
+async function datosActividad(body: Record<string, unknown>) {
   if (!textOrNull(body.nombre)) throw new HttpError(400, 'El nombre es obligatorio')
   if (!TIPOS.includes(String(body.tipo))) throw new HttpError(400, 'Tipo inválido')
   const cupo = Number(body.cupo_maximo)
   if (!Number.isInteger(cupo) || cupo <= 0) throw new HttpError(400, 'El cupo debe ser mayor a 0')
+  const idDocente = numOrNull(body.id_docente)
+  if (idDocente) {
+    const docente = await prisma.docente.findUnique({ where: { id_docente: idDocente }, select: { activo: true } })
+    if (!docente?.activo) throw new HttpError(400, 'El profesor no existe o está inactivo')
+  }
   return {
-    nombre: String(body.nombre).trim(),
-    tipo: String(body.tipo),
-    descripcion: textOrNull(body.descripcion),
-    cupo_maximo: cupo,
+    datos: {
+      nombre: String(body.nombre).trim(),
+      tipo: String(body.tipo),
+      descripcion: textOrNull(body.descripcion),
+      cupo_maximo: cupo,
+      id_docente: idDocente,
+    },
+    horarios: horariosValidos(body.horarios),
   }
 }
 
 actividadesRouter.post('/', requireRole(...ROLES_ADMIN), async (req, res) => {
-  const actividad = await prisma.actividadExtracurricular.create({ data: datosActividad(req.body ?? {}) })
+  const { datos, horarios } = await datosActividad(req.body ?? {})
+  const actividad = await prisma.actividadExtracurricular.create({
+    data: { ...datos, horarios: { create: horarios ?? [] } },
+    include: includeProfesorYHorarios,
+  })
   res.status(201).json(actividad)
 })
 
+/** Edita la actividad y, si llegan horarios, reemplaza los que tenía. */
 actividadesRouter.put('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
+  const { datos, horarios } = await datosActividad(req.body ?? {})
   const actividad = await prisma.actividadExtracurricular.update({
     where: { id_actividad: id(req.params.id) },
-    data: datosActividad(req.body ?? {}),
+    data: { ...datos, horarios: horarios ? { deleteMany: {}, create: horarios } : undefined },
+    include: includeProfesorYHorarios,
   })
   res.json(actividad)
 })

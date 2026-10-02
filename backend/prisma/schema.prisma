@@ -110,9 +110,10 @@ model Docente {
   fecha_ingreso DateTime? @db.Date
   activo        Boolean   @default(true)
 
-  usuarios       Usuario?       @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+  usuarios       Usuario?                   @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
   asignaciones   Asignacion[]
   amonestaciones Amonestacion[]
+  actividades    ActividadExtracurricular[]
 
   @@map("docentes")
 }
@@ -608,10 +609,30 @@ model ActividadExtracurricular {
   descripcion  String?
   cupo_maximo  Int     @default(20)
   activo       Boolean @default(true)
+  /// Profesor responsable (un docente de la escuela)
+  id_docente   Int?
 
+  docentes                  Docente?               @relation(fields: [id_docente], references: [id_docente], onDelete: SetNull)
+  horarios                  HorarioActividad[]
   inscripciones_actividades InscripcionActividad[]
 
+  @@index([id_docente])
   @@map("actividades_extracurriculares")
+}
+
+/// Día y franja horaria de una actividad (un deporte puede tener varios días).
+model HorarioActividad {
+  id_horario_actividad Int      @id @default(autoincrement())
+  id_actividad         Int
+  /// Lunes | Martes | Miércoles | Jueves | Viernes | Sábado | Domingo
+  dia_semana           String
+  hora_inicio          DateTime @db.Time(0)
+  hora_fin             DateTime @db.Time(0)
+
+  actividades_extracurriculares ActividadExtracurricular @relation(fields: [id_actividad], references: [id_actividad], onDelete: Cascade)
+
+  @@index([id_actividad])
+  @@map("horarios_actividades")
 }
 
 model InscripcionActividad {

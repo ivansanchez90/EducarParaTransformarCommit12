@@ -19,6 +19,7 @@ const CAMPOS_FECHA = new Set([
   'fecha_cierre',
   'fecha_inicio',
   'fecha_fin',
+  'vigente_desde',
 ])
 const CAMPOS_HORA = new Set(['hora_inicio', 'hora_fin', 'hora_ida', 'hora_vuelta'])
 

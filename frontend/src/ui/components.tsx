@@ -443,11 +443,16 @@ export function ResponsiveTable<T>({
               ))}
             </dl>
           )}
-          {pies.map((c) => (
-            <div key={c.key} className='mt-3 pt-3 border-t border-border flex flex-wrap gap-2 justify-end'>
-              {c.render(fila)}
-            </div>
-          ))}
+          {pies.map((c) => {
+            // Una fila sin acciones (render → null) no muestra el pie vacío.
+            const contenido = c.render(fila)
+            if (contenido === null || contenido === undefined || contenido === false) return null
+            return (
+              <div key={c.key} className='mt-3 pt-3 border-t border-border flex flex-wrap gap-2 justify-end'>
+                {contenido}
+              </div>
+            )
+          })}
         </li>
       ))}
     </ul>

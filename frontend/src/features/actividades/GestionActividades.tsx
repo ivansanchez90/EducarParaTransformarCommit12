@@ -1,9 +1,11 @@
 // GestionActividades — gestión de actividades extracurriculares e inscripciones.
-// Extraído de AdminPanel.tsx sin cambios de lógica.
+// Extraído de AdminPanel.tsx sin cambios de lógica. En la Parte 3 (T06) se
+// suman el profesor responsable y los días y horarios de cada actividad.
 import { useState, useEffect, useCallback, Fragment } from 'react'
 import type { FormEvent } from 'react'
 import { api } from '../../lib/api'
-import type { ActividadEx, Alumno, InscripcionActividad } from '../../types'
+import type { ActividadEx, Alumno, Docente, HorarioActividad, InscripcionActividad } from '../../types'
+import { DIAS_SEMANA } from '../../constants'
 import {
   btnPrimary,
   btnSecondary,
@@ -20,6 +22,15 @@ import {
 } from '../../ui/styles'
 import { TablaScroll } from '../../ui/components'
 
+const hhmm = (hora: string) => hora.slice(0, 5)
+
+/** "Lun 17:00–18:30 · Mié 17:00–18:30" */
+const resumenHorarios = (horarios: HorarioActividad[]) =>
+  horarios.map((h) => `${h.dia_semana.slice(0, 3)} ${hhmm(h.hora_inicio)}–${hhmm(h.hora_fin)}`).join(' · ')
+
+const nombreProfesor = (a: ActividadEx) =>
+  a.docentes?.usuarios ? `${a.docentes.usuarios.nombre} ${a.docentes.usuarios.apellido}` : null
+
 export function GestionActividades() {
   const [actividades, setActividades] = useState<ActividadEx[]>([])
   const [conteos, setConteos] = useState<Record<number, number>>({})
@@ -31,8 +42,11 @@ export function GestionActividades() {
     tipo: 'Idioma',
     descripcion: '',
     cupo_maximo: 20,
+    id_docente: '',
+    horarios: [] as HorarioActividad[],
   }
   const [form, setForm] = useState(FORM_VACIO)
+  const [docentes, setDocentes] = useState<Docente[]>([])
 
   // Inscriptos por actividad
   const [verInscriptosId, setVerInscriptosId] = useState<number | null>(null)
@@ -57,6 +71,10 @@ export function GestionActividades() {
     // Alumnos activos para el selector de inscripción
     const { data: al } = await api.get<Alumno[]>('/alumnos?activo=true')
     if (al) setAlumnos(al)
+
+    // Docentes activos para elegir el profesor responsable
+    const { data: doc } = await api.get<Docente[]>('/docentes?activo=true')
+    if (doc) setDocentes(doc)
   }, [])
 
   useEffect(() => {
@@ -129,6 +147,8 @@ export function GestionActividades() {
       tipo: a.tipo,
       descripcion: a.descripcion ?? '',
       cupo_maximo: a.cupo_maximo,
+      id_docente: a.id_docente ? String(a.id_docente) : '',
+      horarios: a.horarios.map((h) => ({ ...h, hora_inicio: hhmm(h.hora_inicio), hora_fin: hhmm(h.hora_fin) })),
     })
     setShowForm(true)
   }
@@ -136,7 +156,11 @@ export function GestionActividades() {
   const guardar = async (e: FormEvent) => {
     e.preventDefault()
     setMsg('')
-    const payload = { ...form, cupo_maximo: Number(form.cupo_maximo) }
+    const payload = {
+      ...form,
+      cupo_maximo: Number(form.cupo_maximo),
+      id_docente: form.id_docente ? Number(form.id_docente) : null,
+    }
     const { error } = editId
       ? await api.put(`/actividades/${editId}`, payload)
       : await api.post('/actividades', payload)
@@ -146,6 +170,18 @@ export function GestionActividades() {
       load()
     }
   }
+
+  const cambiarHorario = (i: number, cambios: Partial<HorarioActividad>) =>
+    setForm((p) => ({ ...p, horarios: p.horarios.map((h, j) => (j === i ? { ...h, ...cambios } : h)) }))
+
+  const agregarHorario = () =>
+    setForm((p) => ({
+      ...p,
+      horarios: [...p.horarios, { dia_semana: 'Lunes', hora_inicio: '17:00', hora_fin: '18:00' }],
+    }))
+
+  const quitarHorario = (i: number) =>
+    setForm((p) => ({ ...p, horarios: p.horarios.filter((_, j) => j !== i) }))
 
   const toggleActivo = async (a: ActividadEx) => {
     await api.patch(`/actividades/${a.id_actividad}`, { activo: !a.activo })
@@ -196,6 +232,12 @@ export function GestionActividades() {
                             {a.descripcion}
                           </span>
                         </>
+                      )}
+                      {(nombreProfesor(a) || a.horarios.length > 0) && (
+                        <div className='text-[11px] font-semibold text-textMuted mt-1'>
+                          {nombreProfesor(a) && <div>👤 {nombreProfesor(a)}</div>}
+                          {a.horarios.length > 0 && <div>🕒 {resumenHorarios(a.horarios)}</div>}
+                        </div>
                       )}
                     </td>
                     <td className={tdCell}>
@@ -483,18 +525,93 @@ export function GestionActividades() {
                 />
               </div>
             </div>
-            <div>
-              <span className={fieldLabel}>
-                Descripción (opcional)
-              </span>
-              <input
-                className={inputField}
-                value={form.descripcion}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, descripcion: e.target.value }))
-                }
-              />
+            <div className='grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-[14px]'>
+              <div>
+                <span className={fieldLabel}>
+                  Descripción (opcional)
+                </span>
+                <input
+                  className={inputField}
+                  value={form.descripcion}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, descripcion: e.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <label className={fieldLabel} htmlFor='actividad-profesor'>
+                  Profesor responsable
+                </label>
+                <select
+                  id='actividad-profesor'
+                  className={selectField}
+                  value={form.id_docente}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, id_docente: e.target.value }))
+                  }
+                >
+                  <option value=''>Sin asignar</option>
+                  {docentes.map((d) => (
+                    <option key={d.id_docente} value={d.id_docente}>
+                      {d.usuarios ? `${d.usuarios.apellido}, ${d.usuarios.nombre}` : `Docente ${d.dni}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+            <fieldset className='border border-border rounded-input p-4 m-0'>
+              <legend className={`${fieldLabel} px-1`}>Días y horarios (desde – hasta)</legend>
+              {form.horarios.length === 0 && (
+                <div className='text-[13px] text-textMuted mb-3'>Sin horarios cargados.</div>
+              )}
+              {form.horarios.map((h, i) => (
+                <div
+                  key={i}
+                  className='grid grid-cols-2 md:grid-cols-[minmax(140px,1fr)_1fr_1fr_auto] gap-2 items-center mb-3'
+                >
+                  <select
+                    aria-label={`Día del horario ${i + 1}`}
+                    className={`${selectField} col-span-2 md:col-span-1`}
+                    value={h.dia_semana}
+                    onChange={(e) => cambiarHorario(i, { dia_semana: e.target.value })}
+                  >
+                    {DIAS_SEMANA.map((d) => (
+                      <option key={d}>{d}</option>
+                    ))}
+                  </select>
+                  <input
+                    aria-label={`Hora de inicio del horario ${i + 1}`}
+                    className={inputField}
+                    type='time'
+                    required
+                    value={h.hora_inicio}
+                    onChange={(e) => cambiarHorario(i, { hora_inicio: e.target.value })}
+                  />
+                  <input
+                    aria-label={`Hora de fin del horario ${i + 1}`}
+                    className={inputField}
+                    type='time'
+                    required
+                    value={h.hora_fin}
+                    onChange={(e) => cambiarHorario(i, { hora_fin: e.target.value })}
+                  />
+                  <button
+                    type='button'
+                    className={`${btnDanger} col-span-2 md:col-span-1 justify-self-end`}
+                    onClick={() => quitarHorario(i)}
+                  >
+                    Quitar
+                  </button>
+                </div>
+              ))}
+              <button
+                type='button'
+                className={btnSecondarySm}
+                onClick={agregarHorario}
+              >
+                + Agregar día
+              </button>
+            </fieldset>
             {msg && (
               <div style={{ fontSize: 12, color: '#E74C3C', fontWeight: 700 }}>
                 {msg}
