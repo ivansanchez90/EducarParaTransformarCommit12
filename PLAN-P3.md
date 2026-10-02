@@ -66,7 +66,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 
 | Tarea | HU | Sprint | Responsable | Depende de | Estimación | Estado |
 | --- | --- | --- | --- | --- | --- | --- |
-| T01. Modelo de datos financiero: `Tarifa`, `Factura`, `ItemFactura`, `OrdenPago`, `ComprobanteTransferencia`, `Pago` ligado a factura e ítems, `EnvioEmail`, `TokenRecuperacion`; migración de las cuotas existentes | — | 0 | Iván | — | 2 días | Pendiente |
+| T01. Modelo de datos financiero: `Tarifa`, `Factura`, `ItemFactura`, `OrdenPago`, `ComprobanteTransferencia`, `Pago` ligado a factura e ítems, `EnvioEmail`, `TokenRecuperacion`; migración de las cuotas existentes | — | 0 | Iván | — | 2 días | En revisión |
 | T02. Email (nodemailer + Gmail con contraseña de aplicación) y tareas programadas (node-cron, feriados, `ultimoDiaHabil()` con pruebas) | — | 0 | Iván | — | 1,5 días | Pendiente |
 | T03. Pruebas y CI: Vitest + Supertest en `backend/`, GitHub Actions con lint, build y test | — | 0 | Juan Manuel | — | 1 día | Pendiente |
 | T04. Quitar "Efectivo" (backend, `constants`, `RegistrarPagos`) y bucket privado de comprobantes con descarga autenticada | — | 0 | Juan Manuel | — | 1 día | Pendiente |
@@ -107,21 +107,32 @@ avisa y se actualiza esta sección en el mismo PR.
 
 ```text
 Tarifa             { id_tarifa, concepto: 'Cuota'|'Deporte'|'Transporte'|'Comedor',
-                     id_referencia?, importe, vigente_desde }
-                     // id_referencia: id del nivel (Cuota), de la actividad o del recorrido
+                     nivel?, id_referencia?, importe, vigente_desde }
+                     // nivel: nivel educativo del curso (Cuota; en la base es texto, no hay tabla de niveles)
+                     // id_referencia: id de la actividad (Deporte) o del recorrido (Transporte)
 Factura            { id_factura, id_alumno, anio, mes, numero, fecha_emision, fecha_vencimiento,
                      total, saldo, estado: 'Pendiente'|'Pago parcial'|'Pagada'|'Vencida' }
-                     // @@unique([id_alumno, anio, mes])
-ItemFactura        { id_item, id_factura, concepto: 'Cuota'|'Deporte'|'Transporte'|'Comedor'|'Beca',
+                     // @@unique([id_alumno, anio, mes]); numero lo asigna la base (serial)
+ItemFactura        { id_item, id_factura, concepto: 'Cuota'|'Deporte'|'Transporte'|'Comedor'|'Recargo'|'Beca',
                      id_referencia?, descripcion, importe, saldo }
-OrdenPago          { id_orden, id_factura, numero, fecha, total, items: id_item[] }
+                     // Beca con importe negativo; Recargo solo si hay recargo por mora
+OrdenPago          { id_orden, id_factura, numero, fecha, total, id_usuario?, items: OrdenPagoItem[] }
                      // el "comprobante de pago" que emite el sistema
+OrdenPagoItem      { id_orden, id_item, importe }   // saldo del ítem al emitir la orden
 ComprobanteTransferencia { id_comprobante, id_factura, id_orden?, archivo, importe,
                      fecha_transferencia, estado: 'En revisión'|'Aprobado'|'Rechazado',
-                     motivo_rechazo?, id_usuario_carga }
-Pago               { ..., id_factura, id_comprobante, metodo_pago: 'Transferencia' }
-                     // + imputación a ítems: los de la orden, o los más viejos primero
+                     motivo_rechazo?, id_usuario_carga, fecha_carga,
+                     id_usuario_revisa?, fecha_revision? }
+Pago               { ..., id_factura, id_comprobante (único), metodo_pago: 'Transferencia' }
+ImputacionPago     { id_imputacion, id_pago, id_item, importe }
+                     // a qué ítems se aplicó el pago: los de la orden, o los más viejos primero
+EnvioEmail         { id_envio, tipo, anio, mes, id_usuario, email, estado, intentos, error?, enviado_at? }
+                     // @@unique([tipo, anio, mes, id_usuario]): un email por familia y período
+TokenRecuperacion  { id_token, id_usuario, token_hash, expira_at, usado_at? }
 ```
+
+Invariantes que mantienen T08 y T14: `factura.total = Σ ítems.importe`,
+`ítem.saldo = importe − Σ imputaciones del ítem` y `factura.saldo = Σ ítems.saldo`.
 
 **Endpoints de familias** (Juan Manuel, en `backend/src/routes/portalFinanzas.ts`; todos
 con `requireAuth` + `assertAccesoAlumno`):
@@ -162,7 +173,14 @@ con `requireAuth` + `assertAccesoAlumno`):
 
 ## Entregas
 
-_Sin entregas todavía. Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA.md`: qué quedó, qué se verificó y qué falta._
+_Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA.md`: qué quedó, qué se verificó y qué falta._
+
+### T01 — Modelo de datos financiero (Iván): en revisión
+
+- **Qué quedó:** en `backend/prisma/schema.prisma`, los modelos `Tarifa`, `Factura`, `ItemFactura`, `OrdenPago`, `OrdenPagoItem`, `ComprobanteTransferencia`, `ImputacionPago`, `EnvioEmail` y `TokenRecuperacion`, y `Pago` con `id_factura` e `id_comprobante`. La migración `20261002120000_modelo_financiero` crea las tablas y pasa cada cuota existente a una factura del mismo alumno y período: ítem *Cuota*, ítem *Recargo* si tenía recargo e ítem *Beca* negativo si tenía descuento. Los pagos quedan ligados a su factura e imputados a los ítems. La tabla `cuotas` no se borra.
+- **Cambios al contrato** (ya actualizados arriba): la tarifa de la cuota se identifica por `nivel` (texto), porque no existe una tabla de niveles. Se suma el concepto *Recargo* para no perder los recargos de las cuotas vencidas. La orden y la imputación tienen tablas propias (`OrdenPagoItem`, `ImputacionPago`).
+- **Verificado:** sobre una base con `seed:demo`, la migración pasa las 984 cuotas a 984 facturas con 1165 ítems. Se cumplen los tres invariantes en todas las facturas, cada pago suma lo mismo que sus imputaciones y `prisma migrate diff` no encuentra diferencias con el schema. `typecheck` sin errores y `seed:demo` corre igual con el schema nuevo.
+- **Falta:** respaldar la base de producción antes de desplegar. Hasta que T08 y T14 reemplacen las pantallas, "Generar cuotas" y "Registrar pago" siguen escribiendo solo en `cuotas` y no actualizan las facturas. Conviene no usarlas en producción en ese tiempo, o regenerar las facturas del mes con T08.
 
 ## Pruebas
 
