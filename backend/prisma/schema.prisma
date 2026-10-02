@@ -44,6 +44,12 @@ model Usuario {
   empleos        Empleo[]
   pagos          Pago[]
 
+  ordenes_pago           OrdenPago[]
+  comprobantes_cargados  ComprobanteTransferencia[] @relation("ComprobanteCarga")
+  comprobantes_revisados ComprobanteTransferencia[] @relation("ComprobanteRevision")
+  envios_email           EnvioEmail[]
+  tokens_recuperacion    TokenRecuperacion[]
+
   @@map("usuarios")
 }
 
@@ -173,6 +179,7 @@ model Alumno {
   asistencias               Asistencia[]
   calificaciones            Calificacion[]
   cuotas                    Cuota[]
+  facturas                  Factura[]
   amonestaciones            Amonestacion[]
   becas                     Beca?
   documentos_alumno         DocumentoAlumno[]
@@ -284,21 +291,30 @@ model Cuota {
   @@map("cuotas")
 }
 
-/// Historial de pagos de cuotas (existía en Supabase; el panel hoy registra
-/// el pago directamente en la cuota).
+/// Historial de pagos. Desde la Parte 3 cada pago corresponde a una factura y
+/// nace al aprobar un comprobante de transferencia; `id_cuota` queda para los
+/// pagos anteriores, registrados por el admin sobre la cuota.
 model Pago {
   id_pago             Int       @id @default(autoincrement())
   id_cuota            Int?
+  id_factura          Int?
+  /// Comprobante de transferencia que originó el pago (uno por comprobante)
+  id_comprobante      Int?      @unique
   fecha_pago          DateTime? @default(now()) @db.Timestamptz(6)
   monto_pagado        Decimal   @db.Decimal(12, 2)
+  /// Transferencia (los pagos anteriores a la Parte 3 pueden tener otros métodos)
   metodo_pago         String?
   nro_comprobante     String?
   id_usuario_registra String?   @db.Uuid
   observaciones       String?
 
-  cuotas   Cuota?   @relation(fields: [id_cuota], references: [id_cuota], onDelete: SetNull)
-  usuarios Usuario? @relation(fields: [id_usuario_registra], references: [id_usuario], onDelete: SetNull)
+  cuotas       Cuota?                    @relation(fields: [id_cuota], references: [id_cuota], onDelete: SetNull)
+  facturas     Factura?                  @relation(fields: [id_factura], references: [id_factura], onDelete: Restrict)
+  comprobantes ComprobanteTransferencia? @relation(fields: [id_comprobante], references: [id_comprobante], onDelete: Restrict)
+  usuarios     Usuario?                  @relation(fields: [id_usuario_registra], references: [id_usuario], onDelete: SetNull)
+  imputaciones ImputacionPago[]
 
+  @@index([id_factura])
   @@map("pagos")
 }
 
@@ -343,6 +359,203 @@ model CompraInsumo {
   fecha_registro DateTime @default(now()) @db.Timestamptz(6)
 
   @@map("compras_insumos")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Facturación y pagos por transferencia (Parte 3)
+//
+// Cada mes se emite una factura por alumno con un ítem por concepto. La
+// familia elige ítems y el sistema emite una orden de pago (el "comprobante de
+// pago" con los datos bancarios); la familia sube la transferencia y, al
+// aprobarla, el admin crea el `Pago` y lo imputa a los ítems.
+//
+// Invariantes: factura.total = Σ ítems.importe; ítem.saldo = importe −
+// Σ imputaciones del ítem; factura.saldo = Σ ítems.saldo = total − pagos.
+// ─────────────────────────────────────────────────────────────
+
+/// Precio de un concepto a partir de una fecha. Un cambio de precio es una
+/// fila nueva: las facturas ya emitidas guardan su importe y no cambian.
+model Tarifa {
+  id_tarifa     Int      @id @default(autoincrement())
+  /// Cuota | Deporte | Transporte | Comedor
+  concepto      String
+  /// Cuota: nivel educativo del curso (Inicial, Primario, Secundario...)
+  nivel         String?
+  /// Deporte: id de la actividad · Transporte: id del recorrido · Cuota y Comedor: null
+  id_referencia Int?
+  importe       Decimal  @db.Decimal(12, 2)
+  vigente_desde DateTime @db.Date
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([concepto, nivel, id_referencia, vigente_desde])
+  @@map("tarifas")
+}
+
+model Factura {
+  id_factura        Int      @id @default(autoincrement())
+  id_alumno         Int
+  anio              Int
+  mes               Int
+  /// Número correlativo de la factura (lo asigna la base)
+  numero            Int      @unique @default(autoincrement())
+  fecha_emision     DateTime @default(now()) @db.Date
+  fecha_vencimiento DateTime @db.Date
+  total             Decimal  @db.Decimal(12, 2)
+  saldo             Decimal  @db.Decimal(12, 2)
+  /// Pendiente | Pago parcial | Pagada | Vencida
+  estado            String   @default("Pendiente")
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  alumnos      Alumno                     @relation(fields: [id_alumno], references: [id_alumno], onDelete: Restrict)
+  items        ItemFactura[]
+  ordenes_pago OrdenPago[]
+  comprobantes ComprobanteTransferencia[]
+  pagos        Pago[]
+
+  @@unique([id_alumno, anio, mes])
+  @@index([anio, mes])
+  @@index([estado])
+  @@map("facturas")
+}
+
+model ItemFactura {
+  id_item       Int     @id @default(autoincrement())
+  id_factura    Int
+  /// Cuota | Deporte | Transporte | Comedor | Recargo | Beca (la beca va con importe negativo)
+  concepto      String
+  /// Deporte: id de la actividad · Transporte: id del recorrido
+  id_referencia Int?
+  descripcion   String
+  importe       Decimal @db.Decimal(12, 2)
+  saldo         Decimal @db.Decimal(12, 2)
+
+  facturas     Factura          @relation(fields: [id_factura], references: [id_factura], onDelete: Cascade)
+  ordenes      OrdenPagoItem[]
+  imputaciones ImputacionPago[]
+
+  @@index([id_factura])
+  @@index([concepto, id_referencia])
+  @@map("items_factura")
+}
+
+/// El "comprobante de pago" que emite el sistema cuando la familia elige qué
+/// ítems de la factura va a pagar. Indica el importe y los datos bancarios.
+model OrdenPago {
+  id_orden   Int      @id @default(autoincrement())
+  id_factura Int
+  /// Número correlativo de la orden (lo asigna la base)
+  numero     Int      @unique @default(autoincrement())
+  fecha      DateTime @default(now()) @db.Timestamptz(6)
+  total      Decimal  @db.Decimal(12, 2)
+  /// Usuario (padre o tutor) que emitió la orden
+  id_usuario String?  @db.Uuid
+
+  facturas     Factura                    @relation(fields: [id_factura], references: [id_factura], onDelete: Cascade)
+  usuarios     Usuario?                   @relation(fields: [id_usuario], references: [id_usuario], onDelete: SetNull)
+  items        OrdenPagoItem[]
+  comprobantes ComprobanteTransferencia[]
+
+  @@index([id_factura])
+  @@map("ordenes_pago")
+}
+
+/// Ítems que incluye una orden de pago, con el saldo que tenían al emitirla.
+model OrdenPagoItem {
+  id_orden Int
+  id_item  Int
+  importe  Decimal @db.Decimal(12, 2)
+
+  ordenes_pago OrdenPago   @relation(fields: [id_orden], references: [id_orden], onDelete: Cascade)
+  items        ItemFactura @relation(fields: [id_item], references: [id_item], onDelete: Cascade)
+
+  @@id([id_orden, id_item])
+  @@map("ordenes_pago_items")
+}
+
+/// Transferencia que sube la familia (foto o PDF). Una factura puede tener
+/// varias. El archivo se guarda fuera de la carpeta pública de `uploads`.
+model ComprobanteTransferencia {
+  id_comprobante      Int       @id @default(autoincrement())
+  id_factura          Int
+  id_orden            Int?
+  /// Ruta del archivo dentro de la carpeta privada de comprobantes
+  archivo             String
+  importe             Decimal   @db.Decimal(12, 2)
+  fecha_transferencia DateTime  @db.Date
+  /// En revisión | Aprobado | Rechazado
+  estado              String    @default("En revisión")
+  motivo_rechazo      String?
+  id_usuario_carga    String?   @db.Uuid
+  fecha_carga         DateTime  @default(now()) @db.Timestamptz(6)
+  /// Admin que lo aprobó o rechazó, y cuándo
+  id_usuario_revisa   String?   @db.Uuid
+  fecha_revision      DateTime? @db.Timestamptz(6)
+
+  facturas     Factura    @relation(fields: [id_factura], references: [id_factura], onDelete: Restrict)
+  ordenes_pago OrdenPago? @relation(fields: [id_orden], references: [id_orden], onDelete: SetNull)
+  carga        Usuario?   @relation("ComprobanteCarga", fields: [id_usuario_carga], references: [id_usuario], onDelete: SetNull)
+  revision     Usuario?   @relation("ComprobanteRevision", fields: [id_usuario_revisa], references: [id_usuario], onDelete: SetNull)
+  pagos        Pago?
+
+  @@index([id_factura])
+  @@index([estado])
+  @@map("comprobantes_transferencia")
+}
+
+/// Parte de un pago aplicada a un ítem de la factura.
+model ImputacionPago {
+  id_imputacion Int     @id @default(autoincrement())
+  id_pago       Int
+  id_item       Int
+  importe       Decimal @db.Decimal(12, 2)
+
+  pagos Pago        @relation(fields: [id_pago], references: [id_pago], onDelete: Cascade)
+  items ItemFactura @relation(fields: [id_item], references: [id_item], onDelete: Restrict)
+
+  @@unique([id_pago, id_item])
+  @@index([id_item])
+  @@map("imputaciones_pago")
+}
+
+/// Registro de cada email de las tareas programadas. La restricción única
+/// evita reenviar si el cron corre dos veces o el backend se reinicia.
+model EnvioEmail {
+  id_envio   Int       @id @default(autoincrement())
+  /// Recordatorio mensual | Aviso de deuda
+  tipo       String
+  anio       Int
+  mes        Int
+  /// Familia destinataria (un email por familia, no por hijo)
+  id_usuario String    @db.Uuid
+  email      String
+  /// Pendiente | Enviado | Error
+  estado     String    @default("Pendiente")
+  intentos   Int       @default(0)
+  error      String?
+  enviado_at DateTime? @db.Timestamptz(6)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  usuarios Usuario @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+
+  @@unique([tipo, anio, mes, id_usuario])
+  @@index([estado])
+  @@map("envios_email")
+}
+
+/// Enlace para recuperar la contraseña. Se guarda el hash del token, no el
+/// token; sirve una sola vez y vence a los 30 minutos.
+model TokenRecuperacion {
+  id_token   Int       @id @default(autoincrement())
+  id_usuario String    @db.Uuid
+  token_hash String    @unique
+  expira_at  DateTime  @db.Timestamptz(6)
+  usado_at   DateTime? @db.Timestamptz(6)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  usuarios Usuario @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+
+  @@index([id_usuario])
+  @@map("tokens_recuperacion")
 }
 
 // ─────────────────────────────────────────────────────────────
