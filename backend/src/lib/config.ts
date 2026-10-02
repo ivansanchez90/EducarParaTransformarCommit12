@@ -29,4 +29,16 @@ export const config = {
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? '',
   // Contacto que ven los servicios de push (Google, Apple, Mozilla) si hay un problema.
   vapidSubject: process.env.VAPID_SUBJECT ?? 'mailto:admin@educar.local',
+  // Email (Gmail con contraseña de aplicación). Sin usuario y contraseña el
+  // envío queda apagado y el resto de la app funciona igual.
+  smtpHost: process.env.SMTP_HOST ?? 'smtp.gmail.com',
+  smtpPort: Number(process.env.SMTP_PORT ?? 465),
+  smtpUser: process.env.SMTP_USER ?? '',
+  smtpPass: process.env.SMTP_PASS ?? '',
+  // Remitente que ven las familias. Gmail solo acepta la cuenta de SMTP_USER
+  // (o un alias verificado de esa cuenta).
+  mailFrom: process.env.MAIL_FROM ?? '',
+  // Tareas programadas (emails del último día hábil y del día 20). Se apagan
+  // con TAREAS_PROGRAMADAS=false, por ejemplo en una segunda instancia.
+  tareasProgramadas: process.env.TAREAS_PROGRAMADAS !== 'false',
 }

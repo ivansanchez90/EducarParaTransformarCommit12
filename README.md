@@ -112,6 +112,10 @@ puerto **4000**.
 | `JWT_EXPIRES_IN` | opcional, por defecto `8h` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | claves de los avisos push (ver *App instalable*); sin ellas el push queda apagado |
 | `VAPID_SUBJECT` | `mailto:` de contacto de la escuela para los servicios de push |
+| `SMTP_USER` / `SMTP_PASS` | cuenta de Gmail y su **contraseña de aplicación** para los emails; sin ellas el envío queda apagado |
+| `MAIL_FROM` | opcional, remitente que ven las familias (por defecto `Educar para Transformar <SMTP_USER>`) |
+| `SMTP_HOST` / `SMTP_PORT` | opcionales, por defecto `smtp.gmail.com` y `465` |
+| `TAREAS_PROGRAMADAS` | opcional; `false` apaga los emails automáticos (por ejemplo, en una segunda instancia) |
 
 Montar un **volumen persistente en `/app/uploads`** (si no, los archivos
 subidos se pierden en cada deploy). Seed inicial, una sola vez, desde la
