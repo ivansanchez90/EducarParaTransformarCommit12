@@ -11,16 +11,17 @@ export interface Periodo {
   anio: number
   /** 1 = enero … 12 = diciembre */
   mes: number
-  /** Primer día del mes: la fecha con la que se buscan las tarifas. */
+  /** Primer día del mes como fecha sin hora: la fecha con la que se buscan las tarifas. */
   inicio: Date
+  /** Primer instante del mes en Argentina: lo dado de baja antes no se cobra. */
+  comienzo: Date
   /** Primer instante del mes siguiente en Argentina: lo inscripto antes se cobra. */
   fin: Date
 }
 
 /**
- * Desde cuándo y hasta cuándo un alumno usa un servicio. Hoy `desde` es la
- * fecha de inscripción y `hasta` no existe (la baja borra la inscripción);
- * T07 suma la fecha de baja para facturar solo los meses en que se usó.
+ * Desde cuándo y hasta cuándo un alumno usa un servicio (una fila de
+ * `vigencias_servicio`). `hasta` es la fecha de la baja, o null si sigue.
  */
 export interface Vigencia {
   desde: Date
@@ -35,9 +36,11 @@ export interface AlumnoFacturable {
   nivel: string | null
   /** Porcentaje de la beca activa, o null. */
   beca: number | null
+  /** Puede repetir un deporte si el alumno se dio de baja y se volvió a anotar. */
   deportes: ({ id_actividad: number; nombre: string } & Vigencia)[]
-  transporte: ({ id_recorrido: number; nombre: string } & Vigencia) | null
-  comedor: Vigencia | null
+  /** Varias si cambió de recorrido: se cobra el más reciente del mes. */
+  transportes: ({ id_recorrido: number; nombre: string } & Vigencia)[]
+  comedor: Vigencia[]
 }
 
 export interface ItemCalculado {

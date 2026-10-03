@@ -40,8 +40,8 @@ function alumno(datos: Partial<AlumnoFacturable> = {}): AlumnoFacturable {
     nivel: 'Primario',
     beca: null,
     deportes: [],
-    transporte: null,
-    comedor: null,
+    transportes: [],
+    comedor: [],
     ...datos,
   }
 }
@@ -62,15 +62,15 @@ describe('calcularItems', () => {
         { id_actividad: 1, nombre: 'Fútbol', desde: octubre },
         { id_actividad: 2, nombre: 'Natación', desde: octubre },
       ],
-      transporte: { id_recorrido: 7, nombre: 'Recorrido Norte', desde: octubre },
-      comedor: { desde: octubre },
+      transportes: [{ id_recorrido: 7, nombre: 'Recorrido Norte', desde: octubre }],
+      comedor: [{ desde: octubre }],
     })
     expect(calcularItems(a, ctx).map((i) => i.concepto)).toEqual(['Cuota', 'Deporte', 'Deporte', 'Transporte', 'Comedor'])
     expect(total(a)).toBe(197_000.5)
   })
 
   it('la beca descuenta su porcentaje solo sobre la cuota', () => {
-    const a = alumno({ beca: 25, comedor: { desde: octubre } })
+    const a = alumno({ beca: 25, comedor: [{ desde: octubre }] })
     const items = calcularItems(a, ctx)
     expect(items.at(-1)).toEqual({
       concepto: 'Beca',
@@ -87,8 +87,35 @@ describe('calcularItems', () => {
 
   it('no cobra un servicio al que se inscribió después del período', () => {
     const diciembre = new Date('2026-12-01T03:00:00Z') // 00:00 del 1/12 en Argentina
-    const a = alumno({ comedor: { desde: diciembre } })
+    const a = alumno({ comedor: [{ desde: diciembre }] })
     expect(calcularItems(a, ctx).map((i) => i.concepto)).toEqual(['Cuota'])
+  })
+
+  it('si cambió de recorrido en el mes, cobra solo el más reciente', () => {
+    const cambio = new Date('2026-11-15T15:00:00Z')
+    const a = alumno({
+      transportes: [
+        { id_recorrido: 99, nombre: 'Recorrido Sur', desde: octubre, hasta: cambio },
+        { id_recorrido: 7, nombre: 'Recorrido Norte', desde: cambio },
+      ],
+    })
+    const transportes = calcularItems(a, ctx).filter((i) => i.concepto === 'Transporte')
+    expect(transportes).toEqual([
+      { concepto: 'Transporte', id_referencia: 7, descripcion: 'Transporte · Recorrido Norte', centavos: 3_000_000 },
+    ])
+  })
+
+  it('darse de baja y volver a anotarse en el mes no cobra dos veces', () => {
+    const baja = new Date('2026-11-05T15:00:00Z')
+    const vuelta = new Date('2026-11-20T15:00:00Z')
+    const a = alumno({
+      deportes: [
+        { id_actividad: 1, nombre: 'Fútbol', desde: octubre, hasta: baja },
+        { id_actividad: 1, nombre: 'Fútbol', desde: vuelta },
+      ],
+      comedor: [{ desde: octubre, hasta: baja }, { desde: vuelta }],
+    })
+    expect(calcularItems(a, ctx).map((i) => i.concepto)).toEqual(['Cuota', 'Deporte', 'Comedor'])
   })
 
   it('sin curso o sin tarifa, no se puede facturar', () => {
@@ -115,6 +142,12 @@ describe('vigenteEnPeriodo', () => {
     // Con fecha de baja (T07): dado de baja en octubre no se cobra en noviembre.
     expect(vigenteEnPeriodo({ desde: octubre, hasta: new Date('2026-10-31T00:00:00Z') }, noviembre)).toBe(false)
     expect(vigenteEnPeriodo({ desde: octubre, hasta: new Date('2026-11-10T00:00:00Z') }, noviembre)).toBe(true)
+  })
+
+  it('la baja del último día a la noche se cobra ese mes y no el siguiente', () => {
+    const baja = new Date('2026-12-01T01:00:00Z') // 30/11 22 h en Argentina
+    expect(vigenteEnPeriodo({ desde: octubre, hasta: baja }, noviembre)).toBe(true)
+    expect(vigenteEnPeriodo({ desde: octubre, hasta: baja }, crearPeriodo(2026, 12))).toBe(false)
   })
 })
 

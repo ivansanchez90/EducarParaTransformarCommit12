@@ -6,9 +6,12 @@
 import type { AlumnoFacturable, EstrategiaConcepto, ItemCalculado, Periodo, Vigencia } from './tipos.js'
 import { FaltaDatoFacturacion } from './tipos.js'
 
-/** El servicio se usó en algún momento del período. */
+/**
+ * El servicio se usó en algún momento del período. La baja rige desde el mes
+ * siguiente: el mes en que se da de baja se cobra completo.
+ */
 export function vigenteEnPeriodo({ desde, hasta }: Vigencia, periodo: Periodo): boolean {
-  return desde < periodo.fin && (!hasta || hasta >= periodo.inicio)
+  return desde < periodo.fin && (!hasta || hasta >= periodo.comienzo)
 }
 
 const MESES = [
@@ -37,9 +40,10 @@ export const cuota: EstrategiaConcepto = {
 export const deporte: EstrategiaConcepto = {
   concepto: 'Deporte',
   calcular(alumno, ctx) {
-    return alumno.deportes
-      .filter((d) => vigenteEnPeriodo(d, ctx.periodo))
-      .map((d) => ({
+    // Darse de baja y volver a anotarse en el mismo mes no cobra el deporte dos veces.
+    const vigentes = alumno.deportes.filter((d) => vigenteEnPeriodo(d, ctx.periodo))
+    const unicos = [...new Map(vigentes.map((d) => [d.id_actividad, d])).values()]
+    return unicos.map((d) => ({
         concepto: 'Deporte' as const,
         id_referencia: d.id_actividad,
         descripcion: d.nombre,
@@ -51,8 +55,11 @@ export const deporte: EstrategiaConcepto = {
 export const transporte: EstrategiaConcepto = {
   concepto: 'Transporte',
   calcular(alumno, ctx) {
-    const t = alumno.transporte
-    if (!t || !vigenteEnPeriodo(t, ctx.periodo)) return []
+    // Si cambió de recorrido en el mes, se cobra el más reciente.
+    const t = alumno.transportes
+      .filter((v) => vigenteEnPeriodo(v, ctx.periodo))
+      .reduce<AlumnoFacturable['transportes'][number] | null>((ult, v) => (!ult || v.desde > ult.desde ? v : ult), null)
+    if (!t) return []
     return [
       {
         concepto: 'Transporte',
@@ -67,7 +74,7 @@ export const transporte: EstrategiaConcepto = {
 export const comedor: EstrategiaConcepto = {
   concepto: 'Comedor',
   calcular(alumno, ctx) {
-    if (!alumno.comedor || !vigenteEnPeriodo(alumno.comedor, ctx.periodo)) return []
+    if (!alumno.comedor.some((v) => vigenteEnPeriodo(v, ctx.periodo))) return []
     return [
       {
         concepto: 'Comedor',

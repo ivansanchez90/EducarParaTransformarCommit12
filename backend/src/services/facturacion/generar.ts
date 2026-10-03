@@ -13,7 +13,7 @@ import { claveTarifa, tarifasVigentes } from '../tarifas.js'
 import { DIA_VENCIMIENTO } from './estado.js'
 import { calcularItems, nombrePeriodo } from './estrategias.js'
 import { crearPeriodo } from './periodo.js'
-import { FaltaDatoFacturacion, type AlumnoFacturable, type ContextoFacturacion } from './tipos.js'
+import { FaltaDatoFacturacion, type AlumnoFacturable, type ContextoFacturacion, type Periodo } from './tipos.js'
 
 export interface ResultadoGeneracion {
   generadas: number
@@ -22,40 +22,61 @@ export interface ResultadoGeneracion {
   errores: { id_alumno: number; alumno: string; motivo: string }[]
 }
 
-/** Alumnos activos con todo lo que se les factura, en una sola consulta. */
-async function alumnosFacturables(): Promise<AlumnoFacturable[]> {
-  const alumnos = await prisma.alumno.findMany({
-    where: { activo: true },
-    select: {
-      id_alumno: true,
-      nombre: true,
-      apellido: true,
-      cursos: { select: { nivel: true } },
-      becas: { select: { porcentaje: true, activo: true } },
-      inscripciones_actividades: {
-        where: { actividades_extracurriculares: { tipo: 'Deporte' } },
-        select: { fecha_inscripcion: true, actividades_extracurriculares: { select: { id_actividad: true, nombre: true } } },
+/**
+ * Alumnos activos con todo lo que se les factura en el período. Deportes,
+ * transporte y comedor salen de `vigencias_servicio` (T07) y no de las
+ * inscripciones, que se borran con la baja: así se cobra el mes en que se
+ * dio de baja aunque la inscripción ya no exista.
+ */
+async function alumnosFacturables(periodo: Periodo): Promise<AlumnoFacturable[]> {
+  const [alumnos, actividades, recorridos] = await Promise.all([
+    prisma.alumno.findMany({
+      where: { activo: true },
+      select: {
+        id_alumno: true,
+        nombre: true,
+        apellido: true,
+        cursos: { select: { nivel: true } },
+        becas: { select: { porcentaje: true, activo: true } },
+        vigencias_servicio: {
+          where: { desde: { lt: periodo.fin }, OR: [{ hasta: null }, { hasta: { gte: periodo.comienzo } }] },
+          select: { concepto: true, id_referencia: true, desde: true, hasta: true },
+          orderBy: { desde: 'asc' },
+        },
       },
-      transporte: {
-        select: { fecha_inscripcion: true, recorridos_transporte: { select: { id_recorrido: true, nombre: true } } },
-      },
-      comedor: { select: { fecha_inscripcion: true } },
-    },
-    orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
+      orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
+    }),
+    prisma.actividadExtracurricular.findMany({ select: { id_actividad: true, nombre: true } }),
+    prisma.recorridoTransporte.findMany({ select: { id_recorrido: true, nombre: true } }),
+  ])
+  // La vigencia guarda solo el id: un recorrido borrado después de la baja conserva un nombre.
+  const actividad = new Map(actividades.map((a) => [a.id_actividad, a.nombre]))
+  const recorrido = new Map(recorridos.map((r) => [r.id_recorrido, r.nombre]))
+
+  return alumnos.map((a) => {
+    const deportes: AlumnoFacturable['deportes'] = []
+    const transportes: AlumnoFacturable['transportes'] = []
+    const comedor: AlumnoFacturable['comedor'] = []
+    for (const { concepto, id_referencia: ref, desde, hasta } of a.vigencias_servicio) {
+      if (concepto === 'Deporte' && ref !== null) {
+        deportes.push({ id_actividad: ref, nombre: actividad.get(ref) ?? `Deporte ${ref}`, desde, hasta })
+      } else if (concepto === 'Transporte' && ref !== null) {
+        transportes.push({ id_recorrido: ref, nombre: recorrido.get(ref) ?? `Recorrido ${ref}`, desde, hasta })
+      } else if (concepto === 'Comedor') {
+        comedor.push({ desde, hasta })
+      }
+    }
+    return {
+      id_alumno: a.id_alumno,
+      nombre: a.nombre,
+      apellido: a.apellido,
+      nivel: a.cursos?.nivel ?? null,
+      beca: a.becas?.activo ? a.becas.porcentaje.toNumber() : null,
+      deportes,
+      transportes,
+      comedor,
+    }
   })
-  return alumnos.map((a) => ({
-    id_alumno: a.id_alumno,
-    nombre: a.nombre,
-    apellido: a.apellido,
-    nivel: a.cursos?.nivel ?? null,
-    beca: a.becas?.activo ? a.becas.porcentaje.toNumber() : null,
-    deportes: a.inscripciones_actividades.map((i) => ({
-      ...i.actividades_extracurriculares,
-      desde: i.fecha_inscripcion,
-    })),
-    transporte: a.transporte ? { ...a.transporte.recorridos_transporte, desde: a.transporte.fecha_inscripcion } : null,
-    comedor: a.comedor ? { desde: a.comedor.fecha_inscripcion } : null,
-  }))
 }
 
 export async function generarFacturas(anio: number, mes: number): Promise<ResultadoGeneracion> {
@@ -63,7 +84,7 @@ export async function generarFacturas(anio: number, mes: number): Promise<Result
   const [tarifas, existentes, alumnos] = await Promise.all([
     tarifasVigentes(periodo.inicio),
     prisma.factura.findMany({ where: { anio, mes }, select: { id_alumno: true } }),
-    alumnosFacturables(),
+    alumnosFacturables(periodo),
   ])
 
   const ctx: ContextoFacturacion = {
