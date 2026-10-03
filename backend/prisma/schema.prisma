@@ -188,6 +188,7 @@ model Alumno {
   inscripciones             Inscripcion[]
   transporte                InscripcionTransporte?
   comedor                   InscripcionComedor?
+  vigencias_servicio        VigenciaServicio[]
 
   @@index([id_curso])
   @@index([id_usuario])
@@ -724,6 +725,27 @@ model InscripcionComedor {
   alumnos Alumno @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
 
   @@map("inscripciones_comedor")
+}
+
+/// Historial de lo que un alumno usó mes a mes: deporte, transporte o comedor.
+/// Cada alta abre una vigencia y cada baja o cambio la cierra, así la facturación
+/// sabe qué cobrar en un mes aunque la inscripción ya no exista. Las tablas de
+/// inscripción siguen mandando para el cupo y el tope de deportes.
+/// `hasta` vacío = sigue vigente; la baja rige desde el mes siguiente a `hasta`.
+model VigenciaServicio {
+  id_vigencia   Int       @id @default(autoincrement())
+  id_alumno     Int
+  /// Deporte | Transporte | Comedor
+  concepto      String
+  /// id_actividad (Deporte) o id_recorrido (Transporte); vacío en Comedor
+  id_referencia Int?
+  desde         DateTime  @db.Timestamptz(6)
+  hasta         DateTime? @db.Timestamptz(6)
+
+  alumnos Alumno @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+
+  @@index([id_alumno, concepto])
+  @@map("vigencias_servicio")
 }
 
 // ─────────────────────────────────────────────────────────────

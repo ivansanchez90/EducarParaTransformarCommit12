@@ -18,6 +18,7 @@ import {
   requireAuth,
   requireRole,
 } from '../middleware/auth.js'
+import { abrirVigencia, cambiarVigencia, cerrarVigencia } from '../services/vigencias.js'
 
 // ── Recorridos de transporte ───────────────────────────────────
 
@@ -166,12 +167,20 @@ serviciosRouter.put('/:idAlumno/transporte', async (req, res) => {
         throw new HttpError(409, `No quedan lugares en el recorrido ${recorrido.nombre}`)
       }
     }
-    return tx.inscripcionTransporte.upsert({
+    const anterior = await tx.inscripcionTransporte.findUnique({
+      where: { id_alumno: idAlumno },
+      select: { id_recorrido: true },
+    })
+    const guardada = await tx.inscripcionTransporte.upsert({
       where: { id_alumno: idAlumno },
       create: { id_alumno: idAlumno, id_recorrido: idRecorrido, observaciones: observaciones ?? null },
       update: { id_recorrido: idRecorrido, observaciones },
       include: { recorridos_transporte: recorridoResumen },
     })
+    // Cambiar solo las observaciones no toca la vigencia; cambiar de recorrido, sí.
+    if (!anterior) await abrirVigencia(tx, idAlumno, 'Transporte', idRecorrido)
+    else if (anterior.id_recorrido !== idRecorrido) await cambiarVigencia(tx, idAlumno, 'Transporte', idRecorrido)
+    return guardada
   })
   res.json(inscripcion)
 })
@@ -179,7 +188,10 @@ serviciosRouter.put('/:idAlumno/transporte', async (req, res) => {
 serviciosRouter.delete('/:idAlumno/transporte', async (req, res) => {
   const idAlumno = id(req.params.idAlumno)
   await assertPuedeGestionar(req, idAlumno)
-  await prisma.inscripcionTransporte.deleteMany({ where: { id_alumno: idAlumno } })
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.inscripcionTransporte.deleteMany({ where: { id_alumno: idAlumno } })
+    if (count > 0) await cerrarVigencia(tx, idAlumno, 'Transporte')
+  })
   res.status(204).end()
 })
 
@@ -190,10 +202,15 @@ serviciosRouter.put('/:idAlumno/comedor', async (req, res) => {
   const observaciones = 'observaciones' in (req.body ?? {}) ? textOrNull(req.body.observaciones) : undefined
   const alumno = await prisma.alumno.findUnique({ where: { id_alumno: idAlumno }, select: { id_alumno: true } })
   if (!alumno) throw new HttpError(404, 'El alumno no existe')
-  const inscripcion = await prisma.inscripcionComedor.upsert({
-    where: { id_alumno: idAlumno },
-    create: { id_alumno: idAlumno, observaciones: observaciones ?? null },
-    update: { observaciones },
+  const inscripcion = await prisma.$transaction(async (tx) => {
+    const anterior = await tx.inscripcionComedor.findUnique({ where: { id_alumno: idAlumno }, select: { id_alumno: true } })
+    const guardada = await tx.inscripcionComedor.upsert({
+      where: { id_alumno: idAlumno },
+      create: { id_alumno: idAlumno, observaciones: observaciones ?? null },
+      update: { observaciones },
+    })
+    if (!anterior) await abrirVigencia(tx, idAlumno, 'Comedor')
+    return guardada
   })
   res.json(inscripcion)
 })
@@ -201,6 +218,9 @@ serviciosRouter.put('/:idAlumno/comedor', async (req, res) => {
 serviciosRouter.delete('/:idAlumno/comedor', async (req, res) => {
   const idAlumno = id(req.params.idAlumno)
   await assertPuedeGestionar(req, idAlumno)
-  await prisma.inscripcionComedor.deleteMany({ where: { id_alumno: idAlumno } })
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.inscripcionComedor.deleteMany({ where: { id_alumno: idAlumno } })
+    if (count > 0) await cerrarVigencia(tx, idAlumno, 'Comedor')
+  })
   res.status(204).end()
 })

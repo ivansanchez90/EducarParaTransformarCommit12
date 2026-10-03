@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (typecheck, build y pruebas)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Las pruebas no usan la base, pero `lib/config.ts` exige estas variables.
+      DATABASE_URL: postgresql://test:test@localhost:5432/test
+      JWT_SECRET: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+
+  frontend:
+    name: Frontend (typecheck, build y lint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      # Como el Dockerfile: pnpm viene con corepack, sin actions de terceros.
+      - run: corepack enable && corepack prepare pnpm@10.29.3 --activate
+        working-directory: .
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc -b
+      - run: pnpm run build
+      # `main` arrastra 46 errores de lint que ya estaban antes de la Parte 3, así que por
+      # ahora no frena el PR. Cuando se limpien, se saca `continue-on-error`.
+      - run: pnpm run lint
+        continue-on-error: true
