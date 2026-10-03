@@ -24,7 +24,9 @@ export function OrdenPagoDialog({ factura, onClose, onSubirComprobante }: Props)
     <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(26,26,46,0.45)]' onClick={onClose}>
       <div
         className='bg-white rounded-card p-6 shadow-card border border-border w-full max-w-[460px] max-h-[90vh] overflow-y-auto'
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation()
+        }}
       >
         <div className='text-[17px] font-black text-text mb-1'>💸 Pagar por transferencia</div>
         <p className='text-[13px] text-textMuted mt-0 mb-4'>

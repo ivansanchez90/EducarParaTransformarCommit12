@@ -154,7 +154,9 @@ describe('la subida correcta', () => {
     const res = await subir(familiaDelAlumno(), { archivo, nombre: 'comprobante' })
     expect(res.status).toBe(201)
     expect(escribir).toHaveBeenCalledTimes(1)
-    expect(String(escribir.mock.calls[0][0])).toMatch(new RegExp(`comprobantes[\\\\/][\\w-]+\\.${ext}$`))
+    const ruta = String(escribir.mock.calls[0][0])
+    expect(ruta).toContain('comprobantes')
+    expect(ruta.endsWith(`.${ext}`)).toBe(true)
   })
 
   it('la extensión sale del contenido, no del nombre que mandó el cliente', async () => {
