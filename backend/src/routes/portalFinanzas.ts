@@ -13,6 +13,14 @@ import { rutaArchivoPrivado } from '../middleware/upload.js'
 export const portalFinanzasRouter = Router()
 
 /**
+ * `requireAuth` es async: se lo envuelve para que Express no reciba una promesa donde
+ * espera `void`. Si falla, el error llega al manejador igual que antes.
+ */
+const conSesion = (req: Request, res: Response, next: NextFunction) => {
+  requireAuth(req, res, next).catch(next)
+}
+
+/**
  * Descarga el archivo de un comprobante de transferencia. Lo ve la administración
  * o la familia del alumno de la factura; el resto del personal, no.
  */
@@ -42,6 +50,6 @@ async function descargarComprobante(req: Request, res: Response, next: NextFunct
   })
 }
 
-portalFinanzasRouter.get('/comprobantes/:id/archivo', requireAuth, (req, res, next) => {
+portalFinanzasRouter.get('/comprobantes/:id/archivo', conSesion, (req, res, next) => {
   descargarComprobante(req, res, next).catch(next)
 })
