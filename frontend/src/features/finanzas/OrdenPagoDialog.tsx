@@ -6,10 +6,17 @@
 import { btnPrimary, btnSecondary, msgError } from '../../ui/styles'
 import { useEnLinea } from '../../ui/useEnLinea'
 import { nombrePeriodo, numeroFactura, pesos } from './formato'
-import type { FacturaPortal } from './types'
+import type { FacturaPortal, OrdenPago } from './types'
 import { useOrdenPago } from './useOrdenPago'
 
-export function OrdenPagoDialog({ factura, onClose }: { factura: FacturaPortal; onClose: () => void }) {
+interface Props {
+  factura: FacturaPortal
+  onClose: () => void
+  /** Pasa a subir el comprobante de la transferencia de esta orden. */
+  onSubirComprobante: (orden: OrdenPago) => void
+}
+
+export function OrdenPagoDialog({ factura, onClose, onSubirComprobante }: Props) {
   const { conSaldo, elegidos, alternar, total, orden, emitiendo, error, emitir, bajarPdf } = useOrdenPago(factura)
   const enLinea = useEnLinea()
 
@@ -42,7 +49,7 @@ export function OrdenPagoDialog({ factura, onClose }: { factura: FacturaPortal; 
               <li>
                 En el motivo de la transferencia escribí <strong>Orden {numeroFactura(orden.numero)}</strong>.
               </li>
-              <li>Guardá el comprobante de la transferencia: después lo subís desde la app.</li>
+              <li>Guardá el comprobante de la transferencia y subilo desde acá, con "Ya transferí", o más tarde desde la factura.</li>
             </ol>
             {error && <div className={msgError}>{error}</div>}
             <div className='flex gap-3 flex-wrap'>
@@ -53,6 +60,14 @@ export function OrdenPagoDialog({ factura, onClose }: { factura: FacturaPortal; 
                 }}
               >
                 Descargar orden de pago (PDF)
+              </button>
+              <button
+                className={btnSecondary}
+                onClick={() => {
+                  onSubirComprobante(orden)
+                }}
+              >
+                Ya transferí: subir comprobante
               </button>
               <button className={btnSecondary} onClick={onClose}>
                 Cerrar

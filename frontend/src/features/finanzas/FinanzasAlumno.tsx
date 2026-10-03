@@ -12,7 +12,7 @@ type Vista = 'facturas' | 'pagos'
 
 export function FinanzasAlumno({ finanzas }: { finanzas: Finanzas }) {
   const [vista, setVista] = useState<Vista>('facturas')
-  const { facturas, pagos, cargando, error } = finanzas
+  const { facturas, pagos, cargando, error, recargar } = finanzas
 
   const boton = (clave: Vista, texto: string) => (
     <button
@@ -39,7 +39,7 @@ export function FinanzasAlumno({ finanzas }: { finanzas: Finanzas }) {
       {cargando ? (
         <p className='text-[13px] text-textMuted m-0'>Cargando…</p>
       ) : vista === 'facturas' ? (
-        <FacturasAlumno facturas={facturas} />
+        <FacturasAlumno facturas={facturas} onActualizar={recargar} />
       ) : (
         <HistorialPagos pagos={pagos} />
       )}
