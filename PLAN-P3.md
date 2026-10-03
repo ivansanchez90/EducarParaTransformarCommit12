@@ -79,12 +79,12 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T11. Portal: cuotas pendientes y pagadas, e historial de pagos | HU10, HU11 | 2 | Juan Manuel | T08 | 2 días | Pendiente |
 | T12. Portal: elegir ítems y emitir el comprobante de pago (PDF con datos bancarios) | HU12 | 2 | Juan Manuel | T08 | 2,5 días | Pendiente |
 | T13. Portal: subir comprobantes de transferencia (foto o PDF, varios por factura) | HU13 | 2 | Juan Manuel | T04, T08 | 1,5 días | Pendiente |
-| T14. Admin: bandeja de comprobantes, aprobar/rechazar, imputación, saldo (`services/saldos.ts`) y `EmailObserver` | HU14 | 2 | Iván | T02, T13 (contrato) | 2,5 días | Pendiente |
+| T14. Admin: bandeja de comprobantes, aprobar/rechazar, imputación, saldo (`services/saldos.ts`) y `EmailObserver` | HU14 | 2 | Iván | T02, T13 (contrato) | 2,5 días | En revisión |
 | T15. Portal: facturas y comprobantes por rango de fechas | HU15 | 3 | Juan Manuel | T13 | 1,5 días | Pendiente |
 | T16. Portal: deuda por ítem | HU16 | 3 | Juan Manuel | T14 | 1,5 días | Pendiente |
 | T17. Email del último día hábil con la composición y la factura adjunta | HU17 | 3 | Iván | T02, T08 | 2,5 días | Pendiente |
 | T18. Email del día 20 con la deuda (más in-app y push) | HU18 | 3 | Iván | T14 | 1,5 días | Pendiente |
-| T19. Portal: precio de cada servicio en "Transporte y comedor" y "Extracurriculares" | HU24 | 3 | Juan Manuel | T06 | 0,5 días | En revisión |
+| T19. Portal: precio de cada servicio en "Transporte y comedor" y "Extracurriculares" | HU24 | 3 | Juan Manuel | T06 | 0,5 días | Hecho |
 | T20. Recuperar la contraseña por email | HU03 | 4 | Iván | T02 | 1,5 días | Pendiente |
 | T21. Reportes: ingresos por período, pagos completos e incompletos por año y alumno (PDF y CSV) | HU19–HU21 | 4 | Juan Manuel | T14 | 2 días | Pendiente |
 | T22. Reportes: pagos por deporte/nivel/horario/profesor y por recorrido | HU22, HU23 | 4 | Iván | T06, T21 | 1,5 días | Pendiente |
@@ -139,9 +139,9 @@ con `requireAuth` + `assertAccesoAlumno`):
 
 - `GET /api/alumnos/:id/facturas?desde=&hasta=&estado=` → facturas con `items` y `comprobantes`.
 - `GET /api/alumnos/:id/pagos` → pagos aprobados con su factura.
-- `GET /api/alumnos/:id/deuda` → saldo por ítem y período (usa `services/saldos.ts` de T14).
+- `GET /api/alumnos/:id/deuda` → saldo por ítem y período: devolver `deudaAlumno(id)` de `services/saldos.ts` (T14), que da `{ total, facturas: [{ numero, anio, mes, fecha_vencimiento, total, saldo, estado, items: [{ concepto, descripcion, importe, saldo }] }] }` con solo las facturas e ítems que deben algo (la beca pendiente va en negativo).
 - `POST /api/facturas/:id/ordenes-pago` con `{ items: number[] }` → 201 con la orden; `GET /api/ordenes-pago/:id/pdf` (el PDF muestra el alias de `BANCO_ALIAS`).
-- `POST /api/facturas/:id/comprobantes` (multipart: `archivo`, `importe`, `fecha_transferencia`, `id_orden?`) → 201 en `En revisión`.
+- `POST /api/facturas/:id/comprobantes` (multipart: `archivo`, `importe`, `fecha_transferencia`, `id_orden?`) → 201 en `En revisión`. En `archivo` se guarda solo el nombre del archivo dentro del bucket privado `comprobantes` (es lo que lee la descarga de T04 y muestra la bandeja de T14), y `id_usuario_carga` es quien lo sube.
 - `GET /api/comprobantes/:id/archivo` → descarga con sesión (familia dueña o admin).
 - `GET /api/facturas/:id/pdf` → PDF de la factura (lo genera T08; la ruta la expone Iván).
 
@@ -152,7 +152,9 @@ con `requireAuth` + `assertAccesoAlumno`):
 - `GET /api/actividades` suma `docentes` (profesor) y `horarios` (`dia_semana`, `hora_inicio`, `hora_fin`); `POST|PUT /api/actividades` aceptan `id_docente` y `horarios` (sin `horarios`, el PUT no los toca).
 - `POST /api/facturas/generar` con `{ anio, mes }` → `{ generadas, omitidas, errores[] }`; `GET /api/facturas?anio=&mes=&estado=` → facturas del mes con `items`, `alumnos` y el `estado` calculado.
 - El estado de una factura se calcula al leerla con `estadoFactura()` de `services/facturacion/estado.ts` (saldo y vencimiento); T11, T14 y T18 lo reutilizan.
-- `GET /api/comprobantes?estado=En revisión`; `PATCH /api/comprobantes/:id/aprobar` con `{ importe }`; `PATCH /api/comprobantes/:id/rechazar` con `{ motivo }`.
+- `GET /api/comprobantes?estado=En revisión` (o varios: `?estado=Aprobado,Rechazado`) → comprobantes con `facturas` (y su alumno), `ordenes_pago`, `carga`, `revision` y `pagos`; `PATCH /api/comprobantes/:id/aprobar` con `{ importe }` → `{ estado, factura: { saldo, estado } }`; `PATCH /api/comprobantes/:id/rechazar` con `{ motivo }`. Un comprobante ya revisado da 409.
+- Todo pago pasa por `aplicarPago(tx, …)` de `services/saldos.ts` (crea el `Pago`, lo imputa y recalcula los saldos). El `fecha_pago` de un pago aprobado es la **fecha de la transferencia** (a las 12 h de Argentina), no la de la aprobación: es la que usan los reportes de ingresos (T21).
+- Avisos a las familias: `publicar(evento)` de `services/avisos/index.js` (patrón Observer; hoy, el evento `ComprobanteValidado`). T17 y T18 suman sus eventos en `services/avisos/eventos.ts`.
 - `POST /api/tareas/recordatorio-mensual` y `POST /api/tareas/aviso-deuda` con `{ anio, mes }`: ejecutan a mano lo mismo que el cron (para probar).
 - `POST /api/auth/recuperar` `{ email }` y `POST /api/auth/restablecer` `{ token, password }` (T20).
 
@@ -206,7 +208,7 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** `typecheck` sin errores. Quitando la regla "distinta de la actual", o guardando la contraseña sin hash, las pruebas fallan. Con la API real sobre `seed:demo`: la nueva corta, la igual y la actual incorrecta devuelven 400; el cambio correcto devuelve 200; después la contraseña vieja da 401 y la nueva 200, el mismo token sigue valiendo y la base guarda el hash (`$2b$`), no el texto.
 - **Falta:** no se probó el diálogo en un teléfono real ni a 375 px, porque no se modificó; queda para la prueba integral (T23). El cambio no cierra las sesiones abiertas en otros dispositivos.
 
-### T19 — Precio de cada servicio en el portal (Juan Manuel): en revisión
+### T19 — Precio de cada servicio en el portal (Juan Manuel): hecho, mergeado en el PR #33
 
 - **Qué quedó:** la familia ve el precio mensual vigente de cada servicio. `services/precios.ts` (`preciosVigentes()`) lee las tarifas que rigen hoy con `tarifasVigentes()` de T06 y devuelve el precio de cada servicio, o `null` si todavía no hay una cargada; una tarifa programada para más adelante no cuenta hasta su fecha. `GET /api/actividades` suma `precio` (solo en los deportes; los idiomas no se cobran aparte, así que traen `null`), `GET /api/recorridos` suma `precio`, y `GET /api/servicios/:idAlumno` suma `precio_transporte` (el del recorrido que usa el alumno, aunque el recorrido ya no esté activo) y `precio_comedor`. En el portal, el componente `PrecioMensual` (`ui/components.tsx`) se muestra en las tarjetas de *Extracurriculares* (deportes) y de *Transporte y comedor* (comedor, recorrido actual y cada recorrido disponible); sin tarifa dice "Precio a confirmar".
 - **Pruebas:** 7 nuevas en `test/precios.test.ts` (91 en total): precio de deportes y recorridos con y sin tarifa, un idioma sin precio aunque exista una tarifa con su id, precios del alumno (recorrido y comedor), `null` sin transporte o sin tarifa, que solo se pidan tarifas hasta hoy, y 403 para una familia ajena.
@@ -239,6 +241,29 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Archivos de Juan Manuel que toqué** (cambios chicos): `routes/actividades.ts` (profesor y horarios en el GET, POST y PUT) y `ui/components.tsx`: en `ResponsiveTable`, si la columna `pie` devuelve `null`, la tarjeta del celular no muestra el pie vacío. El rechazo de una **inscripción** cuyos horarios chocan con otro deporte del alumno (HU 2 de `PENDIENTES.md`) sigue pendiente, ahora que los horarios existen.
 - **Verificado:** sobre una base con `seed:demo`, la API responde 401 sin sesión y 403 a una familia; cubre altas, todas las validaciones, el estado de cada tarifa, la edición y el borrado solo de las programadas, y el profesor y los horarios (también los ve el portal). En el navegador, a 1366 px y a 375 px (sin scroll horizontal ni errores de consola): carga de una tarifa, edición de una actividad con profesor y horarios, y el mensaje de horarios superpuestos. `typecheck` y `build` sin errores; el lint del frontend sigue en los 46 errores que ya había en `main`, ninguno nuevo.
 - **Falta:** cargar las tarifas reales antes de facturar (T08).
+
+### T14 — Bandeja de comprobantes, imputación y avisos (Iván): en revisión
+
+- **Qué quedó:**
+  - **Bandeja** (`routes/comprobantes.ts`, solo Admin y Directivo): comprobantes por estado; los pendientes, del más viejo al más nuevo. Aprobar pide el importe que se acreditó en el banco: crea el `Pago`, lo imputa a los ítems y recalcula saldo y estado de la factura. Rechazar pide un motivo (hasta 300 caracteres). Un comprobante ya revisado da 409, así que dos admins no lo pueden validar a la vez, y la API no expone el nombre del archivo en disco.
+  - **Imputación y saldos** (`services/saldos.ts`): `calcularImputacion()` es una función pura. Imputa primero los ítems de la orden de pago y después los demás, en el orden de la factura. La beca se salda junto con la cuota, como en la migración de T01, así que una factura pagada queda con todos sus ítems en 0. No acepta más que el saldo. `aplicarPago()` bloquea la fila de la factura (`FOR UPDATE`) para que dos pagos simultáneos no imputen sobre el mismo saldo. `deudaAlumno()` es para T16.
+  - **Avisos** (patrón Observer, `services/avisos/`): `publicar()` reparte el evento entre los canales suscriptos, in-app con push y `EmailObserver`. Un canal que falla queda en el log y no frena a los otros ni a la aprobación. Los dos canales usan el mismo texto, con el saldo que queda o el motivo del rechazo, y el email escapa el HTML.
+  - **Pantalla** *Comprobantes* del admin (`features/comprobantes/BandejaComprobantes.tsx`): filtros por estado y diálogo de revisión con el comprobante a la vista (foto o PDF, con "Abrir en otra pestaña" para el celular). Avisa si el importe difiere de lo declarado o si la factura ya está pagada, y ofrece motivos de rechazo frecuentes.
+- **Pruebas:** 40 nuevas (172 en total):
+  - `test/saldos.test.ts` (10): pago total y parcial, orden de pago, beca normal y del 100 %, recargo, segundo pago, importes inválidos, y una prueba con 42 combinaciones donde lo imputado siempre suma el importe y ningún saldo queda negativo;
+  - `test/bandeja-comprobantes.test.ts` (24): 401/403, validaciones, 409, la fecha del pago, el evento que se publica, y que la familia sigue pudiendo bajar su archivo;
+  - `test/avisos.test.ts` (6): un canal caído no frena a los demás, los textos y el escape del HTML.
+- **Verificado sobre una base descartable con `seed:demo` y la API real** (email y push apagados; los comprobantes de prueba se cargaron directo en la base porque T13 todavía no existe):
+  - **Pagos parciales y orden:** un pago parcial con orden de pago imputa primero el ítem de la orden; uno parcial sin orden salda la beca junto con la cuota; aprobar el resto deja la factura *Pagada* con todos los ítems en 0.
+  - **Validaciones:** más que el saldo da 400 y el comprobante sigue en revisión; aprobar un rechazado da 409; un rechazo sin motivo da 400.
+  - **Simultaneidad:** el mismo comprobante aprobado dos veces a la vez da un 200 y un 409. Dos comprobantes distintos por todo el saldo de la misma factura: pasa uno y el otro recibe 400 y queda en revisión.
+  - **Avisos y permisos:** la familia recibió los tres avisos con el texto esperado. La familia recibe 403 en la bandeja y sí puede bajar su comprobante.
+  - **Invariantes:** se cumplen en todas las facturas (`ítem.saldo = importe − imputaciones`, `factura.saldo = Σ ítems`, `total = Σ importes` y `pago = Σ imputaciones`).
+  - **En el navegador** (a 1366 y 375 px): aprobación con importe distinto y rechazo con un motivo frecuente; sin scroll horizontal ni errores de consola.
+- **Falta:**
+  - Probar el `EmailObserver` con la cuenta de Gmail real, cuando esté la contraseña de aplicación.
+  - Las pantallas viejas *Cuotas* y *Registrar pagos* siguen escribiendo en `cuotas`, no en las facturas. Hay que decidir si se sacan del menú ahora que existen *Facturación* y *Comprobantes*.
+  - Con T13 mergeada, probar la subida real desde el portal.
 
 ### T09 — Login y logout en la PWA instalada (Iván): hecho, mergeado en el PR #34
 
