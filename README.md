@@ -115,6 +115,7 @@ puerto **4000**.
 | `SMTP_USER` / `SMTP_PASS` | cuenta de Gmail y su **contraseña de aplicación** para los emails; sin ellas el envío queda apagado |
 | `MAIL_FROM` | opcional, remitente que ven las familias (por defecto `Educar para Transformar <SMTP_USER>`) |
 | `SMTP_HOST` / `SMTP_PORT` | opcionales, por defecto `smtp.gmail.com` y `465` |
+| `BANCO_ALIAS` | alias de la cuenta a la que transfieren las familias; aparece en la factura y en los emails |
 | `TAREAS_PROGRAMADAS` | opcional; `false` apaga los emails automáticos (por ejemplo, en una segunda instancia) |
 
 Montar un **volumen persistente en `/app/uploads`** (si no, los archivos

@@ -230,6 +230,44 @@ export interface Tarifa {
   estado: 'Vigente' | 'Programada' | 'Anterior'
 }
 
+export type EstadoFactura = 'Pendiente' | 'Pago parcial' | 'Pagada' | 'Vencida'
+
+export interface ItemFactura {
+  id_item: number
+  concepto: 'Cuota' | 'Deporte' | 'Transporte' | 'Comedor' | 'Recargo' | 'Beca'
+  id_referencia: number | null
+  descripcion: string
+  importe: number
+  saldo: number
+}
+
+export interface Factura {
+  id_factura: number
+  id_alumno: number
+  anio: number
+  mes: number
+  numero: number
+  fecha_emision: string
+  fecha_vencimiento: string
+  total: number
+  saldo: number
+  /** Calculado por el backend con el saldo y la fecha de hoy */
+  estado: EstadoFactura
+  items: ItemFactura[]
+  alumnos: {
+    nombre: string
+    apellido: string
+    dni: string
+    cursos: { nivel: string; grado_anio: string; division: string } | null
+  }
+}
+
+export interface ResultadoGeneracion {
+  generadas: number
+  omitidas: number
+  errores: { id_alumno: number; alumno: string; motivo: string }[]
+}
+
 export interface OpcionesTarifa {
   niveles: string[]
   deportes: { id: number; nombre: string }[]

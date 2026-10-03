@@ -41,4 +41,7 @@ export const config = {
   // Tareas programadas (emails del último día hábil y del día 20). Se apagan
   // con TAREAS_PROGRAMADAS=false, por ejemplo en una segunda instancia.
   tareasProgramadas: process.env.TAREAS_PROGRAMADAS !== 'false',
+  // Alias de la cuenta a la que las familias transfieren; se muestra en la
+  // factura, en el comprobante de pago y en los emails. Vacío = no se muestra.
+  bancoAlias: process.env.BANCO_ALIAS ?? '',
 }

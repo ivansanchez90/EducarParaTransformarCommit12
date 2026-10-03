@@ -114,6 +114,7 @@ export const NAV_ADMIN = [
   { key: 'asignaciones', icon: '🔗', label: 'Asignaciones' },
   { key: 'cuotas', icon: '💳', label: 'Cuotas' },
   { key: 'tarifas', icon: '🏷️', label: 'Tarifas' },
+  { key: 'facturacion', icon: '🧾', label: 'Facturación' },
   { key: 'pagos', icon: '💰', label: 'Registrar pagos' },
   { key: 'becas', icon: '🎟️', label: 'Becas' },
   { key: 'sueldos', icon: '💼', label: 'Sueldos' },
