@@ -68,7 +68,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | --- | --- | --- | --- | --- | --- | --- |
 | T01. Modelo de datos financiero: `Tarifa`, `Factura`, `ItemFactura`, `OrdenPago`, `ComprobanteTransferencia`, `Pago` ligado a factura e ítems, `EnvioEmail`, `TokenRecuperacion`; migración de las cuotas existentes | — | 0 | Iván | — | 2 días | Hecho |
 | T02. Email (nodemailer + Gmail con contraseña de aplicación) y tareas programadas (node-cron, feriados, `ultimoDiaHabil()` con pruebas) | — | 0 | Iván | — | 1,5 días | Hecho |
-| T03. Pruebas y CI: Vitest + Supertest en `backend/`, GitHub Actions con lint, build y test | — | 0 | Juan Manuel | — | 1 día | Pendiente |
+| T03. Pruebas y CI: Vitest + Supertest en `backend/`, GitHub Actions con lint, build y test | — | 0 | Juan Manuel | — | 1 día | En revisión |
 | T04. Quitar "Efectivo" (backend, `constants`, `RegistrarPagos`) y bucket privado de comprobantes con descarga autenticada | — | 0 | Juan Manuel | — | 1 día | Pendiente |
 | T05. `BITACORA-IA.md` con la plantilla de la consigna | — | 0 | Juan Manuel | — | 0,5 días | Pendiente |
 | T06. Tarifas: ABM por concepto con vigencia y pantalla admin; horario y profesor del deporte (deuda de la Parte 2) | HU04–HU07 | 1 | Iván | T01 | 2,5 días | En revisión |
@@ -190,6 +190,12 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Pruebas:** `npm test` (Vitest, `backend/test/`) corre 23 pruebas: el último día hábil de los 12 meses de 2026 calculado a mano, feriados al final del mes, años bisiestos, feriados trasladados, el cambio de día entre Argentina y UTC, y que una tarea no se ejecuta si no corresponde ni propaga sus errores. Vitest quedó instalado con `vitest.config.ts`; T03 suma Supertest y la CI sobre esta base.
 - **Verificado:** `typecheck` sin errores. La API arranca sin claves de email (envío apagado) y con una contraseña inválida (Gmail la rechaza, sale en el log y la API sigue). Un cron real de prueba se ejecuta cada segundo con el día de Argentina.
 - **Falta:** crear la contraseña de aplicación en la cuenta que va a enviar, definir `MAIL_FROM` y cargarlos en Coolify. Agregar los días no laborables turísticos de 2027 cuando se publiquen. Las tareas concretas (emails del último día hábil y del día 20) se suman en T17 y T18.
+
+### T03 — Pruebas y CI (Juan Manuel): en revisión
+
+- **Qué quedó:** Supertest en `backend/` y `.github/workflows/ci.yml`, que corre en cada PR a `main` y en cada push a `main`. Backend: `prisma generate`, `typecheck`, `build` y `npm test`. Frontend: `tsc -b`, `build` y `lint`. Node 22 y pnpm 10.29.3, como el `Dockerfile`. `test/seguridad.test.ts` prueba la API real (`app`) sin base de datos: `test/ayudas.ts` reemplaza a Prisma por dobles y firma los tokens con el secreto de `vitest.config.ts`. Cubre `GET /api/health`, el 404 de la API, el 401 (sin token, token inválido, firmado con otro secreto, vencido y de un usuario inexistente), el 403 (usuario desactivado; Padre, Alumno y Docente en las rutas de administración) y la pertenencia padre–hijo en `GET /api/alumnos/:id`. Para sumar un caso, agregar la ruta a `RUTAS_CON_SESION` o `RUTAS_DE_ADMIN`.
+- **Verificado:** `npm test` corre 47 pruebas (23 de T02 y 24 nuevas); `typecheck` y `build` del backend, y `tsc -b`, `build` y `pnpm install --frozen-lockfile` del frontend, sin errores.
+- **Falta:** el `lint` del frontend no frena el PR (`continue-on-error`) porque `main` tiene 46 errores anteriores a la Parte 3; cuando se limpien, se saca esa línea. En GitHub: Settings → Branches → exigir los checks `Backend` y `Frontend` para mergear a `main`. Las pruebas con base real (facturación, pagos) pueden sumar un servicio Postgres al job cuando haga falta.
 
 ### T06 — Tarifas, horario y profesor del deporte (Iván): en revisión
 
