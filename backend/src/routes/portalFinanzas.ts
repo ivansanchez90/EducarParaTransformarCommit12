@@ -5,11 +5,12 @@
  */
 import { Router } from 'express'
 import type { NextFunction, Request, Response } from 'express'
-import { HttpError, fecha, hoyISO, id, lista } from '../lib/http.js'
+import { Prisma } from '../generated/prisma/client.js'
+import { HttpError, fecha, fechaObligatoria, hoyISO, id, lista } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { ROLES_ADMIN, assertAccesoAlumno, esStaff, requireAuth } from '../middleware/auth.js'
 import type { UsuarioAuth } from '../middleware/auth.js'
-import { rutaArchivoPrivado } from '../middleware/upload.js'
+import { borrarComprobante, guardarComprobante, recibirArchivoComprobante, rutaArchivoPrivado } from '../middleware/upload.js'
 import { estadoFactura } from '../services/facturacion/estado.js'
 import { crearOrdenPago, idsDeItems, pdfOrdenPago } from '../services/ordenPago.js'
 
@@ -106,6 +107,65 @@ async function pagosDelAlumno(req: Request, res: Response) {
   )
 }
 
+/** Lo que la familia declara de su transferencia: importe, fecha y, si la hay, la orden de pago que está pagando. */
+function datosDelComprobante(body: Record<string, unknown> | undefined) {
+  const importe = Number(String(body?.importe ?? '').replace(',', '.'))
+  if (!(importe > 0) || importe > 999_999_999) throw new HttpError(400, 'El importe de la transferencia tiene que ser mayor a 0')
+
+  const fechaTransferencia = fechaObligatoria(body?.fecha_transferencia, 'fecha de la transferencia')
+  const hoy = fecha(hoyISO()) ?? new Date()
+  if (fechaTransferencia.getTime() > hoy.getTime()) {
+    throw new HttpError(400, 'La fecha de la transferencia no puede ser posterior a hoy')
+  }
+
+  const idOrden = body?.id_orden ? id(body.id_orden) : null
+  return { importe: new Prisma.Decimal(importe.toFixed(2)), fechaTransferencia, idOrden }
+}
+
+/**
+ * Sube el comprobante de una transferencia (multipart: `archivo`, `importe`,
+ * `fecha_transferencia` y, opcional, `id_orden`). Queda "En revisión" hasta que la
+ * administración lo apruebe o lo rechace (T14). Una factura puede tener varios.
+ */
+async function subirComprobante(req: Request, res: Response) {
+  const usuario = usuarioDe(req)
+  const idFactura = id(req.params.id)
+  const factura = await prisma.factura.findUnique({
+    where: { id_factura: idFactura },
+    select: { id_alumno: true, saldo: true },
+  })
+  if (!factura) throw new HttpError(404, 'Factura no encontrada')
+  await assertVePagosDe(usuario, factura.id_alumno)
+  if (factura.saldo.lte(0)) throw new HttpError(409, 'La factura ya está pagada: no hace falta subir un comprobante')
+
+  await recibirArchivoComprobante(req, res)
+  const { importe, fechaTransferencia, idOrden } = datosDelComprobante(req.body)
+  if (idOrden) {
+    const orden = await prisma.ordenPago.findFirst({ where: { id_orden: idOrden, id_factura: idFactura }, select: { id_orden: true } })
+    if (!orden) throw new HttpError(400, 'La orden de pago no es de esta factura')
+  }
+
+  // Se guarda el archivo recién cuando todo lo demás es válido; si falla el alta, se borra.
+  const archivo = await guardarComprobante(req.file)
+  try {
+    const comprobante = await prisma.comprobanteTransferencia.create({
+      data: {
+        id_factura: idFactura,
+        id_orden: idOrden,
+        archivo,
+        importe,
+        fecha_transferencia: fechaTransferencia,
+        id_usuario_carga: usuario.id_usuario,
+      },
+      select: { id_comprobante: true, id_factura: true, id_orden: true, estado: true, importe: true, fecha_transferencia: true, fecha_carga: true },
+    })
+    res.status(201).json(comprobante)
+  } catch (error) {
+    await borrarComprobante(archivo)
+    throw error
+  }
+}
+
 /**
  * Descarga el archivo de un comprobante de transferencia. Lo ve la administración
  * o la familia del alumno de la factura; el resto del personal, no.
@@ -169,3 +229,4 @@ portalFinanzasRouter.get('/alumnos/:id/pagos', conSesion, asincrono(pagosDelAlum
 portalFinanzasRouter.get('/comprobantes/:id/archivo', conSesion, asincrono(descargarComprobante))
 portalFinanzasRouter.post('/facturas/:id/ordenes-pago', conSesion, asincrono(emitirOrdenPago))
 portalFinanzasRouter.get('/ordenes-pago/:id/pdf', conSesion, asincrono(pdfDeLaOrden))
+portalFinanzasRouter.post('/facturas/:id/comprobantes', conSesion, asincrono(subirComprobante))

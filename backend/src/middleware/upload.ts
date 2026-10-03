@@ -12,8 +12,11 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import express from 'express'
+import type { Request, Response } from 'express'
 import multer from 'multer'
 import { config } from '../lib/config.js'
+import { HttpError } from '../lib/http.js'
+import { tipoDeArchivo } from '../lib/tipoArchivo.js'
 
 export const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads')
 
@@ -81,4 +84,55 @@ export function rutaArchivoPrivado(bucket: BucketPrivado, nombre: string): strin
   const carpeta = path.join(UPLOADS_DIR, bucket)
   const absoluto = path.resolve(carpeta, nombre)
   return absoluto.startsWith(carpeta + path.sep) ? absoluto : null
+}
+
+// ── Comprobantes de transferencia (bucket privado) ──────────────
+
+export const LIMITE_COMPROBANTE_MB = 10
+const TIPOS_DE_FOTO = 'JPG, PNG, WebP, AVIF o HEIC'
+
+const recibirEnMemoria = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: LIMITE_COMPROBANTE_MB * MB, files: 1 },
+}).single('archivo')
+
+/**
+ * Lee el archivo del formulario (campo `archivo`) a memoria, sin escribir nada en
+ * disco: así un archivo inválido no deja basura. Si pesa de más, responde 400 con un
+ * mensaje que dice qué hacer.
+ */
+export function recibirArchivoComprobante(req: Request, res: Response): Promise<void> {
+  return new Promise((resolve, reject) => {
+    recibirEnMemoria(req, res, (err: unknown) => {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        reject(new HttpError(400, `El archivo pesa más de ${LIMITE_COMPROBANTE_MB} MB: sacale una foto más liviana o comprimilo`))
+      } else if (err) {
+        reject(err)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
+/**
+ * Guarda el comprobante en la carpeta privada y devuelve el nombre del archivo. El tipo
+ * se decide por el contenido y la extensión sale de ahí, no del nombre que mandó el cliente.
+ */
+export async function guardarComprobante(archivo: Express.Multer.File | undefined): Promise<string> {
+  if (!archivo) throw new HttpError(400, 'Adjuntá el comprobante de la transferencia (foto o PDF)')
+  const tipo = tipoDeArchivo(archivo.buffer)
+  if (!tipo) throw new HttpError(400, `El archivo no es válido: tiene que ser una foto (${TIPOS_DE_FOTO}) o un PDF`)
+
+  const carpeta = path.join(UPLOADS_DIR, 'comprobantes')
+  await fs.promises.mkdir(carpeta, { recursive: true })
+  const nombre = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${tipo.ext}`
+  await fs.promises.writeFile(path.join(carpeta, nombre), archivo.buffer, { flag: 'wx' })
+  return nombre
+}
+
+/** Borra un comprobante de la carpeta privada (si falló el alta en la base). */
+export async function borrarComprobante(nombre: string) {
+  const ruta = rutaArchivoPrivado('comprobantes', nombre)
+  if (ruta) await fs.promises.unlink(ruta).catch(() => undefined)
 }

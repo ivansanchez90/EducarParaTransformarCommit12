@@ -8,6 +8,7 @@ import { Badge } from '../../ui/components'
 import { btnPrimarySm, btnSecondarySm, msgError } from '../../ui/styles'
 import { ESTADO_FACTURA_COLOR, fechaCorta, nombrePeriodo, numeroFactura, pesos } from './formato'
 import { OrdenPagoDialog } from './OrdenPagoDialog'
+import { SubirComprobanteDialog } from './SubirComprobanteDialog'
 import type { ComprobanteFactura, FacturaPortal } from './types'
 
 const COLOR_COMPROBANTE: Record<ComprobanteFactura['estado'], string> = {
@@ -25,9 +26,11 @@ function Dato({ titulo, valor, destacado }: { titulo: string; valor: string; des
   )
 }
 
-function TarjetaFactura({ factura }: { factura: FacturaPortal }) {
+type Dialogo = { tipo: 'pagar' } | { tipo: 'subir'; idOrden: number | null; importe: number }
+
+function TarjetaFactura({ factura, onActualizar }: { factura: FacturaPortal; onActualizar: () => void }) {
   const [mensaje, setMensaje] = useState('')
-  const [pagando, setPagando] = useState(false)
+  const [dialogo, setDialogo] = useState<Dialogo | null>(null)
 
   const bajarPdf = async () => {
     setMensaje('')
@@ -84,10 +87,20 @@ function TarjetaFactura({ factura }: { factura: FacturaPortal }) {
           <button
             className={btnPrimarySm}
             onClick={() => {
-              setPagando(true)
+              setDialogo({ tipo: 'pagar' })
             }}
           >
             Pagar por transferencia
+          </button>
+        )}
+        {factura.saldo > 0 && (
+          <button
+            className={btnSecondarySm}
+            onClick={() => {
+              setDialogo({ tipo: 'subir', idOrden: null, importe: factura.saldo })
+            }}
+          >
+            Subir comprobante
           </button>
         )}
         <button
@@ -100,19 +113,33 @@ function TarjetaFactura({ factura }: { factura: FacturaPortal }) {
         </button>
         {mensaje && <span className={msgError}>{mensaje}</span>}
       </div>
-      {pagando && (
+      {dialogo?.tipo === 'pagar' && (
         <OrdenPagoDialog
           factura={factura}
           onClose={() => {
-            setPagando(false)
+            setDialogo(null)
           }}
+          onSubirComprobante={(orden) => {
+            setDialogo({ tipo: 'subir', idOrden: orden.id_orden, importe: orden.total })
+          }}
+        />
+      )}
+      {dialogo?.tipo === 'subir' && (
+        <SubirComprobanteDialog
+          factura={factura}
+          idOrden={dialogo.idOrden}
+          importeSugerido={dialogo.importe}
+          onClose={() => {
+            setDialogo(null)
+          }}
+          onSubido={onActualizar}
         />
       )}
     </div>
   )
 }
 
-export function FacturasAlumno({ facturas }: { facturas: FacturaPortal[] }) {
+export function FacturasAlumno({ facturas, onActualizar }: { facturas: FacturaPortal[]; onActualizar: () => void }) {
   const [verPagadas, setVerPagadas] = useState(false)
   const conSaldo = facturas.filter((f) => f.estado !== 'Pagada')
   const pagadas = facturas.filter((f) => f.estado === 'Pagada')
@@ -140,7 +167,7 @@ export function FacturasAlumno({ facturas }: { facturas: FacturaPortal[] }) {
       )}
 
       {conSaldo.map((f) => (
-        <TarjetaFactura key={f.id_factura} factura={f} />
+        <TarjetaFactura key={f.id_factura} factura={f} onActualizar={onActualizar} />
       ))}
 
       {pagadas.length > 0 && (
@@ -153,7 +180,7 @@ export function FacturasAlumno({ facturas }: { facturas: FacturaPortal[] }) {
           >
             {verPagadas ? 'Ocultar facturas pagadas' : `Ver facturas pagadas (${pagadas.length})`}
           </button>
-          {verPagadas && pagadas.map((f) => <TarjetaFactura key={f.id_factura} factura={f} />)}
+          {verPagadas && pagadas.map((f) => <TarjetaFactura key={f.id_factura} factura={f} onActualizar={onActualizar} />)}
         </>
       )}
     </div>
