@@ -1,18 +1,36 @@
 /**
  * Subida de archivos al disco local (reemplaza a Supabase Storage).
  *
- * Cada "bucket" es una carpeta dentro de `uploads/`, servida estáticamente en
- * `/uploads`. Se guarda en la base la URL pública completa, igual que antes.
+ * Cada "bucket" es una carpeta dentro de `uploads/`. Los públicos se sirven
+ * estáticamente en `/uploads` y se guarda en la base la URL completa, igual que
+ * antes. Los privados (los comprobantes de transferencia) viven en la misma
+ * carpeta, para que los alcance el volumen persistente, pero no se sirven: se
+ * guarda solo el nombre del archivo y se descargan con sesión (ver
+ * `routes/portalFinanzas.ts`).
  */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import express from 'express'
 import multer from 'multer'
 import { config } from '../lib/config.js'
 
 export const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads')
 
-export type Bucket = 'galeria' | 'noticias' | 'documentos-alumnos'
+export type BucketPublico = 'galeria' | 'noticias' | 'documentos-alumnos'
+export type BucketPrivado = 'comprobantes'
+export type Bucket = BucketPublico | BucketPrivado
+
+const BUCKETS_PUBLICOS: BucketPublico[] = ['galeria', 'noticias', 'documentos-alumnos']
+
+/**
+ * Sirve en `/uploads` solo los buckets públicos. Es una lista de permitidos y no
+ * de bloqueados: una carpeta nueva queda privada hasta que se la agregue acá.
+ */
+export const uploadsPublicos = express.Router()
+for (const bucket of BUCKETS_PUBLICOS) {
+  uploadsPublicos.use(`/${bucket}`, express.static(path.join(UPLOADS_DIR, bucket)))
+}
 
 const MB = 1024 * 1024
 
@@ -39,7 +57,7 @@ export function uploader(bucket: Bucket, opciones: { soloImagenes?: boolean } = 
   })
 }
 
-export function urlPublica(bucket: Bucket, filename: string): string {
+export function urlPublica(bucket: BucketPublico, filename: string): string {
   return `${config.publicUrl}/uploads/${bucket}/${filename}`
 }
 
@@ -53,4 +71,14 @@ export async function borrarArchivo(url: string | null | undefined) {
   // Evita borrar algo fuera de uploads/ con rutas tipo "../"
   if (!absoluto.startsWith(UPLOADS_DIR + path.sep)) return
   await fs.promises.unlink(absoluto).catch(() => undefined)
+}
+
+/**
+ * Ruta en disco de un archivo de un bucket privado, o `null` si el nombre guardado
+ * apunta fuera de la carpeta del bucket (por ejemplo con "../").
+ */
+export function rutaArchivoPrivado(bucket: BucketPrivado, nombre: string): string | null {
+  const carpeta = path.join(UPLOADS_DIR, bucket)
+  const absoluto = path.resolve(carpeta, nombre)
+  return absoluto.startsWith(carpeta + path.sep) ? absoluto : null
 }

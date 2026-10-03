@@ -5,7 +5,7 @@ import express from 'express'
 import { config } from './lib/config.js'
 import { jsonReplacer } from './lib/json.js'
 import { errorHandler, notFound } from './middleware/errors.js'
-import { UPLOADS_DIR } from './middleware/upload.js'
+import { uploadsPublicos } from './middleware/upload.js'
 import { amonestacionesRouter, asistenciasRouter, calificacionesRouter } from './routes/docencia.js'
 import { actividadesRouter } from './routes/actividades.js'
 import { alumnosRouter } from './routes/alumnos.js'
@@ -14,6 +14,7 @@ import { authRouter } from './routes/auth.js'
 import { becasRouter, comprasRouter, cuotasRouter, sueldosRouter } from './routes/administracion.js'
 import { dashboardRouter } from './routes/dashboard.js'
 import { notificacionesRouter } from './routes/notificaciones.js'
+import { portalFinanzasRouter } from './routes/portalFinanzas.js'
 import { pushRouter } from './routes/push.js'
 import { reportesRouter } from './routes/reportes.js'
 import { tarifasRouter } from './routes/tarifas.js'
@@ -34,7 +35,7 @@ export const app = express()
 app.set('json replacer', jsonReplacer)
 if (config.corsOrigin.length) app.use(cors({ origin: config.corsOrigin }))
 app.use(express.json({ limit: '1mb' }))
-app.use('/uploads', express.static(UPLOADS_DIR))
+app.use('/uploads', uploadsPublicos)
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true })
@@ -66,6 +67,7 @@ app.use('/api/inscripciones', inscripcionesRouter)
 app.use('/api/mensajes', mensajesRouter)
 app.use('/api/notificaciones', notificacionesRouter)
 app.use('/api/push', pushRouter)
+app.use('/api', portalFinanzasRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/recorridos', recorridosRouter)
 app.use('/api/servicios', serviciosRouter)

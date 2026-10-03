@@ -24,14 +24,8 @@ export const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'
 
 export const CONCEPTOS_TARIFA = ['Cuota', 'Deporte', 'Transporte', 'Comedor'] as const
 
-export const METODOS_PAGO = [
-  'Efectivo',
-  'Transferencia',
-  'Tarjeta de débito',
-  'Tarjeta de crédito',
-  'Cheque',
-  'Otro',
-]
+// Desde la Parte 3 los pagos son solo por transferencia.
+export const METODOS_PAGO = ['Transferencia']
 
 export const CUOTA_ESTADO_COLOR: Record<string, string> = {
   Pendiente: '#E67E22',
