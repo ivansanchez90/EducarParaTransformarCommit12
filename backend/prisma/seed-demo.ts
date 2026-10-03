@@ -133,7 +133,7 @@ const RECORRIDOS = [
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
 const TIPOS_EVALUACION = ['Parcial', 'Trabajo práctico', 'Oral', 'Concepto', 'Recuperatorio']
-const METODOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta de débito', 'Tarjeta de crédito']
+const METODOS_PAGO = ['Transferencia']
 
 // ── Seguridad: por defecto, solo contra una base local ──────────
 

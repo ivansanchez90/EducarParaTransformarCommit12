@@ -30,7 +30,7 @@ export function RegistrarPagos() {
   const [selCuota, setSelCuota] = useState<number | null>(null)
   const FORM_PAGO_VACIO = {
     fecha_pago: new Date().toISOString().split('T')[0],
-    metodo_pago: 'Efectivo',
+    metodo_pago: 'Transferencia',
     nro_comprobante: '',
     observaciones: '',
   }
