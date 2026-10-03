@@ -8,7 +8,7 @@
  * enrutado entre secciones. Cada sección vive en su propio módulo en `features/`.
  *
  * En el celular (debajo de `md`) el shell cambia según el rol: Admin/Directivo
- * tienen 22 módulos, así que el menú lateral se convierte en un panel
+ * tienen 23 módulos, así que el menú lateral se convierte en un panel
  * deslizable que abre un botón ☰; Docente tiene 6, así que usa `BottomNav`.
  */
 
@@ -31,6 +31,7 @@ import { GestionCuotas } from './features/cuotas/GestionCuotas'
 import { RegistrarPagos } from './features/pagos/RegistrarPagos'
 import { GestionBecas } from './features/becas/GestionBecas'
 import { GestionTarifas } from './features/tarifas/GestionTarifas'
+import { GestionFacturacion } from './features/facturacion/GestionFacturacion'
 import { GestionSueldos } from './features/sueldos/GestionSueldos'
 import { GestionCompras } from './features/compras/GestionCompras'
 import { GestionInscripciones } from './features/inscripciones/GestionInscripciones'
@@ -217,7 +218,7 @@ export default function AdminPanel() {
           ))}
         </aside>
 
-        {/* ── MENÚ DESLIZABLE (celular, solo Admin/Directivo: 22 módulos no entran en una barra inferior) ── */}
+        {/* ── MENÚ DESLIZABLE (celular, solo Admin/Directivo: 23 módulos no entran en una barra inferior) ── */}
         {esAdmin && menuAbierto && (
           <>
             <div
@@ -278,6 +279,7 @@ export default function AdminPanel() {
           {activeNav === 'asignaciones' && esAdmin && <GestionAsignaciones />}
           {activeNav === 'cuotas' && esAdmin && <GestionCuotas />}
           {activeNav === 'tarifas' && esAdmin && <GestionTarifas />}
+          {activeNav === 'facturacion' && esAdmin && <GestionFacturacion />}
           {activeNav === 'pagos' && esAdmin && <RegistrarPagos />}
           {activeNav === 'becas' && esAdmin && <GestionBecas />}
           {activeNav === 'sueldos' && esAdmin && <GestionSueldos />}

@@ -69,13 +69,13 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T01. Modelo de datos financiero: `Tarifa`, `Factura`, `ItemFactura`, `OrdenPago`, `ComprobanteTransferencia`, `Pago` ligado a factura e ítems, `EnvioEmail`, `TokenRecuperacion`; migración de las cuotas existentes | — | 0 | Iván | — | 2 días | Hecho |
 | T02. Email (nodemailer + Gmail con contraseña de aplicación) y tareas programadas (node-cron, feriados, `ultimoDiaHabil()` con pruebas) | — | 0 | Iván | — | 1,5 días | Hecho |
 | T03. Pruebas y CI: Vitest + Supertest en `backend/`, GitHub Actions con lint, build y test | — | 0 | Juan Manuel | — | 1 día | Hecho |
-| T04. Quitar "Efectivo" (backend, `constants`, `RegistrarPagos`) y bucket privado de comprobantes con descarga autenticada | — | 0 | Juan Manuel | — | 1 día | En revisión |
+| T04. Quitar "Efectivo" (backend, `constants`, `RegistrarPagos`) y bucket privado de comprobantes con descarga autenticada | — | 0 | Juan Manuel | — | 1 día | Hecho |
 | T05. `BITACORA-IA.md` con la plantilla de la consigna | — | 0 | Juan Manuel | — | 0,5 días | Hecho |
-| T06. Tarifas: ABM por concepto con vigencia y pantalla admin; horario y profesor del deporte (deuda de la Parte 2) | HU04–HU07 | 1 | Iván | T01 | 2,5 días | En revisión |
+| T06. Tarifas: ABM por concepto con vigencia y pantalla admin; horario y profesor del deporte (deuda de la Parte 2) | HU04–HU07 | 1 | Iván | T01 | 2,5 días | Hecho |
 | T07. Inscripciones con vigencia (transporte, comedor, deportes) sin romper el tope de 2 ni el cupo | HU08 | 1 | Juan Manuel | T01 | 2 días | Hecho |
-| T08. Facturación mensual con Strategy, becas, PDF de la factura y botón "Generar facturas" | HU09 | 1 | Iván | T06, T07 | 3 días | Pendiente |
+| T08. Facturación mensual con Strategy, becas, PDF de la factura y botón "Generar facturas" | HU09 | 1 | Iván | T06, T07 | 3 días | En revisión |
 | T09. Login/logout en la PWA instalada y pruebas 401/403 de los endpoints nuevos | HU01 | 1 | Iván | T03 | 0,5 días | Pendiente |
-| T10. Cambio de contraseña en la PWA y su prueba automática | HU02 | 1 | Juan Manuel | T03 | 0,5 días | En revisión |
+| T10. Cambio de contraseña en la PWA y su prueba automática | HU02 | 1 | Juan Manuel | T03 | 0,5 días | Hecho |
 | T11. Portal: cuotas pendientes y pagadas, e historial de pagos | HU10, HU11 | 2 | Juan Manuel | T08 | 2 días | Pendiente |
 | T12. Portal: elegir ítems y emitir el comprobante de pago (PDF con datos bancarios) | HU12 | 2 | Juan Manuel | T08 | 2,5 días | Pendiente |
 | T13. Portal: subir comprobantes de transferencia (foto o PDF, varios por factura) | HU13 | 2 | Juan Manuel | T04, T08 | 1,5 días | Pendiente |
@@ -150,7 +150,8 @@ con `requireAuth` + `assertAccesoAlumno`):
 - `GET|POST|PUT /api/tarifas` (con `?concepto=`; cada tarifa trae `referencia`, el nombre de lo que se cobra, y `estado`: Vigente, Programada o Anterior), `DELETE /api/tarifas/:id` y `GET /api/tarifas/opciones` (niveles, deportes, recorridos y lo que no tiene precio vigente). Solo se editan o borran las tarifas programadas.
 - Para leer precios desde otro módulo (T08, T19): `tarifasVigentes(fecha)` y `claveTarifa()` de `services/tarifas.ts`.
 - `GET /api/actividades` suma `docentes` (profesor) y `horarios` (`dia_semana`, `hora_inicio`, `hora_fin`); `POST|PUT /api/actividades` aceptan `id_docente` y `horarios` (sin `horarios`, el PUT no los toca).
-- `POST /api/facturas/generar` con `{ anio, mes }` → `{ generadas, omitidas, errores[] }`.
+- `POST /api/facturas/generar` con `{ anio, mes }` → `{ generadas, omitidas, errores[] }`; `GET /api/facturas?anio=&mes=&estado=` → facturas del mes con `items`, `alumnos` y el `estado` calculado.
+- El estado de una factura se calcula al leerla con `estadoFactura()` de `services/facturacion/estado.ts` (saldo y vencimiento); T11, T14 y T18 lo reutilizan.
 - `GET /api/comprobantes?estado=En revisión`; `PATCH /api/comprobantes/:id/aprobar` con `{ importe }`; `PATCH /api/comprobantes/:id/rechazar` con `{ motivo }`.
 - `POST /api/tareas/recordatorio-mensual` y `POST /api/tareas/aviso-deuda` con `{ anio, mes }`: ejecutan a mano lo mismo que el cron (para probar).
 - `POST /api/auth/recuperar` `{ email }` y `POST /api/auth/restablecer` `{ token, password }` (T20).
@@ -198,7 +199,7 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** se revisó que el archivo no tenga datos personales ni claves. Falta mirarlo en la vista previa del PR, para ver que las tablas se muestren bien.
 - **Falta:** confirmar con la consigna de la cátedra si la plantilla oficial pide otras columnas; si las pide, se agregan acá. Iván completa sus filas desde su próximo PR.
 
-### T10 — Cambio de contraseña en la PWA (Juan Manuel): en revisión
+### T10 — Cambio de contraseña en la PWA (Juan Manuel): hecho, mergeado en el PR #31
 
 - **Qué quedó:** el cambio ya existía y no hizo falta tocarlo: el diálogo `features/cuenta/CambiarPassword.tsx` (contraseña actual, nueva y repetición; deshabilitado sin conexión) se abre con *Mi contraseña* desde el menú del avatar del panel (Admin, Directivo y Docente) y del portal de familias, y llama a `POST /api/auth/password`, que pide la actual, exige al menos 6 caracteres y una distinta de la actual, y guarda el hash con bcrypt. Lo que faltaba era su prueba automática: `test/password.test.ts` (15 pruebas).
 - **Pruebas:** sin sesión es 401 y un usuario desactivado es 403; los cinco casos de 400 (nueva corta o ausente, igual a la actual, actual incorrecta o ausente) no modifican nada; los cinco roles pueden cambiarla; solo se guarda el hash de la nueva, para el usuario de la sesión (aunque el cuerpo traiga el id de otro); y la respuesta no filtra ningún hash. Total: 68 pruebas.
@@ -212,7 +213,7 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** `typecheck` sin errores. La API arranca sin claves de email (envío apagado) y con una contraseña inválida (Gmail la rechaza, sale en el log y la API sigue). Un cron real de prueba se ejecuta cada segundo con el día de Argentina.
 - **Falta:** crear la contraseña de aplicación en la cuenta que va a enviar, definir `MAIL_FROM` y cargarlos en Coolify. Agregar los días no laborables turísticos de 2027 cuando se publiquen. Las tareas concretas (emails del último día hábil y del día 20) se suman en T17 y T18.
 
-### T04 — Sin efectivo y comprobantes privados (Juan Manuel): en revisión
+### T04 — Sin efectivo y comprobantes privados (Juan Manuel): hecho, mergeado en el PR #30
 
 - **Qué quedó:** los pagos aceptan solo `Transferencia`: `PATCH /api/cuotas/:id/pago` responde 400 con cualquier otro método (`routes/administracion.ts`), `constants` y `RegistrarPagos` ofrecen solo esa opción y el `seed:demo` ya no genera pagos en efectivo. Los pagos anteriores conservan su método, porque no se reescribe la historia. Los comprobantes de transferencia tienen una carpeta privada, `uploads/comprobantes/` (el bucket `comprobantes` de `middleware/upload.ts`): `/uploads` ahora sirve solo los buckets de una lista (`galeria`, `noticias`, `documentos-alumnos`), así que una carpeta nueva nace privada. En la base se guarda solo el nombre del archivo (`ComprobanteTransferencia.archivo`), y `rutaArchivoPrivado()` rechaza nombres que salgan de la carpeta. La descarga es `GET /api/comprobantes/:id/archivo` (`routes/portalFinanzas.ts`): la ve la administración o la familia del alumno de la factura; el Docente y otra familia reciben 403, y la respuesta lleva `Cache-Control: private, no-store`.
 - **Pruebas:** 16 nuevas en `test/comprobantes.test.ts` (63 en total): el archivo no se abre por `/uploads`, las carpetas públicas siguen funcionando, la descarga por rol (401, 403 y 200), comprobante inexistente, id inválido, nombre con `../`, archivo ausente del disco, y que ningún método distinto de transferencia se acepta.
@@ -225,12 +226,26 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** `npm test` corre 47 pruebas (23 de T02 y 24 nuevas); `typecheck` y `build` del backend, y `tsc -b`, `build` y `pnpm install --frozen-lockfile` del frontend, sin errores.
 - **Falta:** el `lint` del frontend no frena el PR (`continue-on-error`) porque `main` tiene 46 errores anteriores a la Parte 3; cuando se limpien, se saca esa línea. En GitHub: Settings → Branches → exigir los checks `Backend` y `Frontend` para mergear a `main`. Las pruebas con base real (facturación, pagos) pueden sumar un servicio Postgres al job cuando haga falta.
 
-### T06 — Tarifas, horario y profesor del deporte (Iván): en revisión
+### T06 — Tarifas, horario y profesor del deporte (Iván): hecho, mergeado en el PR #26
 
 - **Qué quedó:** `backend/src/routes/tarifas.ts` y `services/tarifas.ts`, y la pantalla *Tarifas* del admin (`frontend/src/features/tarifas/GestionTarifas.tsx`). La pantalla tiene alta, filtro por concepto, precios anteriores ocultos por defecto y un aviso de lo que no tiene precio vigente (la facturación no lo podría cobrar). Una tarifa que ya rige no se edita ni se borra: para cambiar el precio se carga una nueva con su fecha. Solo se corrigen las programadas. No se aceptan dos tarifas de lo mismo con la misma fecha, ni un nivel sin cursos, ni un deporte o recorrido que no existe. Deuda de la Parte 2: la migración `20261002130000_horario_profesor_actividad` suma el profesor responsable (`id_docente`) y los días y horarios (`horarios_actividades`, varios por actividad) a las actividades. Se cargan desde *Extracurriculares* y se rechazan franjas superpuestas dentro de la misma actividad.
 - **Archivos de Juan Manuel que toqué** (cambios chicos): `routes/actividades.ts` (profesor y horarios en el GET, POST y PUT) y `ui/components.tsx`: en `ResponsiveTable`, si la columna `pie` devuelve `null`, la tarjeta del celular no muestra el pie vacío. El rechazo de una **inscripción** cuyos horarios chocan con otro deporte del alumno (HU 2 de `PENDIENTES.md`) sigue pendiente, ahora que los horarios existen.
 - **Verificado:** sobre una base con `seed:demo`, la API responde 401 sin sesión y 403 a una familia; cubre altas, todas las validaciones, el estado de cada tarifa, la edición y el borrado solo de las programadas, y el profesor y los horarios (también los ve el portal). En el navegador, a 1366 px y a 375 px (sin scroll horizontal ni errores de consola): carga de una tarifa, edición de una actividad con profesor y horarios, y el mensaje de horarios superpuestos. `typecheck` y `build` sin errores; el lint del frontend sigue en los 46 errores que ya había en `main`, ninguno nuevo.
 - **Falta:** cargar las tarifas reales antes de facturar (T08).
+
+### T08 — Facturación mensual (Iván): en revisión
+
+- **Qué quedó:** `backend/src/services/facturacion/`, con una estrategia por concepto (patrón Strategy, en `estrategias.ts`): cuota por nivel, deportes, transporte, comedor y beca. La beca es un porcentaje sobre la cuota, no sobre los servicios. `generar.ts` emite una factura por alumno activo con los precios vigentes el día 1 del mes y vencimiento el día 10. Volver a generar no duplica ni modifica: solo emite las que falten. A un alumno sin curso o sin tarifa no se le emite la factura, y el motivo vuelve en `errores`. `pdf.ts` arma el PDF (ítems, totales, alias de `BANCO_ALIAS` y la aclaración de que es un comprobante interno) como Buffer, para la API y para el email de T17. `routes/facturas.ts` expone generar, listar y el PDF; el PDF lo bajan la administración y la familia del alumno, no los docentes. Pantalla *Facturación* en el admin.
+- **Con las vigencias de T07:** deporte, transporte y comedor salen de `vigencias_servicio`, no de las inscripciones (que se borran con la baja), así que el mes de la baja se cobra completo y el siguiente no. Si el alumno cambió de recorrido en el mes, se cobra el más reciente; si se dio de baja de un deporte o del comedor y volvió a anotarse en el mismo mes, se cobra una vez. El mes se cuenta en hora de Argentina también para las bajas (`Periodo.comienzo`): una baja el último día a la noche no cuenta como del mes siguiente. Si se borró un recorrido después de una baja, la factura usa "Recorrido N" como nombre.
+- **Pruebas:** 20 en `test/facturacion.test.ts` (104 en total con las de T03, T04, T07 y T10): ítems por concepto, centavos exactos, beca, beca del 100 %, inscripción posterior al mes, cambio de recorrido, baja y vuelta en el mismo mes, baja el último día a la noche, falta de curso o de tarifa, un concepto nuevo sin tocar la generación, vigencia con baja y los cuatro estados de la factura.
+- **Verificado sobre `seed:demo` (primera versión, antes de las vigencias):**
+  - Noviembre con una tarifa faltante: 102 facturas y 14 errores. Al cargar la tarifa y volver a generar se emiten solo esas 14, y una tercera generación no emite nada.
+  - En las 116 facturas, total = Σ ítems, vencimiento el 10 y becas exactas. Cada inscripción a deporte, transporte o comedor se facturó una vez.
+  - Un cambio de precio del comedor desde el 1/12 se usa en diciembre y no toca noviembre.
+  - Permisos: 403 a docentes, a la familia con el hijo de otra y a la familia en las rutas del admin. 404 si la factura no existe.
+  - En el navegador, a 1366 px y a 375 px: generación, descarga del PDF y filtros, sin scroll horizontal ni errores de consola.
+- **Verificado con las vigencias, sobre una base descartable con `seed:demo` y la API real:** la base migrada no tiene diferencias con el schema (incluida la migración de T07). Escenarios hechos por la API: cambio de recorrido, baja y vuelta a un deporte, y baja del comedor. Después se facturaron octubre y noviembre: 116 facturas por mes, sin errores. Se cobra solo el recorrido nuevo y el deporte una vez por mes; el comedor se cobra en octubre y no en noviembre. Total = Σ ítems en todas, ningún servicio repetido en una factura, y en noviembre los servicios facturados coinciden con las vigencias abiertas (86 deportes, 59 transportes, 45 comedores). Volver a generar noviembre omite las 116.
+- **Falta:** hasta T14, "Generar cuotas" y "Registrar pago" (pantallas viejas) siguen escribiendo en `cuotas`. Para no tener dos sistemas, conviene facturar solo desde *Facturación*.
 
 ## Pruebas
 

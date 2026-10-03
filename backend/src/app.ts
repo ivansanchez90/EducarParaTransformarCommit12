@@ -18,6 +18,7 @@ import { portalFinanzasRouter } from './routes/portalFinanzas.js'
 import { pushRouter } from './routes/push.js'
 import { reportesRouter } from './routes/reportes.js'
 import { tarifasRouter } from './routes/tarifas.js'
+import { facturasRouter } from './routes/facturas.js'
 import { instalacionesRouter, reservasRouter } from './routes/reservas.js'
 import { recorridosRouter, serviciosRouter } from './routes/servicios.js'
 import {
@@ -73,6 +74,7 @@ app.use('/api/recorridos', recorridosRouter)
 app.use('/api/servicios', serviciosRouter)
 app.use('/api/reportes', reportesRouter)
 app.use('/api/tarifas', tarifasRouter)
+app.use('/api/facturas', facturasRouter)
 
 // Frontend (SPA): en producción el backend sirve también el build de React,
 // así la app entera vive en un solo contenedor y un solo dominio.
