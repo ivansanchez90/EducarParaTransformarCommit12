@@ -15,6 +15,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, qs } from './lib/api'
 import { CambiarPassword } from './features/cuenta/CambiarPassword'
+import { FinanzasAlumno } from './features/finanzas/FinanzasAlumno'
+import { useFinanzas } from './features/finanzas/useFinanzas'
 import type { RecorridoTransporte, ServiciosAlumno } from './types'
 import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/auth'
 import type { Perfil } from './lib/auth'
@@ -44,17 +46,6 @@ interface Calificacion {
   fecha_carga: string
   descripcion: string | null
   asignaciones: { materias: { nombre: string } }
-}
-
-interface Cuota {
-  id_cuota: number
-  mes: number
-  anio: number
-  monto_base: number
-  recargo: number
-  descuento: number
-  fecha_vencimiento: string
-  estado: 'Pendiente' | 'Pagada' | 'Vencida' | 'En mora'
 }
 
 interface Notificacion {
@@ -137,13 +128,6 @@ const notaColor = (nota: number) => {
   return '#E74C3C'
 }
 
-const CUOTA_COLOR: Record<string, string> = {
-  Pendiente: '#E67E22',
-  Pagada: '#27AE60',
-  Vencida: '#E74C3C',
-  'En mora': '#C0392B',
-}
-
 const NOTIF_COLOR: Record<string, string> = {
   General: '#5B35C5',
   Asistencia: '#E67E22',
@@ -210,47 +194,6 @@ const COLUMNAS_CALIFICACIONES: Columna<Calificacion>[] = [
     render: (c) => c.descripcion ?? '—',
   },
   COLUMNAS_CALIFICACIONES_RESUMEN[4],
-]
-
-const COLUMNAS_CUOTAS: Columna<Cuota>[] = [
-  {
-    key: 'periodo',
-    header: 'Período',
-    movil: 'titulo',
-    render: (c) => `${MESES[c.mes - 1]} ${c.anio}`,
-  },
-  {
-    key: 'monto',
-    header: 'Monto base',
-    render: (c) => `$${c.monto_base.toLocaleString('es-AR')}`,
-  },
-  {
-    key: 'recargo',
-    header: 'Recargo',
-    render: (c) => (
-      <span style={{ color: c.recargo > 0 ? '#E74C3C' : '#6B6B8A' }}>
-        {c.recargo > 0 ? `+$${c.recargo.toLocaleString('es-AR')}` : '—'}
-      </span>
-    ),
-  },
-  {
-    key: 'total',
-    header: 'Total a pagar',
-    className: 'font-black text-purple-700',
-    render: (c) => `$${(c.monto_base + c.recargo - c.descuento).toLocaleString('es-AR')}`,
-  },
-  {
-    key: 'vencimiento',
-    header: 'Vencimiento',
-    className: 'text-textMuted',
-    render: (c) => formatFecha(c.fecha_vencimiento),
-  },
-  {
-    key: 'estado',
-    header: 'Estado',
-    movil: 'pie',
-    render: (c) => <Badge color={CUOTA_COLOR[c.estado] ?? '#6B6B8A'}>{c.estado}</Badge>,
-  },
 ]
 
 // ═══════════════════════════════════════════════════════════════
@@ -320,8 +263,8 @@ export default function StudentPortal() {
   const [authChecked, setAuthChecked] = useState(false)
   const [hijos, setHijos] = useState<Alumno[]>([])
   const [alumno, setAlumno] = useState<Alumno | null>(null)
+  const finanzas = useFinanzas(alumno?.id_alumno ?? null)
   const [calificaciones, setCalificaciones] = useState<Calificacion[]>([])
-  const [cuotas, setCuotas] = useState<Cuota[]>([])
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
   const [horarioHoy, setHorarioHoy] = useState<HorarioHoy[]>([])
   const [asistStats, setAsistStats] = useState<AsistenciaStats | null>(null)
@@ -378,7 +321,6 @@ export default function StudentPortal() {
     await Promise.all([
       loadNotificaciones(),
       a ? loadCalificaciones(a.id_alumno) : Promise.resolve(),
-      a ? loadCuotas(a.id_alumno) : Promise.resolve(),
       a ? loadHorarioHoy(a.id_curso) : Promise.resolve(),
       a ? loadAsistencias(a.id_alumno) : Promise.resolve(),
       a ? loadActividades(a.id_alumno) : Promise.resolve(),
@@ -477,13 +419,6 @@ export default function StudentPortal() {
       `/alumnos/${idAlumno}/calificaciones?limit=20`,
     )
     setCalificaciones(data ?? [])
-  }
-
-  async function loadCuotas(idAlumno: number) {
-    const { data } = await api.get<Cuota[]>(
-      `/alumnos/${idAlumno}/cuotas${qs({ estado: 'Pendiente,Vencida,En mora' })}`,
-    )
-    setCuotas(data ?? [])
   }
 
   async function loadNotificaciones() {
@@ -713,9 +648,9 @@ export default function StudentPortal() {
                   {notifNoLeidas}
                 </span>
               )}
-              {item.key === 'cuotas' && cuotas.length > 0 && (
+              {item.key === 'cuotas' && finanzas.pendientes.length > 0 && (
                 <span className='bg-red text-white rounded-[20px] px-2 py-px text-[11px] font-black'>
-                  {cuotas.length}
+                  {finanzas.pendientes.length}
                 </span>
               )}
             </button>
@@ -794,12 +729,12 @@ export default function StudentPortal() {
                   </div>
                   <div
                     className='text-[26px] font-black leading-none'
-                    style={{ color: cuotas.length > 0 ? '#E74C3C' : '#27AE60' }}
+                    style={{ color: finanzas.pendientes.length > 0 ? '#E74C3C' : '#27AE60' }}
                   >
-                    {cuotas.length}
+                    {finanzas.pendientes.length}
                   </div>
                   <div className='text-[11px] text-textMuted font-bold mt-1'>
-                    Cuotas pendientes
+                    Facturas pendientes
                   </div>
                 </div>
                 {/* Notificaciones */}
@@ -1043,34 +978,8 @@ export default function StudentPortal() {
             </div>
           )}
 
-          {/* ━━━━━ CUOTAS ━━━━━ */}
-          {activeNav === 'cuotas' && (
-            <div className='bg-white rounded-card p-6 shadow-card border border-border'>
-              <div className='text-[15px] font-extrabold text-text mb-5 flex items-center gap-2'>
-                💳 Mis Cuotas Pendientes
-              </div>
-              {cuotas.length === 0 ? (
-                <div className='flex flex-col items-center justify-center py-8 text-textMuted text-[13px] gap-2.5'>
-                  <span className='text-[44px]'>✅</span>
-                  <span className='text-green font-extrabold text-[15px]'>
-                    ¡Estás al día con todas tus cuotas!
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <div className='bg-red/[0.06] border border-red/[0.19] rounded-[12px] px-4 py-3 mb-5 text-[13px] text-red font-bold'>
-                    ⚠️ Tenés {cuotas.length} cuota{cuotas.length > 1 ? 's' : ''}{' '}
-                    sin abonar. Regularizá tu situación para evitar recargos.
-                  </div>
-                  <ResponsiveTable
-                    columnas={COLUMNAS_CUOTAS}
-                    filas={cuotas}
-                    filaKey={(c) => c.id_cuota}
-                  />
-                </>
-              )}
-            </div>
-          )}
+          {/* ━━━━━ CUOTAS: facturas y pagos ━━━━━ */}
+          {activeNav === 'cuotas' && <FinanzasAlumno finanzas={finanzas} />}
 
           {/* ━━━━━ HORARIO ━━━━━ */}
           {activeNav === 'horario' && (
@@ -1466,7 +1375,7 @@ export default function StudentPortal() {
         items={NAV_ITEMS}
         activo={activeNav}
         onSelect={setActiveNav}
-        contadores={{ notificaciones: notifNoLeidas, cuotas: cuotas.length }}
+        contadores={{ notificaciones: notifNoLeidas, cuotas: finanzas.pendientes.length }}
       />
 
       {cambiandoPassword && (
