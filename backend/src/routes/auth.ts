@@ -3,6 +3,7 @@ import { Router } from 'express'
 import { HttpError } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { firmarToken, requireAuth } from '../middleware/auth.js'
+import { pedirRecuperacion, recuperacionDisponible, restablecerPassword } from '../services/recuperacion.js'
 
 export const authRouter = Router()
 
@@ -44,6 +45,29 @@ authRouter.post('/password', requireAuth, async (req, res) => {
     where: { id_usuario: usuario.id_usuario },
     data: { password_hash: await bcrypt.hash(nueva, 10) },
   })
+  res.json({ ok: true })
+})
+
+/**
+ * Pide el enlace para elegir una contraseña nueva (T20). Responde siempre lo
+ * mismo, exista o no el email, y sin esperar el envío: ni la respuesta ni el
+ * tiempo que tarda dicen si el email está registrado.
+ */
+authRouter.post('/recuperar', (req, res) => {
+  const email = String(req.body?.email ?? '').trim().toLowerCase()
+  if (!email) throw new HttpError(400, 'Ingresá tu email')
+  if (!recuperacionDisponible()) {
+    throw new HttpError(503, 'La recuperación por email no está disponible. Pedile a la institución que te cambie la contraseña.')
+  }
+  pedirRecuperacion(email).catch((err: unknown) => {
+    console.error('Error al mandar el email de recuperación:', err)
+  })
+  res.json({ ok: true })
+})
+
+/** Elige la contraseña nueva con el token del enlace (vale 30 minutos y una sola vez). */
+authRouter.post('/restablecer', async (req, res) => {
+  await restablecerPassword(String(req.body?.token ?? ''), String(req.body?.password ?? ''))
   res.json({ ok: true })
 })
 

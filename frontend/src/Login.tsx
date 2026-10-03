@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { getSession, login } from './lib/auth'
+import { api } from './lib/api'
 import { PasswordInput } from './ui/components'
 
 export default function Login() {
@@ -10,6 +11,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
   const [error, setError] = useState('')
+  // "¿Olvidaste tu contraseña?" (T20): pide el enlace por email en la misma tarjeta.
+  const [recuperando, setRecuperando] = useState(false)
+  const [pedido, setPedido] = useState(false)
 
   // Si ya hay sesión activa, redirigir directamente
   useEffect(() => {
@@ -48,6 +52,22 @@ export default function Login() {
 
     redirectByRole(data.rol)
     setLoading(false)
+  }
+
+  const pedirEnlace = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    const { error: err } = await api.post('/auth/recuperar', { email })
+    setLoading(false)
+    if (err) setError(err.message)
+    else setPedido(true)
+  }
+
+  const volverAlLogin = () => {
+    setRecuperando(false)
+    setPedido(false)
+    setError('')
   }
 
   if (checking) {
@@ -94,6 +114,59 @@ export default function Login() {
           </div>
         </div>
 
+        {recuperando ? (
+          <form onSubmit={pedirEnlace} className='flex flex-col gap-4'>
+            <div className='text-[15px] font-extrabold text-text'>Recuperar la contraseña</div>
+            {pedido ? (
+              <div role='status' className='text-[13px] text-text leading-relaxed'>
+                Si <strong>{email}</strong> está registrado, te mandamos un email con un enlace para elegir una contraseña
+                nueva. Vale por 30 minutos. Revisá también el correo no deseado.
+              </div>
+            ) : (
+              <>
+                <p className='text-[13px] text-textMuted m-0 leading-relaxed'>
+                  Ingresá el email con el que entrás y te mandamos un enlace para elegir una contraseña nueva.
+                </p>
+                <div>
+                  <label htmlFor='recuperar-email' className='text-[11px] font-extrabold text-textMuted block mb-[5px]'>
+                    Correo electrónico
+                  </label>
+                  <input
+                    id='recuperar-email'
+                    type='email'
+                    required
+                    autoFocus
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder='tu@email.com'
+                    className='w-full px-[14px] py-[11px] rounded-input border-2 border-border text-base md:text-[13px] text-text outline-none box-border'
+                  />
+                </div>
+                {error && (
+                  <div role='alert' className='text-[12px] font-bold text-red bg-[#E74C3C12] border border-[#E74C3C40] rounded-lg px-4 py-3'>
+                    ⚠️ {error}
+                  </div>
+                )}
+                <button
+                  type='submit'
+                  disabled={loading}
+                  className={`border-0 rounded-btn py-[13px] text-[14px] font-extrabold cursor-pointer transition-opacity ${
+                    loading ? 'bg-border text-textMuted cursor-not-allowed' : 'bg-gradient-to-br from-purple-700 to-purpleMid text-white'
+                  }`}
+                >
+                  {loading ? 'Enviando...' : 'Mandarme el enlace'}
+                </button>
+              </>
+            )}
+            <button
+              type='button'
+              onClick={volverAlLogin}
+              className='bg-transparent border-0 text-[13px] font-bold text-purple-700 cursor-pointer min-h-11'
+            >
+              ← Volver a ingresar
+            </button>
+          </form>
+        ) : (
         <form onSubmit={handleLogin} className='flex flex-col gap-4'>
           <div>
             <label className='text-[11px] font-extrabold text-textMuted block mb-[5px]'>
@@ -123,6 +196,16 @@ export default function Login() {
               placeholder='••••••••'
               className='w-full px-[14px] py-[11px] rounded-input border-2 border-border text-base md:text-[13px] text-text outline-none box-border'
             />
+            <button
+              type='button'
+              onClick={() => {
+                setError('')
+                setRecuperando(true)
+              }}
+              className='bg-transparent border-0 p-0 mt-2 text-[12px] font-bold text-purple-700 cursor-pointer min-h-11'
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
           </div>
 
           {error && (
@@ -143,6 +226,7 @@ export default function Login() {
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
+        )}
 
         <p className='text-center text-[11px] text-textMuted mt-6 leading-relaxed'>
           Accedés con las credenciales provistas por la institución.
