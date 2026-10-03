@@ -68,11 +68,11 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | --- | --- | --- | --- | --- | --- | --- |
 | T01. Modelo de datos financiero: `Tarifa`, `Factura`, `ItemFactura`, `OrdenPago`, `ComprobanteTransferencia`, `Pago` ligado a factura e ítems, `EnvioEmail`, `TokenRecuperacion`; migración de las cuotas existentes | — | 0 | Iván | — | 2 días | Hecho |
 | T02. Email (nodemailer + Gmail con contraseña de aplicación) y tareas programadas (node-cron, feriados, `ultimoDiaHabil()` con pruebas) | — | 0 | Iván | — | 1,5 días | Hecho |
-| T03. Pruebas y CI: Vitest + Supertest en `backend/`, GitHub Actions con lint, build y test | — | 0 | Juan Manuel | — | 1 día | En revisión |
+| T03. Pruebas y CI: Vitest + Supertest en `backend/`, GitHub Actions con lint, build y test | — | 0 | Juan Manuel | — | 1 día | Hecho |
 | T04. Quitar "Efectivo" (backend, `constants`, `RegistrarPagos`) y bucket privado de comprobantes con descarga autenticada | — | 0 | Juan Manuel | — | 1 día | En revisión |
-| T05. `BITACORA-IA.md` con la plantilla de la consigna | — | 0 | Juan Manuel | — | 0,5 días | En revisión |
+| T05. `BITACORA-IA.md` con la plantilla de la consigna | — | 0 | Juan Manuel | — | 0,5 días | Hecho |
 | T06. Tarifas: ABM por concepto con vigencia y pantalla admin; horario y profesor del deporte (deuda de la Parte 2) | HU04–HU07 | 1 | Iván | T01 | 2,5 días | En revisión |
-| T07. Inscripciones con vigencia (transporte, comedor, deportes) sin romper el tope de 2 ni el cupo | HU08 | 1 | Juan Manuel | T01 | 2 días | En revisión |
+| T07. Inscripciones con vigencia (transporte, comedor, deportes) sin romper el tope de 2 ni el cupo | HU08 | 1 | Juan Manuel | T01 | 2 días | Hecho |
 | T08. Facturación mensual con Strategy, becas, PDF de la factura y botón "Generar facturas" | HU09 | 1 | Iván | T06, T07 | 3 días | Pendiente |
 | T09. Login/logout en la PWA instalada y pruebas 401/403 de los endpoints nuevos | HU01 | 1 | Iván | T03 | 0,5 días | Pendiente |
 | T10. Cambio de contraseña en la PWA y su prueba automática | HU02 | 1 | Juan Manuel | T03 | 0,5 días | Pendiente |
@@ -184,7 +184,7 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** sobre una base con `seed:demo`, la migración pasa las 984 cuotas a 984 facturas con 1165 ítems. Se cumplen los tres invariantes en todas las facturas, cada pago suma lo mismo que sus imputaciones y `prisma migrate diff` no encuentra diferencias con el schema. `typecheck` sin errores y `seed:demo` corre igual con el schema nuevo.
 - **Falta:** respaldar la base de producción antes de desplegar. Hasta que T08 y T14 reemplacen las pantallas, "Generar cuotas" y "Registrar pago" siguen escribiendo solo en `cuotas` y no actualizan las facturas. Conviene no usarlas en producción en ese tiempo, o regenerar las facturas del mes con T08.
 
-### T07 — Inscripciones con vigencia (Juan Manuel): en revisión
+### T07 — Inscripciones con vigencia (Juan Manuel): hecho, mergeado en el PR #29
 
 - **Qué quedó:** la migración `20261003134629_vigencias_servicio` crea la tabla `vigencias_servicio` (modelo `VigenciaServicio`): una fila por alumno, concepto (`Deporte`, `Transporte` o `Comedor`) y referencia (la actividad o el recorrido; vacía en Comedor), con `desde` y `hasta` (vacío mientras sigue vigente). No toca ninguna tabla existente: las inscripciones siguen mandando para el cupo, el tope de 2 deportes y los listados. `services/vigencias.ts` tiene `abrirVigencia`, `cerrarVigencia` y `cambiarVigencia`, que las rutas llaman dentro de la misma transacción que la inscripción (`routes/actividades.ts` y `routes/servicios.ts`): el alta abre una vigencia, la baja la cierra con la fecha de la baja y cambiar de recorrido cierra la anterior y abre la nueva. Solo los deportes llevan vigencia, porque es lo único que se factura. La migración deja vigente, desde su fecha de inscripción, todo lo que ya estaba inscripto.
 - **Regla de la baja:** rige desde el mes siguiente. Si se da de baja durante noviembre, noviembre se cobra completo y diciembre no; es lo que ya hace `vigenteEnPeriodo()` de T08 (`hasta >= inicio del mes`). Un cambio de recorrido a mitad de mes deja dos vigencias que tocan ese mes; la facturación tiene que quedarse con la más reciente.
@@ -192,7 +192,7 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** `typecheck` y `build` del backend sin errores, y `prisma migrate diff` sin diferencias con el schema. Sobre una base descartable con `seed:demo`, el backfill deja 89 deportes, 62 de transporte y 49 de comedor (una por inscripción) y el seed genera las mismas. Con la API real: alta, mismo recorrido con observaciones (sin duplicar), cambio, baja de transporte, alta repetida y baja de comedor, y alta y baja de un deporte y de un idioma (el idioma no genera vigencia). Un alta rechazada por el tope o por duplicada no deja vigencias de más, el tope de 2 deportes sigue funcionando y al final las vigencias abiertas coinciden con las inscripciones.
 - **Falta:** que `alumnosFacturables()` de T08 (`services/facturacion/generar.ts`) lea de `vigencias_servicio` en lugar de `fecha_inscripcion`: hasta entonces la facturación sigue como está y no se rompe nada. Rechazar la inscripción a un deporte cuyo horario choca con otro del alumno (HU 2 de `PENDIENTES.md`) queda para un PR aparte. Después de traer esta rama hay que correr `npm run db:sync` en `backend/` para aplicar la migración.
 
-### T05 — Bitácora de IA (Juan Manuel): en revisión
+### T05 — Bitácora de IA (Juan Manuel): hecho, mergeado en el PR #28
 
 - **Qué quedó:** `BITACORA-IA.md` en la raíz, con las columnas que pide el plan (problema, prompt, respuesta, si funcionó, qué se cambió y resultado) más número, fecha, tarea o PR, quién y herramienta. Incluye cómo completar cada columna y la primera fila, la de T03. Desde ahora cada PR que use IA suma sus filas ahí, en el mismo PR.
 - **Verificado:** se revisó que el archivo no tenga datos personales ni claves. Falta mirarlo en la vista previa del PR, para ver que las tablas se muestren bien.
@@ -212,7 +212,7 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** `typecheck` y `build` del backend, y `tsc -b` y `build` del frontend, sin errores. El lint del frontend sigue en los 46 errores de `main`, sin ninguno nuevo.
 - **Falta:** el endpoint de subida (T13) usará el bucket `comprobantes` y deberá limitar el tipo de archivo a foto o PDF. Los archivos de `documentos-alumnos` siguen siendo públicos por URL; no son comprobantes y quedan fuera de esta tarea. En producción, `uploads/` ya es el volumen persistente (`/app/uploads`), así que no hace falta configurar nada más.
 
-### T03 — Pruebas y CI (Juan Manuel): en revisión
+### T03 — Pruebas y CI (Juan Manuel): hecho, mergeado en el PR #27
 
 - **Qué quedó:** Supertest en `backend/` y `.github/workflows/ci.yml`, que corre en cada PR a `main` y en cada push a `main`. Backend: `prisma generate`, `typecheck`, `build` y `npm test`. Frontend: `tsc -b`, `build` y `lint`. Node 22 y pnpm 10.29.3, como el `Dockerfile`. `test/seguridad.test.ts` prueba la API real (`app`) sin base de datos: `test/ayudas.ts` reemplaza a Prisma por dobles y firma los tokens con el secreto de `vitest.config.ts`. Cubre `GET /api/health`, el 404 de la API, el 401 (sin token, token inválido, firmado con otro secreto, vencido y de un usuario inexistente), el 403 (usuario desactivado; Padre, Alumno y Docente en las rutas de administración) y la pertenencia padre–hijo en `GET /api/alumnos/:id`. Para sumar un caso, agregar la ruta a `RUTAS_CON_SESION` o `RUTAS_DE_ADMIN`.
 - **Verificado:** `npm test` corre 47 pruebas (23 de T02 y 24 nuevas); `typecheck` y `build` del backend, y `tsc -b`, `build` y `pnpm install --frozen-lockfile` del frontend, sin errores.
