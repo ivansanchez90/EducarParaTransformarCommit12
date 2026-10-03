@@ -38,6 +38,8 @@ export const config = {
   // Remitente que ven las familias. Gmail solo acepta la cuenta de SMTP_USER
   // (o un alias verificado de esa cuenta).
   mailFrom: process.env.MAIL_FROM ?? '',
+  // Pausa entre los emails de un envío masivo (fin de mes): Gmail corta los muy seguidos.
+  emailPausaMs: Number(process.env.EMAIL_PAUSA_MS ?? 1000),
   // Tareas programadas (emails del último día hábil y del día 20). Se apagan
   // con TAREAS_PROGRAMADAS=false, por ejemplo en una segunda instancia.
   tareasProgramadas: process.env.TAREAS_PROGRAMADAS !== 'false',

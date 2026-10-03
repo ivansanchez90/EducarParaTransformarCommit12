@@ -276,6 +276,59 @@ export interface ResultadoGeneracion {
   errores: { id_alumno: number; alumno: string; motivo: string }[]
 }
 
+/** Resultado del email de fin de mes (`POST /api/tareas/recordatorio-mensual`). */
+export interface ResultadoFinDeMes {
+  anio: number
+  mes: number
+  facturacion: ResultadoGeneracion
+  emailApagado: boolean
+  familias: number
+  enviados: number
+  yaEnviados: number
+  sinDestinatario: string[]
+  errores: { email: string; motivo: string }[]
+}
+
+export type EstadoComprobante = 'En revisión' | 'Aprobado' | 'Rechazado'
+
+/** Comprobante de transferencia en la bandeja del admin (`GET /api/comprobantes`). */
+export interface ComprobanteBandeja {
+  id_comprobante: number
+  id_factura: number
+  id_orden: number | null
+  /** Lo que declaró la familia al subirlo. */
+  importe: number
+  fecha_transferencia: string
+  estado: EstadoComprobante
+  motivo_rechazo: string | null
+  fecha_carga: string
+  fecha_revision: string | null
+  facturas: {
+    numero: number
+    anio: number
+    mes: number
+    total: number
+    saldo: number
+    fecha_vencimiento: string
+    alumnos: {
+      id_alumno: number
+      nombre: string
+      apellido: string
+      dni: string
+      cursos: { nivel: string; grado_anio: string; division: string } | null
+    }
+  }
+  ordenes_pago: {
+    numero: number
+    total: number
+    items: { importe: number; items: { concepto: string; descripcion: string } }[]
+  } | null
+  carga: { nombre: string; apellido: string; email: string } | null
+  revision: { nombre: string; apellido: string } | null
+  /** El pago que generó al aprobarse. */
+  pagos: { id_pago: number; monto_pagado: number; fecha_pago: string } | null
+}
+
 export interface OpcionesTarifa {
   niveles: string[]
   deportes: { id: number; nombre: string }[]

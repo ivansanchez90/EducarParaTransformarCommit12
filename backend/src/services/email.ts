@@ -45,6 +45,10 @@ const transporte = crearTransporte()
 
 export const emailHabilitado = transporte !== null
 
+/** Escapa un texto para meterlo en el HTML de un email (nombres, motivos, descripciones). */
+export const escaparHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+
 const remitente = config.mailFrom || `Educar para Transformar <${config.smtpUser}>`
 
 /**

@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import { api, descargar, qs } from '../../lib/api'
 import { MESES } from '../../constants'
-import type { EstadoFactura, Factura, ResultadoGeneracion } from '../../types'
+import type { EstadoFactura, Factura, ResultadoFinDeMes, ResultadoGeneracion } from '../../types'
 import { Badge, Card, FormMessage, ResponsiveTable, SectionHeader, type Columna } from '../../ui/components'
 import { btnPrimary, btnSecondary, btnSecondarySm, fieldLabel, inputField, selectField, touchTarget } from '../../ui/styles'
 
@@ -44,6 +44,8 @@ export function GestionFacturacion() {
   const [filtro, setFiltro] = useState<EstadoFactura | ''>('')
   const [generando, setGenerando] = useState(false)
   const [resultado, setResultado] = useState<ResultadoGeneracion | null>(null)
+  const [enviando, setEnviando] = useState(false)
+  const [envio, setEnvio] = useState<ResultadoFinDeMes | null>(null)
   const [error, setError] = useState('')
   const [version, setVersion] = useState(0)
 
@@ -70,6 +72,20 @@ export function GestionFacturacion() {
     setGenerando(false)
     if (error) setError(error.message)
     else setResultado(data)
+    setVersion((v) => v + 1)
+  }
+
+  /** Lo mismo que hace el cron el último día hábil: emite las que falten y manda el email a quien no lo recibió. */
+  const enviarEmails = async () => {
+    if (!confirm(`¿Mandar por email las facturas de ${nombreMes} a las familias? A las que ya lo recibieron no se les reenvía.`)) return
+    setEnviando(true)
+    setEnvio(null)
+    setResultado(null)
+    setError('')
+    const { data, error } = await api.post<ResultadoFinDeMes>('/tareas/recordatorio-mensual', periodo)
+    setEnviando(false)
+    if (error) setError(error.message)
+    else setEnvio(data)
     setVersion((v) => v + 1)
   }
 
@@ -123,7 +139,7 @@ export function GestionFacturacion() {
 
       <Card className='mb-5'>
         <div className='text-[15px] font-extrabold text-text mb-5'>Generar las facturas del mes</div>
-        <div className='grid grid-cols-2 md:grid-cols-[200px_140px_auto] gap-[14px] items-end'>
+        <div className='grid grid-cols-2 md:grid-cols-[200px_140px_auto_1fr] gap-[14px] items-end'>
           <div>
             <label className={fieldLabel} htmlFor='fact-mes'>
               Mes
@@ -162,15 +178,54 @@ export function GestionFacturacion() {
           >
             {generando ? 'Generando...' : `Generar facturas de ${nombreMes}`}
           </button>
+          <button
+            className={`${btnSecondary} ${touchTarget} col-span-2 md:col-span-1 md:justify-self-start`}
+            disabled={generando || enviando}
+            onClick={enviarEmails}
+          >
+            {enviando ? 'Enviando (puede tardar unos minutos)...' : '📧 Enviar por email'}
+          </button>
         </div>
         <p className='text-[12px] text-textMuted mt-4 mb-0'>
           Una factura por alumno activo con su cuota, deportes, transporte, comedor y beca, con los precios vigentes el
-          1 de {MESES[periodo.mes - 1].toLowerCase()}. Volver a generar no duplica: solo emite las que falten.
+          1 de {MESES[periodo.mes - 1].toLowerCase()}. Volver a generar no duplica: solo emite las que falten. El último
+          día hábil de cada mes el sistema emite y manda por email las del mes siguiente; "Enviar por email" hace lo mismo
+          a mano.
         </p>
 
         {error && (
           <div className='mt-4' role='alert'>
             <FormMessage ok={false}>{error}</FormMessage>
+          </div>
+        )}
+        {envio && (
+          <div className='mt-4' role='status'>
+            <FormMessage ok={!envio.emailApagado && envio.errores.length === 0}>
+              {envio.emailApagado
+                ? 'El envío de emails está apagado en el servidor (faltan SMTP_USER y SMTP_PASS).'
+                : `Se mandaron ${envio.enviados} email(s).` +
+                  (envio.yaEnviados > 0 ? ` ${envio.yaEnviados} familia(s) ya lo habían recibido.` : '') +
+                  (envio.errores.length > 0 ? ` ${envio.errores.length} fallaron:` : '')}
+            </FormMessage>
+            {envio.errores.length > 0 && (
+              <ul className='mt-2 mb-0 pl-5 text-[13px] text-text max-h-60 overflow-y-auto'>
+                {envio.errores.map((e) => (
+                  <li key={e.email}>
+                    <strong>{e.email}:</strong> {e.motivo}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {envio.sinDestinatario.length > 0 && (
+              <div className='text-[12px] text-textMuted mt-2'>
+                Sin usuario activo a quien escribirle: {envio.sinDestinatario.join(', ')}.
+              </div>
+            )}
+            {envio.facturacion.errores.length > 0 && (
+              <div className='text-[12px] text-red mt-2'>
+                {envio.facturacion.errores.length} factura(s) no se pudieron emitir (falta una tarifa o un curso).
+              </div>
+            )}
           </div>
         )}
         {resultado && (

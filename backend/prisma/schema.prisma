@@ -530,7 +530,7 @@ model EnvioEmail {
   /// Familia destinataria (un email por familia, no por hijo)
   id_usuario String    @db.Uuid
   email      String
-  /// Pendiente | Enviado | Error
+  /// Pendiente | Enviando | Enviado | Error ("Enviando": tomado por una ejecución, ver jobs/emailFinDeMes.ts)
   estado     String    @default("Pendiente")
   intentos   Int       @default(0)
   error      String?
