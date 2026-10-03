@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import { api, descargar, qs } from '../../lib/api'
 import { MESES } from '../../constants'
-import type { EstadoFactura, Factura, ResultadoFinDeMes, ResultadoGeneracion } from '../../types'
+import type { EstadoFactura, Factura, ResultadoAvisoDeuda, ResultadoFinDeMes, ResultadoGeneracion } from '../../types'
 import { Badge, Card, FormMessage, ResponsiveTable, SectionHeader, type Columna } from '../../ui/components'
 import { btnPrimary, btnSecondary, btnSecondarySm, fieldLabel, inputField, selectField, touchTarget } from '../../ui/styles'
 
@@ -46,6 +46,8 @@ export function GestionFacturacion() {
   const [resultado, setResultado] = useState<ResultadoGeneracion | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [envio, setEnvio] = useState<ResultadoFinDeMes | null>(null)
+  const [avisando, setAvisando] = useState(false)
+  const [aviso, setAviso] = useState<ResultadoAvisoDeuda | null>(null)
   const [error, setError] = useState('')
   const [version, setVersion] = useState(0)
 
@@ -87,6 +89,20 @@ export function GestionFacturacion() {
     if (error) setError(error.message)
     else setEnvio(data)
     setVersion((v) => v + 1)
+  }
+
+  /** Lo mismo que hace el cron el día 20: avisa a las familias con facturas vencidas a esa fecha. */
+  const avisarDeuda = async () => {
+    if (!confirm(`¿Avisar a las familias con facturas vencidas al 20/${periodo.mes}/${periodo.anio}? A las que ya se les avisó ese mes no se les repite.`)) return
+    setAvisando(true)
+    setAviso(null)
+    setEnvio(null)
+    setResultado(null)
+    setError('')
+    const { data, error } = await api.post<ResultadoAvisoDeuda>('/tareas/aviso-deuda', periodo)
+    setAvisando(false)
+    if (error) setError(error.message)
+    else setAviso(data)
   }
 
   const bajarPdf = async (f: Factura) => {
@@ -139,7 +155,7 @@ export function GestionFacturacion() {
 
       <Card className='mb-5'>
         <div className='text-[15px] font-extrabold text-text mb-5'>Generar las facturas del mes</div>
-        <div className='grid grid-cols-2 md:grid-cols-[200px_140px_auto_1fr] gap-[14px] items-end'>
+        <div className='grid grid-cols-2 md:grid-cols-[200px_140px_auto_auto_1fr] gap-[14px] items-end'>
           <div>
             <label className={fieldLabel} htmlFor='fact-mes'>
               Mes
@@ -180,22 +196,55 @@ export function GestionFacturacion() {
           </button>
           <button
             className={`${btnSecondary} ${touchTarget} col-span-2 md:col-span-1 md:justify-self-start`}
-            disabled={generando || enviando}
+            disabled={generando || enviando || avisando}
             onClick={enviarEmails}
           >
             {enviando ? 'Enviando (puede tardar unos minutos)...' : '📧 Enviar por email'}
+          </button>
+          <button
+            className={`${btnSecondary} ${touchTarget} col-span-2 md:col-span-1 md:justify-self-start`}
+            disabled={generando || enviando || avisando}
+            onClick={avisarDeuda}
+          >
+            {avisando ? 'Avisando...' : `📣 Avisar deuda al 20/${periodo.mes}`}
           </button>
         </div>
         <p className='text-[12px] text-textMuted mt-4 mb-0'>
           Una factura por alumno activo con su cuota, deportes, transporte, comedor y beca, con los precios vigentes el
           1 de {MESES[periodo.mes - 1].toLowerCase()}. Volver a generar no duplica: solo emite las que falten. El último
-          día hábil de cada mes el sistema emite y manda por email las del mes siguiente; "Enviar por email" hace lo mismo
-          a mano.
+          día hábil de cada mes el sistema emite y manda por email las del mes siguiente, y el día 20 avisa a las familias
+          con facturas vencidas; los botones hacen lo mismo a mano.
         </p>
 
         {error && (
           <div className='mt-4' role='alert'>
             <FormMessage ok={false}>{error}</FormMessage>
+          </div>
+        )}
+        {aviso && (
+          <div className='mt-4' role='status'>
+            <FormMessage ok={aviso.errores.length === 0}>
+              {aviso.familias === 0
+                ? `No hay familias con facturas vencidas al 20/${aviso.mes}/${aviso.anio}.`
+                : `Se avisó a ${aviso.avisadas} familia(s) con deuda.` +
+                  (aviso.yaAvisadas > 0 ? ` ${aviso.yaAvisadas} ya habían recibido el aviso este mes.` : '') +
+                  (aviso.emailApagado ? ' El email está apagado en el servidor: el aviso fue solo en la app y por push.' : '') +
+                  (aviso.errores.length > 0 ? ` ${aviso.errores.length} email(s) fallaron:` : '')}
+            </FormMessage>
+            {aviso.errores.length > 0 && (
+              <ul className='mt-2 mb-0 pl-5 text-[13px] text-text max-h-60 overflow-y-auto'>
+                {aviso.errores.map((e) => (
+                  <li key={e.email}>
+                    <strong>{e.email}:</strong> {e.motivo}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {aviso.sinDestinatario.length > 0 && (
+              <div className='text-[12px] text-textMuted mt-2'>
+                Con deuda pero sin usuario activo a quien avisarle: {aviso.sinDestinatario.join(', ')}.
+              </div>
+            )}
           </div>
         )}
         {envio && (

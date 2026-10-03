@@ -14,6 +14,7 @@
 import cron from 'node-cron'
 import { config } from '../lib/config.js'
 import { diaEnZona, esUltimoDiaHabil, hayFeriadosCargados, type Dia } from './calendario.js'
+import { DIA_AVISO_DEUDA, enviarAvisoDeuda } from './avisoDeuda.js'
 import { enviarFinDeMes, periodoAFacturar } from './emailFinDeMes.js'
 
 export interface TareaProgramada {
@@ -27,7 +28,7 @@ export interface TareaProgramada {
 
 export type ResultadoTarea = 'omitida' | 'ejecutada' | 'fallida'
 
-/** Las tareas del sistema. T18 suma el aviso de deuda del día 20. */
+/** Las tareas del sistema. */
 export const TAREAS: TareaProgramada[] = [
   {
     nombre: 'Email de fin de mes',
@@ -45,6 +46,20 @@ export const TAREAS: TareaProgramada[] = [
       )
       if (r.facturacion.errores.length) console.warn('Facturas que no se pudieron emitir:', r.facturacion.errores)
       if (r.errores.length) console.warn('Emails con error (se reintentan en la próxima vuelta):', r.errores)
+      return r
+    },
+  },
+  {
+    nombre: 'Aviso de deuda',
+    // El día 20 a las 9 y a las 18: la segunda vuelta solo reintenta los emails que fallaron.
+    expresion: `0 9,18 ${DIA_AVISO_DEUDA} * *`,
+    async ejecutar(hoy) {
+      const r = await enviarAvisoDeuda(hoy.anio, hoy.mes)
+      console.log(
+        `Aviso de deuda ${hoy.mes}/${hoy.anio}: ${r.familias} familia(s) con deuda, ${r.avisadas} avisada(s), ` +
+          `${r.yaAvisadas} ya avisada(s), ${r.errores.length} con error${r.emailApagado ? ' (email apagado: solo in-app y push)' : ''}.`,
+      )
+      if (r.errores.length) console.warn('Emails de deuda con error (se reintentan en la próxima vuelta):', r.errores)
       return r
     },
   },
