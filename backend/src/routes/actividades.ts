@@ -8,6 +8,7 @@ import { HttpError, bool, hora, id, numOrNull, textOrNull } from '../lib/http.js
 import { prisma } from '../lib/prisma.js'
 import { cursoResumen, nombreApellido } from '../lib/selects.js'
 import { ROLES_ADMIN, assertAccesoAlumno, esStaff, requireAuth, requireRole } from '../middleware/auth.js'
+import { preciosVigentes } from '../services/precios.js'
 import { abrirVigencia, cerrarVigencia } from '../services/vigencias.js'
 
 export const actividadesRouter = Router()
@@ -32,8 +33,8 @@ function ordenarHorarios<T extends { dia_semana: string }>(horarios: T[]): T[] {
 }
 
 /**
- * Catálogo de actividades con la cantidad de inscriptos.
- * Con ?id_alumno=N agrega `inscripto` indicando si ese alumno ya está anotado.
+ * Catálogo de actividades con la cantidad de inscriptos y el precio mensual vigente
+ * de los deportes. Con ?id_alumno=N agrega `inscripto` indicando si ese alumno ya está anotado.
  */
 actividadesRouter.get('/', async (req, res) => {
   const idAlumno = numOrNull(req.query.id_alumno)
@@ -50,9 +51,12 @@ actividadesRouter.get('/', async (req, res) => {
     },
     orderBy: [{ tipo: 'asc' }, { nombre: 'asc' }],
   })
+  const precioDe = await preciosVigentes()
   res.json(
     actividades.map(({ _count, inscripciones_actividades, horarios, ...a }) => ({
       ...a,
+      // Solo los deportes se cobran aparte; sin tarifa cargada, `null`.
+      precio: a.tipo === TIPO_DEPORTE ? precioDe({ concepto: 'Deporte', id_referencia: a.id_actividad }) : null,
       horarios: ordenarHorarios(horarios),
       inscriptos: _count.inscripciones_actividades,
       ...(idAlumno ? { inscripto: (inscripciones_actividades ?? []).length > 0 } : {}),

@@ -87,6 +87,10 @@ export const rowActions = 'flex gap-2 justify-end'
 export const msgOk = 'text-[13px] font-bold text-green'
 export const msgError = 'text-[13px] font-bold text-red'
 
+/** Precio mensual de un servicio en el portal: con tarifa, y sin tarifa cargada. */
+export const precioMensual = 'text-xs font-black text-purple-700'
+export const precioPorConfirmar = 'text-xs font-bold text-textMuted'
+
 // ── Mobile y bordes del teléfono ────────────────────────────────
 // La app instalada usa `viewport-fit=cover`, así que el contenido puede quedar
 // debajo del gesto de inicio del iPhone o del notch en horizontal. Estas

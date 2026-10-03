@@ -69,13 +69,13 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T01. Modelo de datos financiero: `Tarifa`, `Factura`, `ItemFactura`, `OrdenPago`, `ComprobanteTransferencia`, `Pago` ligado a factura e ítems, `EnvioEmail`, `TokenRecuperacion`; migración de las cuotas existentes | — | 0 | Iván | — | 2 días | Hecho |
 | T02. Email (nodemailer + Gmail con contraseña de aplicación) y tareas programadas (node-cron, feriados, `ultimoDiaHabil()` con pruebas) | — | 0 | Iván | — | 1,5 días | Hecho |
 | T03. Pruebas y CI: Vitest + Supertest en `backend/`, GitHub Actions con lint, build y test | — | 0 | Juan Manuel | — | 1 día | Hecho |
-| T04. Quitar "Efectivo" (backend, `constants`, `RegistrarPagos`) y bucket privado de comprobantes con descarga autenticada | — | 0 | Juan Manuel | — | 1 día | En revisión |
+| T04. Quitar "Efectivo" (backend, `constants`, `RegistrarPagos`) y bucket privado de comprobantes con descarga autenticada | — | 0 | Juan Manuel | — | 1 día | Hecho |
 | T05. `BITACORA-IA.md` con la plantilla de la consigna | — | 0 | Juan Manuel | — | 0,5 días | Hecho |
 | T06. Tarifas: ABM por concepto con vigencia y pantalla admin; horario y profesor del deporte (deuda de la Parte 2) | HU04–HU07 | 1 | Iván | T01 | 2,5 días | En revisión |
 | T07. Inscripciones con vigencia (transporte, comedor, deportes) sin romper el tope de 2 ni el cupo | HU08 | 1 | Juan Manuel | T01 | 2 días | Hecho |
 | T08. Facturación mensual con Strategy, becas, PDF de la factura y botón "Generar facturas" | HU09 | 1 | Iván | T06, T07 | 3 días | Pendiente |
 | T09. Login/logout en la PWA instalada y pruebas 401/403 de los endpoints nuevos | HU01 | 1 | Iván | T03 | 0,5 días | Pendiente |
-| T10. Cambio de contraseña en la PWA y su prueba automática | HU02 | 1 | Juan Manuel | T03 | 0,5 días | En revisión |
+| T10. Cambio de contraseña en la PWA y su prueba automática | HU02 | 1 | Juan Manuel | T03 | 0,5 días | Hecho |
 | T11. Portal: cuotas pendientes y pagadas, e historial de pagos | HU10, HU11 | 2 | Juan Manuel | T08 | 2 días | Pendiente |
 | T12. Portal: elegir ítems y emitir el comprobante de pago (PDF con datos bancarios) | HU12 | 2 | Juan Manuel | T08 | 2,5 días | Pendiente |
 | T13. Portal: subir comprobantes de transferencia (foto o PDF, varios por factura) | HU13 | 2 | Juan Manuel | T04, T08 | 1,5 días | Pendiente |
@@ -84,7 +84,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T16. Portal: deuda por ítem | HU16 | 3 | Juan Manuel | T14 | 1,5 días | Pendiente |
 | T17. Email del último día hábil con la composición y la factura adjunta | HU17 | 3 | Iván | T02, T08 | 2,5 días | Pendiente |
 | T18. Email del día 20 con la deuda (más in-app y push) | HU18 | 3 | Iván | T14 | 1,5 días | Pendiente |
-| T19. Portal: precio de cada servicio en "Transporte y comedor" y "Extracurriculares" | HU24 | 3 | Juan Manuel | T06 | 0,5 días | Pendiente |
+| T19. Portal: precio de cada servicio en "Transporte y comedor" y "Extracurriculares" | HU24 | 3 | Juan Manuel | T06 | 0,5 días | En revisión |
 | T20. Recuperar la contraseña por email | HU03 | 4 | Iván | T02 | 1,5 días | Pendiente |
 | T21. Reportes: ingresos por período, pagos completos e incompletos por año y alumno (PDF y CSV) | HU19–HU21 | 4 | Juan Manuel | T14 | 2 días | Pendiente |
 | T22. Reportes: pagos por deporte/nivel/horario/profesor y por recorrido | HU22, HU23 | 4 | Iván | T06, T21 | 1,5 días | Pendiente |
@@ -198,12 +198,19 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** se revisó que el archivo no tenga datos personales ni claves. Falta mirarlo en la vista previa del PR, para ver que las tablas se muestren bien.
 - **Falta:** confirmar con la consigna de la cátedra si la plantilla oficial pide otras columnas; si las pide, se agregan acá. Iván completa sus filas desde su próximo PR.
 
-### T10 — Cambio de contraseña en la PWA (Juan Manuel): en revisión
+### T10 — Cambio de contraseña en la PWA (Juan Manuel): hecho, mergeado en el PR #31
 
 - **Qué quedó:** el cambio ya existía y no hizo falta tocarlo: el diálogo `features/cuenta/CambiarPassword.tsx` (contraseña actual, nueva y repetición; deshabilitado sin conexión) se abre con *Mi contraseña* desde el menú del avatar del panel (Admin, Directivo y Docente) y del portal de familias, y llama a `POST /api/auth/password`, que pide la actual, exige al menos 6 caracteres y una distinta de la actual, y guarda el hash con bcrypt. Lo que faltaba era su prueba automática: `test/password.test.ts` (15 pruebas).
 - **Pruebas:** sin sesión es 401 y un usuario desactivado es 403; los cinco casos de 400 (nueva corta o ausente, igual a la actual, actual incorrecta o ausente) no modifican nada; los cinco roles pueden cambiarla; solo se guarda el hash de la nueva, para el usuario de la sesión (aunque el cuerpo traiga el id de otro); y la respuesta no filtra ningún hash. Total: 68 pruebas.
 - **Verificado:** `typecheck` sin errores. Quitando la regla "distinta de la actual", o guardando la contraseña sin hash, las pruebas fallan. Con la API real sobre `seed:demo`: la nueva corta, la igual y la actual incorrecta devuelven 400; el cambio correcto devuelve 200; después la contraseña vieja da 401 y la nueva 200, el mismo token sigue valiendo y la base guarda el hash (`$2b$`), no el texto.
 - **Falta:** no se probó el diálogo en un teléfono real ni a 375 px, porque no se modificó; queda para la prueba integral (T23). El cambio no cierra las sesiones abiertas en otros dispositivos.
+
+### T19 — Precio de cada servicio en el portal (Juan Manuel): en revisión
+
+- **Qué quedó:** la familia ve el precio mensual vigente de cada servicio. `services/precios.ts` (`preciosVigentes()`) lee las tarifas que rigen hoy con `tarifasVigentes()` de T06 y devuelve el precio de cada servicio, o `null` si todavía no hay una cargada; una tarifa programada para más adelante no cuenta hasta su fecha. `GET /api/actividades` suma `precio` (solo en los deportes; los idiomas no se cobran aparte, así que traen `null`), `GET /api/recorridos` suma `precio`, y `GET /api/servicios/:idAlumno` suma `precio_transporte` (el del recorrido que usa el alumno, aunque el recorrido ya no esté activo) y `precio_comedor`. En el portal, el componente `PrecioMensual` (`ui/components.tsx`) se muestra en las tarjetas de *Extracurriculares* (deportes) y de *Transporte y comedor* (comedor, recorrido actual y cada recorrido disponible); sin tarifa dice "Precio a confirmar".
+- **Pruebas:** 7 nuevas en `test/precios.test.ts` (91 en total): precio de deportes y recorridos con y sin tarifa, un idioma sin precio aunque exista una tarifa con su id, precios del alumno (recorrido y comedor), `null` sin transporte o sin tarifa, que solo se pidan tarifas hasta hoy, y 403 para una familia ajena.
+- **Verificado:** `typecheck` y `build` del backend, y `tsc -b` y `build` del frontend, sin errores. El lint del frontend sigue en los 46 errores de `main`, ninguno nuevo. Quitando la condición de "solo deportes" o la fecha de hoy, las pruebas fallan. Con la API real sobre `seed:demo` y cuatro tarifas cargadas por SQL: el deporte con tarifa trae 12500 y los demás `null`, el recorrido con tarifa trae 8000, el que solo tiene una tarifa de 2027 trae `null`, y el comedor trae 15000.
+- **Falta:** no se pudo mirar la pantalla en un teléfono ni a 375 px (la extensión del navegador no estaba conectada); queda para la prueba integral (T23). El precio es el mensual de la tarifa; no se suma a ninguna factura, de eso se encarga T08. Las tarifas reales se cargan desde *Tarifas*.
 
 ### T02 — Email y tareas programadas (Iván): hecho, mergeado en el PR #25
 
@@ -212,7 +219,7 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** `typecheck` sin errores. La API arranca sin claves de email (envío apagado) y con una contraseña inválida (Gmail la rechaza, sale en el log y la API sigue). Un cron real de prueba se ejecuta cada segundo con el día de Argentina.
 - **Falta:** crear la contraseña de aplicación en la cuenta que va a enviar, definir `MAIL_FROM` y cargarlos en Coolify. Agregar los días no laborables turísticos de 2027 cuando se publiquen. Las tareas concretas (emails del último día hábil y del día 20) se suman en T17 y T18.
 
-### T04 — Sin efectivo y comprobantes privados (Juan Manuel): en revisión
+### T04 — Sin efectivo y comprobantes privados (Juan Manuel): hecho, mergeado en el PR #30
 
 - **Qué quedó:** los pagos aceptan solo `Transferencia`: `PATCH /api/cuotas/:id/pago` responde 400 con cualquier otro método (`routes/administracion.ts`), `constants` y `RegistrarPagos` ofrecen solo esa opción y el `seed:demo` ya no genera pagos en efectivo. Los pagos anteriores conservan su método, porque no se reescribe la historia. Los comprobantes de transferencia tienen una carpeta privada, `uploads/comprobantes/` (el bucket `comprobantes` de `middleware/upload.ts`): `/uploads` ahora sirve solo los buckets de una lista (`galeria`, `noticias`, `documentos-alumnos`), así que una carpeta nueva nace privada. En la base se guarda solo el nombre del archivo (`ComprobanteTransferencia.archivo`), y `rutaArchivoPrivado()` rechaza nombres que salgan de la carpeta. La descarga es `GET /api/comprobantes/:id/archivo` (`routes/portalFinanzas.ts`): la ve la administración o la familia del alumno de la factura; el Docente y otra familia reciben 403, y la respuesta lleva `Cache-Control: private, no-store`.
 - **Pruebas:** 16 nuevas en `test/comprobantes.test.ts` (63 en total): el archivo no se abre por `/uploads`, las carpetas públicas siguen funcionando, la descarga por rol (401, 403 y 200), comprobante inexistente, id inválido, nombre con `../`, archivo ausente del disco, y que ningún método distinto de transferencia se acepta.
