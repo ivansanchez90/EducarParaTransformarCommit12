@@ -1,6 +1,6 @@
 /** Formatos de importes, fechas y períodos de las facturas. */
 import { MESES } from '../../constants'
-import type { EstadoFactura } from './types'
+import type { EstadoFactura, RangoFechas } from './types'
 
 export const ESTADO_FACTURA_COLOR: Record<EstadoFactura, string> = {
   Pendiente: '#E67E22',
@@ -21,3 +21,6 @@ export function fechaCorta(iso: string): string {
 export const nombrePeriodo = (anio: number, mes: number) => `${MESES[mes - 1]} ${anio}`
 
 export const numeroFactura = (numero: number) => String(numero).padStart(8, '0')
+
+/** El rango de fechas es válido si no está al revés (vacío = sin límite). */
+export const rangoValido = ({ desde, hasta }: RangoFechas) => !desde || !hasta || desde <= hasta

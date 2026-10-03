@@ -14,7 +14,7 @@ export const prismaFalso = {
   ordenPago: { create: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
   $transaction: vi.fn(),
   pago: { findMany: vi.fn() },
-  comprobanteTransferencia: { findUnique: vi.fn(), create: vi.fn() },
+  comprobanteTransferencia: { findUnique: vi.fn(), create: vi.fn(), findMany: vi.fn() },
   actividadExtracurricular: { findMany: vi.fn() },
   recorridoTransporte: { findMany: vi.fn() },
   inscripcionTransporte: { findUnique: vi.fn() },

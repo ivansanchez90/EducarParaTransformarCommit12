@@ -51,6 +51,9 @@ export function useFinanzas(idAlumno: number | null) {
   const facturas = actuales?.facturas ?? []
 
   return {
+    idAlumno,
+    /** Cambia cada vez que se vuelven a pedir los datos: las consultas que dependen de ellos se refrescan. */
+    version,
     facturas,
     pagos: actuales?.pagos ?? [],
     /** Facturas con saldo: pendientes, con pago parcial o vencidas. */

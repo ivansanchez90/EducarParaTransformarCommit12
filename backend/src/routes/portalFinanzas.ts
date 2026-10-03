@@ -13,6 +13,7 @@ import type { UsuarioAuth } from '../middleware/auth.js'
 import { borrarComprobante, guardarComprobante, recibirArchivoComprobante, rutaArchivoPrivado } from '../middleware/upload.js'
 import { estadoFactura } from '../services/facturacion/estado.js'
 import { crearOrdenPago, idsDeItems, pdfOrdenPago } from '../services/ordenPago.js'
+import { deudaAlumno } from '../services/saldos.js'
 
 export const portalFinanzasRouter = Router()
 
@@ -47,18 +48,33 @@ async function assertVePagosDe(usuario: UsuarioAuth, idAlumno: number) {
 }
 
 /**
+ * Rango de fechas de la consulta (`?desde=2026-03-01&hasta=2026-10-31`, los dos opcionales y
+ * inclusivos), listo para un filtro de Prisma sobre una columna `date`. Vacío si no se pidió.
+ */
+function rangoDeFechas(query: Request['query']) {
+  const desde = fecha(query.desde)
+  const hasta = fecha(query.hasta)
+  if (desde && hasta && desde.getTime() > hasta.getTime()) {
+    throw new HttpError(400, 'La fecha "desde" no puede ser posterior a la fecha "hasta"')
+  }
+  return { ...(desde ? { gte: desde } : {}), ...(hasta ? { lte: hasta } : {}) }
+}
+
+/**
  * Facturas de un alumno, de la más reciente a la más antigua, con sus ítems y sus
  * comprobantes de transferencia. El estado se calcula al leerla (saldo y vencimiento).
- * Con ?estado=Pendiente,Vencida solo las que están en esos estados.
+ * Con ?estado=Pendiente,Vencida solo las que están en esos estados, y con ?desde=&hasta=
+ * (T15) solo las emitidas en ese rango de fechas.
  */
 async function facturasDelAlumno(req: Request, res: Response) {
   const idAlumno = id(req.params.id)
   await assertVePagosDe(usuarioDe(req), idAlumno)
 
   const estados = lista(req.query.estado)
+  const emision = rangoDeFechas(req.query)
   const hoy = fecha(hoyISO()) ?? new Date()
   const facturas = await prisma.factura.findMany({
-    where: { id_alumno: idAlumno },
+    where: { id_alumno: idAlumno, ...(Object.keys(emision).length ? { fecha_emision: emision } : {}) },
     include: {
       items: { orderBy: { id_item: 'asc' } },
       comprobantes: {
@@ -76,6 +92,50 @@ async function facturasDelAlumno(req: Request, res: Response) {
     ),
   }))
   res.json(estados ? conEstado.filter((f) => estados.includes(f.estado)) : conEstado)
+}
+
+/**
+ * Comprobantes de transferencia de un alumno, del más reciente al más antiguo (T15):
+ * ?desde=&hasta= filtra por la fecha de la transferencia y ?estado=En revisión,Aprobado
+ * por su estado. Cada uno trae la factura que paga y la orden de pago, si venía de una.
+ * No incluye el nombre del archivo: se baja con `GET /api/comprobantes/:id/archivo`.
+ */
+async function comprobantesDelAlumno(req: Request, res: Response) {
+  const idAlumno = id(req.params.id)
+  await assertVePagosDe(usuarioDe(req), idAlumno)
+
+  const estados = lista(req.query.estado)
+  const transferencia = rangoDeFechas(req.query)
+  const comprobantes = await prisma.comprobanteTransferencia.findMany({
+    where: {
+      facturas: { id_alumno: idAlumno },
+      ...(estados ? { estado: { in: estados } } : {}),
+      ...(Object.keys(transferencia).length ? { fecha_transferencia: transferencia } : {}),
+    },
+    select: {
+      id_comprobante: true,
+      estado: true,
+      importe: true,
+      fecha_transferencia: true,
+      fecha_carga: true,
+      motivo_rechazo: true,
+      facturas: { select: { id_factura: true, numero: true, anio: true, mes: true } },
+      ordenes_pago: { select: { id_orden: true, numero: true } },
+    },
+    orderBy: [{ fecha_transferencia: 'desc' }, { id_comprobante: 'desc' }],
+  })
+  res.json(comprobantes.map(({ facturas, ordenes_pago, ...comprobante }) => ({ ...comprobante, factura: facturas, orden: ordenes_pago })))
+}
+
+/**
+ * Deuda de un alumno por ítem y período (T16): sus facturas con saldo y, de cada una, los
+ * ítems que todavía deben algo (una beca pendiente aparece en negativo), más el total.
+ * Es lo mismo que usa el aviso del día 20 (`deudaAlumno` de `services/saldos.ts`).
+ */
+async function deudaDelAlumno(req: Request, res: Response) {
+  const idAlumno = id(req.params.id)
+  await assertVePagosDe(usuarioDe(req), idAlumno)
+  res.json(await deudaAlumno(idAlumno))
 }
 
 /**
@@ -226,6 +286,8 @@ async function pdfDeLaOrden(req: Request, res: Response) {
 
 portalFinanzasRouter.get('/alumnos/:id/facturas', conSesion, asincrono(facturasDelAlumno))
 portalFinanzasRouter.get('/alumnos/:id/pagos', conSesion, asincrono(pagosDelAlumno))
+portalFinanzasRouter.get('/alumnos/:id/comprobantes', conSesion, asincrono(comprobantesDelAlumno))
+portalFinanzasRouter.get('/alumnos/:id/deuda', conSesion, asincrono(deudaDelAlumno))
 portalFinanzasRouter.get('/comprobantes/:id/archivo', conSesion, asincrono(descargarComprobante))
 portalFinanzasRouter.post('/facturas/:id/ordenes-pago', conSesion, asincrono(emitirOrdenPago))
 portalFinanzasRouter.get('/ordenes-pago/:id/pdf', conSesion, asincrono(pdfDeLaOrden))
