@@ -20,6 +20,7 @@ import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/a
 import type { Perfil } from './lib/auth'
 import { AvatarMenu, Badge, BottomNav, PrecioMensual, ResponsiveTable, type Columna } from './ui/components'
 import { btnPrimarySm, conBottomNav, conPaddingX, touchTarget } from './ui/styles'
+import { useEnLinea } from './ui/useEnLinea'
 import { useEsMovil } from './ui/useEsMovil'
 import { usePush } from './ui/usePush'
 
@@ -339,6 +340,9 @@ export default function StudentPortal() {
   })
   const [cambiandoPassword, setCambiandoPassword] = useState(false)
   const [loading, setLoading] = useState(true)
+  // La app instalada puede abrir sin señal (T09): no se confunde con "no tiene hijos".
+  const [sinConexion, setSinConexion] = useState(false)
+  const enLinea = useEnLinea()
   const esMovil = useEsMovil()
 
   // Un padre/tutor ve los datos de su hijo/a; un estudiante, los propios.
@@ -363,10 +367,17 @@ export default function StudentPortal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perfil?.id_usuario])
 
+  // Abrió sin señal: al volver la conexión se cargan los datos solos.
+  useEffect(() => {
+    if (enLinea && sinConexion) loadAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enLinea])
+
   // ── Data loading ─────────────────────────────────────────────
   const loadAll = useCallback(async () => {
     setLoading(true)
-    const { data: alumnosData } = await api.get<Alumno[]>('/alumnos/mios')
+    const { data: alumnosData, error } = await api.get<Alumno[]>('/alumnos/mios')
+    setSinConexion(error?.status === 0)
     const lista = alumnosData ?? []
     setHijos(lista)
     const activo = lista[0] ?? null
@@ -579,15 +590,27 @@ export default function StudentPortal() {
     return (
       <div className="font-[Nunito,_'Segoe_UI',_sans-serif] bg-bg min-h-screen text-text flex items-center justify-center">
         <div className='text-center max-w-[420px] p-6'>
-          <div className='text-[44px] mb-3'>🔍</div>
+          <div className='text-[44px] mb-3'>{sinConexion ? '📡' : '🔍'}</div>
           <div className='text-lg font-black text-purple-700'>
-            No hay datos para mostrar
+            {sinConexion ? 'Sin conexión' : 'No hay datos para mostrar'}
           </div>
           <p className='text-sm text-textMuted leading-relaxed'>
-            {esTutor
-              ? 'Tu usuario de padre/tutor no tiene alumnos vinculados. Comunicate con la administración del centro educativo.'
-              : 'Tu usuario no está vinculado a un legajo de alumno. Comunicate con la administración del centro educativo.'}
+            {sinConexion
+              ? 'Conectate a internet para ver los datos. Se cargan solos cuando vuelve la señal.'
+              : esTutor
+                ? 'Tu usuario de padre/tutor no tiene alumnos vinculados. Comunicate con la administración del centro educativo.'
+                : 'Tu usuario no está vinculado a un legajo de alumno. Comunicate con la administración del centro educativo.'}
           </p>
+          {sinConexion && (
+            <button
+              className='mt-3 mr-2 bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-purple-700 cursor-pointer font-[inherit]'
+              onClick={() => {
+                void loadAll()
+              }}
+            >
+              Reintentar
+            </button>
+          )}
           <button
             className='mt-3 bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
             onClick={logout}
