@@ -118,6 +118,8 @@ export interface RecorridoTransporte {
   capacidad: number | null
   activo: boolean
   inscriptos: number
+  /** Precio mensual vigente; `null` si todavía no hay tarifa cargada. */
+  precio: number | null
 }
 
 export interface InscripcionTransporte {
@@ -135,6 +137,9 @@ export interface InscripcionTransporte {
 export interface ServiciosAlumno {
   transporte: InscripcionTransporte | null
   comedor: { observaciones: string | null } | null
+  /** Precios mensuales vigentes; `null` si no hay tarifa cargada (o no usa el transporte). */
+  precio_transporte: number | null
+  precio_comedor: number | null
 }
 
 /** Alumno con el detalle de los servicios que utiliza. */
@@ -146,6 +151,9 @@ export interface AlumnoServicios {
   cursos: { nivel: string; grado_anio: string; division: string } | null
   transporte: InscripcionTransporte | null
   comedor: { observaciones: string | null } | null
+  /** Precios mensuales vigentes; `null` si no hay tarifa cargada (o no usa el transporte). */
+  precio_transporte: number | null
+  precio_comedor: number | null
 }
 
 // ── Reportes ───────────────────────────────────────────────────

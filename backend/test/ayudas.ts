@@ -12,6 +12,11 @@ export const prismaFalso = {
   factura: { findMany: vi.fn() },
   pago: { findMany: vi.fn() },
   comprobanteTransferencia: { findUnique: vi.fn() },
+  actividadExtracurricular: { findMany: vi.fn() },
+  recorridoTransporte: { findMany: vi.fn() },
+  inscripcionTransporte: { findUnique: vi.fn() },
+  inscripcionComedor: { findUnique: vi.fn() },
+  tarifa: { findMany: vi.fn() },
 }
 
 // `vitest.config.ts` define JWT_SECRET para las pruebas: se lee de ahí, no se repite el valor.

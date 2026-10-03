@@ -18,6 +18,7 @@ import {
   requireAuth,
   requireRole,
 } from '../middleware/auth.js'
+import { preciosVigentes } from '../services/precios.js'
 import { abrirVigencia, cambiarVigencia, cerrarVigencia } from '../services/vigencias.js'
 
 // ── Recorridos de transporte ───────────────────────────────────
@@ -25,7 +26,7 @@ import { abrirVigencia, cambiarVigencia, cerrarVigencia } from '../services/vige
 export const recorridosRouter = Router()
 recorridosRouter.use(requireAuth)
 
-/** Recorridos con la cantidad de alumnos inscriptos en cada uno. */
+/** Recorridos con la cantidad de alumnos inscriptos y el precio mensual vigente de cada uno. */
 recorridosRouter.get('/', async (req, res) => {
   // Alumnos y familias solo ven los recorridos activos.
   const activo = esStaff(req.user!) ? bool(req.query.activo) : true
@@ -34,8 +35,14 @@ recorridosRouter.get('/', async (req, res) => {
     include: { _count: { select: { inscripciones_transporte: true } } },
     orderBy: { nombre: 'asc' },
   })
+  const precioDe = await preciosVigentes()
   res.json(
-    recorridos.map(({ _count, ...r }) => ({ ...r, inscriptos: _count.inscripciones_transporte })),
+    recorridos.map(({ _count, ...r }) => ({
+      ...r,
+      inscriptos: _count.inscripciones_transporte,
+      // Precio mensual vigente; `null` si todavía no hay tarifa cargada.
+      precio: precioDe({ concepto: 'Transporte', id_referencia: r.id_recorrido }),
+    })),
   )
 })
 
@@ -127,18 +134,27 @@ serviciosRouter.get('/', requireRole(...ROLES_STAFF), async (req, res) => {
   res.json(alumnos)
 })
 
-/** Servicios de un alumno (para el portal de familias y el legajo). */
+/** Servicios de un alumno con sus precios mensuales (para el portal de familias y el legajo). */
 serviciosRouter.get('/:idAlumno', async (req, res) => {
   const idAlumno = id(req.params.idAlumno)
   await assertAccesoAlumno(req.user!, idAlumno)
-  const [transporte, comedor] = await Promise.all([
+  const [transporte, comedor, precioDe] = await Promise.all([
     prisma.inscripcionTransporte.findUnique({
       where: { id_alumno: idAlumno },
       include: { recorridos_transporte: recorridoResumen },
     }),
     prisma.inscripcionComedor.findUnique({ where: { id_alumno: idAlumno } }),
+    preciosVigentes(),
   ])
-  res.json({ transporte, comedor })
+  // Precios mensuales vigentes; `null` si todavía no hay tarifa cargada o no usa el servicio.
+  res.json({
+    transporte,
+    comedor,
+    precio_transporte: transporte
+      ? precioDe({ concepto: 'Transporte', id_referencia: transporte.id_recorrido })
+      : null,
+    precio_comedor: precioDe({ concepto: 'Comedor' }),
+  })
 })
 
 /** Inscribe al alumno en un recorrido; si ya viajaba en otro, lo cambia. */

@@ -20,8 +20,9 @@ import { useFinanzas } from './features/finanzas/useFinanzas'
 import type { RecorridoTransporte, ServiciosAlumno } from './types'
 import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/auth'
 import type { Perfil } from './lib/auth'
-import { AvatarMenu, Badge, BottomNav, ResponsiveTable, type Columna } from './ui/components'
+import { AvatarMenu, Badge, BottomNav, PrecioMensual, ResponsiveTable, type Columna } from './ui/components'
 import { btnPrimarySm, conBottomNav, conPaddingX, touchTarget } from './ui/styles'
+import { useEnLinea } from './ui/useEnLinea'
 import { useEsMovil } from './ui/useEsMovil'
 import { usePush } from './ui/usePush'
 
@@ -84,6 +85,8 @@ interface ActividadEx {
   cupo_maximo: number
   inscriptos: number
   inscripto: boolean
+  /** Precio mensual de los deportes; `null` si no hay tarifa cargada o no se cobra aparte. */
+  precio: number | null
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -280,6 +283,9 @@ export default function StudentPortal() {
   })
   const [cambiandoPassword, setCambiandoPassword] = useState(false)
   const [loading, setLoading] = useState(true)
+  // La app instalada puede abrir sin señal (T09): no se confunde con "no tiene hijos".
+  const [sinConexion, setSinConexion] = useState(false)
+  const enLinea = useEnLinea()
   const esMovil = useEsMovil()
 
   // Un padre/tutor ve los datos de su hijo/a; un estudiante, los propios.
@@ -304,10 +310,17 @@ export default function StudentPortal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perfil?.id_usuario])
 
+  // Abrió sin señal: al volver la conexión se cargan los datos solos.
+  useEffect(() => {
+    if (enLinea && sinConexion) loadAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enLinea])
+
   // ── Data loading ─────────────────────────────────────────────
   const loadAll = useCallback(async () => {
     setLoading(true)
-    const { data: alumnosData } = await api.get<Alumno[]>('/alumnos/mios')
+    const { data: alumnosData, error } = await api.get<Alumno[]>('/alumnos/mios')
+    setSinConexion(error?.status === 0)
     const lista = alumnosData ?? []
     setHijos(lista)
     const activo = lista[0] ?? null
@@ -512,15 +525,27 @@ export default function StudentPortal() {
     return (
       <div className="font-[Nunito,_'Segoe_UI',_sans-serif] bg-bg min-h-screen text-text flex items-center justify-center">
         <div className='text-center max-w-[420px] p-6'>
-          <div className='text-[44px] mb-3'>🔍</div>
+          <div className='text-[44px] mb-3'>{sinConexion ? '📡' : '🔍'}</div>
           <div className='text-lg font-black text-purple-700'>
-            No hay datos para mostrar
+            {sinConexion ? 'Sin conexión' : 'No hay datos para mostrar'}
           </div>
           <p className='text-sm text-textMuted leading-relaxed'>
-            {esTutor
-              ? 'Tu usuario de padre/tutor no tiene alumnos vinculados. Comunicate con la administración del centro educativo.'
-              : 'Tu usuario no está vinculado a un legajo de alumno. Comunicate con la administración del centro educativo.'}
+            {sinConexion
+              ? 'Conectate a internet para ver los datos. Se cargan solos cuando vuelve la señal.'
+              : esTutor
+                ? 'Tu usuario de padre/tutor no tiene alumnos vinculados. Comunicate con la administración del centro educativo.'
+                : 'Tu usuario no está vinculado a un legajo de alumno. Comunicate con la administración del centro educativo.'}
           </p>
+          {sinConexion && (
+            <button
+              className='mt-3 mr-2 bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-purple-700 cursor-pointer font-[inherit]'
+              onClick={() => {
+                void loadAll()
+              }}
+            >
+              Reintentar
+            </button>
+          )}
           <button
             className='mt-3 bg-transparent border border-border rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
             onClick={logout}
@@ -1082,6 +1107,7 @@ export default function StudentPortal() {
                                 {a.descripcion}
                               </span>
                             )}
+                            {a.tipo === 'Deporte' && <PrecioMensual precio={a.precio} />}
                             <span
                               className='text-xs font-extrabold'
                               style={{
@@ -1161,6 +1187,9 @@ export default function StudentPortal() {
                       ? 'Inscripto en el servicio de comedor.'
                       : 'No utiliza el servicio de comedor.'}
                   </div>
+                  <div className='mt-1'>
+                    <PrecioMensual precio={servicios?.precio_comedor ?? null} />
+                  </div>
                 </div>
                 {esTutor && (
                   <button
@@ -1191,6 +1220,9 @@ export default function StudentPortal() {
                       {servicios.transporte.recorridos_transporte.zona ?? 'Sin zona'} · Ida{' '}
                       {(servicios.transporte.recorridos_transporte.hora_ida ?? '—').slice(0, 5)} · Vuelta{' '}
                       {(servicios.transporte.recorridos_transporte.hora_vuelta ?? '—').slice(0, 5)}
+                    </div>
+                    <div className='mt-1'>
+                      <PrecioMensual precio={servicios.precio_transporte} />
                     </div>
                     {servicios.transporte.observaciones && (
                       <div className='text-[12px] text-textMuted mt-1'>
@@ -1247,6 +1279,7 @@ export default function StudentPortal() {
                             {r.paradas}
                           </div>
                         )}
+                        <PrecioMensual precio={r.precio} />
                         <button
                           disabled={lleno || actual}
                           className={
