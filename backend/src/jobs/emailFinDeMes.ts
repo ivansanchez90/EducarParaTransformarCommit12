@@ -9,7 +9,6 @@
  * fallaron, y dos instancias no mandan el mismo email (la fila se "toma" con
  * un update condicional antes de enviar).
  */
-import { Prisma } from '../generated/prisma/client.js'
 import { config } from '../lib/config.js'
 import { prisma } from '../lib/prisma.js'
 import { emailHabilitado, enviarEmail } from '../services/email.js'
@@ -17,6 +16,7 @@ import { emailFinDeMes, type FacturaParaEmail } from '../services/facturacion/em
 import { generarFacturas, type ResultadoGeneracion } from '../services/facturacion/generar.js'
 import { pdfFactura } from '../services/facturacion/pdf.js'
 import type { Dia } from './calendario.js'
+import { cerrarEnvio, registroDeEnvio, tomarEnvio } from './envios.js'
 
 export const TIPO_FIN_DE_MES = 'Recordatorio mensual'
 
@@ -88,21 +88,6 @@ async function familiasDelPeriodo(anio: number, mes: number) {
   return { familias: [...familias.values()], sinDestinatario }
 }
 
-type ClaveEnvio = Prisma.EnvioEmailTipoAnioMesId_usuarioCompoundUniqueInput
-
-/** La fila de `envios_email` de esta familia y período; la crea si no existe. */
-async function registroDeEnvio(clave: ClaveEnvio, email: string) {
-  try {
-    return await prisma.envioEmail.upsert({ where: { tipo_anio_mes_id_usuario: clave }, create: { ...clave, email }, update: {} })
-  } catch (err) {
-    // Otra ejecución la creó en el mismo instante (el upsert de Prisma no es atómico).
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      return prisma.envioEmail.findUniqueOrThrow({ where: { tipo_anio_mes_id_usuario: clave } })
-    }
-    throw err
-  }
-}
-
 export async function enviarFinDeMes(
   anio: number,
   mes: number,
@@ -129,12 +114,7 @@ export async function enviarFinDeMes(
   for (const familia of familias) {
     const clave = { tipo: TIPO_FIN_DE_MES, anio, mes, id_usuario: familia.id_usuario }
     const envio = await registroDeEnvio(clave, familia.email)
-    // Tomar el envío: solo uno lo pasa a "Enviando" (los ya enviados no se tocan).
-    const { count } = await prisma.envioEmail.updateMany({
-      where: { id_envio: envio.id_envio, estado: { in: ['Pendiente', 'Error'] } },
-      data: { estado: 'Enviando', intentos: { increment: 1 }, email: familia.email },
-    })
-    if (count === 0) {
+    if (!(await tomarEnvio(envio.id_envio, familia.email))) {
       resultado.yaEnviados++
       continue
     }
@@ -147,14 +127,11 @@ export async function enviarFinDeMes(
         }),
       )
       await enviarEmail({ para: familia.email, ...emailFinDeMes(familia.nombre, familia.facturas), adjuntos })
-      await prisma.envioEmail.update({
-        where: { id_envio: envio.id_envio },
-        data: { estado: 'Enviado', enviado_at: new Date(), error: null },
-      })
+      await cerrarEnvio(envio.id_envio, null)
       resultado.enviados++
     } catch (err) {
       const motivo = err instanceof Error ? err.message : String(err)
-      await prisma.envioEmail.update({ where: { id_envio: envio.id_envio }, data: { estado: 'Error', error: motivo.slice(0, 500) } })
+      await cerrarEnvio(envio.id_envio, motivo)
       resultado.errores.push({ email: familia.email, motivo })
     }
     if (pausaMs > 0) await new Promise((r) => setTimeout(r, pausaMs))

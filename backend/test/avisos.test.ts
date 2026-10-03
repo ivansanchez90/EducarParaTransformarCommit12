@@ -26,7 +26,7 @@ afterEach(() => {
 })
 
 describe('publicar (Observer)', () => {
-  it('avisa a todos los canales; si uno falla, los demás igual reciben el evento y no lanza', async () => {
+  it('avisa a todos los canales; si uno falla, los demás igual reciben el evento, no lanza y devuelve cómo le fue a cada uno', async () => {
     const recibidos: string[] = []
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     observador('in-app', async (e) => {
@@ -39,7 +39,11 @@ describe('publicar (Observer)', () => {
       recibidos.push(`otro:${e.tipo}`)
     })
 
-    await expect(publicar(aprobado)).resolves.toBeUndefined()
+    await expect(publicar(aprobado)).resolves.toEqual([
+      { canal: 'in-app', ok: true },
+      { canal: 'email', ok: false, error: 'SMTP caído' },
+      { canal: 'otro', ok: true },
+    ])
     expect(recibidos).toEqual(['in-app:ComprobanteValidado', 'otro:ComprobanteValidado'])
     expect(log).toHaveBeenCalledWith('Aviso ComprobanteValidado por email falló:', expect.any(Error))
   })

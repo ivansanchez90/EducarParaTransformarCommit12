@@ -47,7 +47,7 @@ alumno y mes, solo el admin registra pagos y no hay email ni tareas programadas.
 | Servicios por mes | Vigencia desde/hasta en transporte, comedor y deportes | El transporte puede cambiar de un mes a otro |
 | Pagos | Solo `Transferencia`. El padre elige ítems → el sistema emite un **comprobante de pago** (`OrdenPago`) → el padre sube la **transferencia** (`ComprobanteTransferencia`) → el admin la aprueba y se crea el `Pago` imputado a los ítems | Cumple "el padre selecciona ítems" y "una factura puede tener varios comprobantes" |
 | Estado de la factura | Se calcula por saldo: Pendiente, Pago parcial, Pagada, Vencida | Permite los listados de pagos completos e incompletos |
-| Avisos | Patrón **Observer** (`services/avisos/`): eventos `ComprobanteValidado` (T14) y `DeudaDetectada` (T18), con `EmailObserver` además de in-app y push. El email de fin de mes con la factura (T17) es una tarea propia (`jobs/emailFinDeMes.ts`): junta las facturas de todos los hijos en un email con sus PDF y registra cada envío en `envios_email` | Un canal que falla no revierte la operación |
+| Avisos | Patrón **Observer** (`services/avisos/`): eventos `ComprobanteValidado` (T14) y `DeudaDetectada` (T18), con `EmailObserver` además de in-app y push. `publicar()` devuelve cómo le fue a cada canal, sin lanzar. El email de fin de mes con la factura (T17) es una tarea propia (`jobs/emailFinDeMes.ts`): junta las facturas de todos los hijos en un email con sus PDF y registra cada envío en `envios_email` | Un canal que falla no revierte la operación |
 | Email | nodemailer con **Gmail** (`smtp.gmail.com`, puerto 465, SSL) y una **contraseña de aplicación** (requiere verificación en dos pasos en la cuenta). Variables: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Gratis y sin dominio propio. Sin claves, el envío queda apagado y la app funciona igual (como el push) |
 | Datos bancarios | El comprobante de pago y los emails indican transferir al alias **`sanchezoliva`**. Va en la variable `BANCO_ALIAS`, no en el código | Si cambia la cuenta, se cambia en Coolify sin tocar código |
 | Tareas programadas | node-cron dentro del backend, zona `America/Argentina/Buenos_Aires`, tabla de feriados; cada envío queda en `EnvioEmail` | Un reinicio o una segunda ejecución no reenvía |
@@ -82,8 +82,8 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T14. Admin: bandeja de comprobantes, aprobar/rechazar, imputación, saldo (`services/saldos.ts`) y `EmailObserver` | HU14 | 2 | Iván | T02, T13 (contrato) | 2,5 días | Hecho |
 | T15. Portal: facturas y comprobantes por rango de fechas | HU15 | 3 | Juan Manuel | T13 | 1,5 días | Pendiente |
 | T16. Portal: deuda por ítem | HU16 | 3 | Juan Manuel | T14 | 1,5 días | Pendiente |
-| T17. Email del último día hábil con la composición y la factura adjunta | HU17 | 3 | Iván | T02, T08 | 2,5 días | En revisión |
-| T18. Email del día 20 con la deuda (más in-app y push) | HU18 | 3 | Iván | T14 | 1,5 días | Pendiente |
+| T17. Email del último día hábil con la composición y la factura adjunta | HU17 | 3 | Iván | T02, T08 | 2,5 días | Hecho |
+| T18. Email del día 20 con la deuda (más in-app y push) | HU18 | 3 | Iván | T14 | 1,5 días | En revisión |
 | T19. Portal: precio de cada servicio en "Transporte y comedor" y "Extracurriculares" | HU24 | 3 | Juan Manuel | T06 | 0,5 días | Hecho |
 | T20. Recuperar la contraseña por email | HU03 | 4 | Iván | T02 | 1,5 días | Pendiente |
 | T21. Reportes: ingresos por período, pagos completos e incompletos por año y alumno (PDF y CSV) | HU19–HU21 | 4 | Juan Manuel | T14 | 2 días | Pendiente |
@@ -249,7 +249,28 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** sobre una base con `seed:demo`, la API responde 401 sin sesión y 403 a una familia; cubre altas, todas las validaciones, el estado de cada tarifa, la edición y el borrado solo de las programadas, y el profesor y los horarios (también los ve el portal). En el navegador, a 1366 px y a 375 px (sin scroll horizontal ni errores de consola): carga de una tarifa, edición de una actividad con profesor y horarios, y el mensaje de horarios superpuestos. `typecheck` y `build` sin errores; el lint del frontend sigue en los 46 errores que ya había en `main`, ninguno nuevo.
 - **Falta:** cargar las tarifas reales antes de facturar (T08).
 
-### T17 — Email del último día hábil con la factura (Iván): en revisión
+### T18 — Aviso de deuda del día 20 (Iván): en revisión
+
+- **Qué quedó:**
+  - **Tarea "Aviso de deuda"** (`jobs/avisoDeuda.ts`, en `TAREAS`): corre el día 20 a las 9 y a las 18. Busca las facturas con saldo que vencieron antes del día 20 del mes, también las de meses anteriores. A cada familia (el padre/tutor, o el alumno si no tiene) le publica un evento `DeudaDetectada` con lo que debe cada hijo, factura por factura e ítem por ítem.
+  - **Canales del Observer:** el in-app y push manda un aviso por hijo ("Ana tiene $ 145.000 pendientes de…"). `EmailObserver` manda un email por familia con el detalle, el total, el alias de `BANCO_ALIAS`, la aclaración de que si ya pagó no tiene que hacer nada y el enlace a la app (`services/avisos/emailDeuda.ts`). Las familias sin saldo vencido no reciben nada.
+  - **Sin repetidos:** un aviso por familia y mes en `envios_email` (`tipo = 'Aviso de deuda'`). El registro de envíos de T17 pasó a `jobs/envios.ts` y lo usan las dos tareas. `publicar()` ahora devuelve cómo le fue a cada canal: si falla el email, el envío queda en `Error` y se reintenta en la vuelta de las 18, pero el reintento no repite el aviso in-app ni el push (`primeraVez`). Sin SMTP avisa igual in-app y push, y lo deja anotado.
+  - **A mano:** `POST /api/tareas/aviso-deuda` con `{ anio, mes }` y el botón *Avisar deuda al 20/mes* en *Facturación*.
+- **Pruebas:** 18 nuevas (231 en total):
+  - `test/aviso-deuda.test.ts` (7): el corte al día 20; un aviso por familia con sus hijos y el total; no repite; falla del email y el reintento sin aviso in-app; falla solo del in-app; sin SMTP; alumnos sin usuario;
+  - `test/avisos-deuda.test.ts` (7): los canales y los textos, incluido el escape del HTML;
+  - `test/tareas-programadas.test.ts` (antes `tarea-fin-de-mes`): suma 4, con la expresión del día 20, el mes de Argentina y el endpoint con 401/403/400.
+- **Verificado sobre una base descartable con `seed:demo`** y el servidor SMTP de prueba local (ningún email salió a internet). Escenario: facturas de octubre y noviembre; dos familias pagaron todo y una pagó una parte por la bandeja de T14; una familia con dos hijos.
+  - **A quién avisa:** el aviso al 20/11 llegó a 113 familias y a las dos que pagaron todo no les llegó nada. La que pagó una parte ve solo los $ 50.000 que le faltan de la cuota de octubre. La familia con dos hijos recibió un email con las cuatro facturas y un aviso in-app por hijo.
+  - **Reintentos:** una dirección rechazada quedó en `Error`; la segunda vuelta mandó solo ese email sin repetir los avisos in-app, y la tercera no mandó nada.
+  - **Otro mes:** el aviso al 20/10 se registra aparte y solo cuenta octubre.
+  - **Cron con fecha simulada:** el 20/12 a las 9 avisa y a las 18 no repite.
+  - **En el navegador** (1366 y 375 px): el botón, sin scroll horizontal ni errores de consola.
+- **Falta:**
+  - Probar con la cuenta de Gmail real, igual que T17.
+  - El aviso sale el día 20 aunque sea fin de semana o feriado; si se quiere el primer día hábil desde el 20, se cambia la expresión del cron por una condición `corresponde`.
+
+### T17 — Email del último día hábil con la factura (Iván): hecho, mergeado en el PR #37
 
 - **Qué quedó:**
   - **Tarea "Email de fin de mes"** (`jobs/emailFinDeMes.ts`, en `TAREAS`): corre todos los días a las 9 y a las 18, pero solo hace algo el último día hábil (`esUltimoDiaHabil`, con los feriados de T02). Emite las facturas del mes siguiente que falten (generar no duplica) y manda un email por familia, al padre/tutor o al alumno si no tiene. El email tiene la composición de la factura de cada hijo, el total a pagar, el vencimiento, el alias de `BANCO_ALIAS` y el enlace a la app, con los PDF adjuntos. La vuelta de las 18 solo reintenta los que fallaron.

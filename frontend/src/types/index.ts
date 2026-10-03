@@ -289,6 +289,18 @@ export interface ResultadoFinDeMes {
   errores: { email: string; motivo: string }[]
 }
 
+/** Resultado del aviso de deuda (`POST /api/tareas/aviso-deuda`). */
+export interface ResultadoAvisoDeuda {
+  anio: number
+  mes: number
+  emailApagado: boolean
+  familias: number
+  avisadas: number
+  yaAvisadas: number
+  sinDestinatario: string[]
+  errores: { email: string; motivo: string }[]
+}
+
 export type EstadoComprobante = 'En revisión' | 'Aprobado' | 'Rechazado'
 
 /** Comprobante de transferencia en la bandeja del admin (`GET /api/comprobantes`). */
