@@ -54,3 +54,48 @@ export interface OrdenPago {
   alias: string | null
   items: { id_item: number; importe: number; concepto: string; descripcion: string }[]
 }
+
+/** Un comprobante de transferencia en el listado por fechas (sin el archivo: se baja aparte). */
+export interface ComprobanteListado {
+  id_comprobante: number
+  estado: ComprobanteFactura['estado']
+  importe: number
+  fecha_transferencia: string
+  fecha_carga: string
+  motivo_rechazo: string | null
+  factura: { id_factura: number; numero: number; anio: number; mes: number }
+  orden: { id_orden: number; numero: number } | null
+}
+
+/** Un ítem que todavía debe algo; una beca pendiente tiene saldo negativo. */
+export interface ItemDeuda {
+  id_item: number
+  concepto: string
+  id_referencia: number | null
+  descripcion: string
+  importe: number
+  saldo: number
+}
+
+export interface FacturaConDeuda {
+  id_factura: number
+  numero: number
+  anio: number
+  mes: number
+  fecha_vencimiento: string
+  total: number
+  saldo: number
+  estado: EstadoFactura
+  items: ItemDeuda[]
+}
+
+export interface DeudaAlumno {
+  total: number
+  facturas: FacturaConDeuda[]
+}
+
+/** Rango de fechas de una consulta, como se escribe en un campo de fecha (`AAAA-MM-DD`); vacío = sin límite. */
+export interface RangoFechas {
+  desde: string
+  hasta: string
+}

@@ -139,12 +139,31 @@ function TarjetaFactura({ factura, onActualizar }: { factura: FacturaPortal; onA
   )
 }
 
-export function FacturasAlumno({ facturas, onActualizar }: { facturas: FacturaPortal[]; onActualizar: () => void }) {
+interface Props {
+  facturas: FacturaPortal[]
+  onActualizar: () => void
+  /** Son las facturas de un rango de fechas: se muestran todas, sin el resumen de deuda. */
+  filtrado?: boolean
+}
+
+export function FacturasAlumno({ facturas, onActualizar, filtrado = false }: Props) {
   const [verPagadas, setVerPagadas] = useState(false)
   const conSaldo = facturas.filter((f) => f.estado !== 'Pagada')
   const pagadas = facturas.filter((f) => f.estado === 'Pagada')
   const hayVencidas = conSaldo.some((f) => f.estado === 'Vencida')
   const deuda = conSaldo.reduce((suma, f) => suma + f.saldo, 0)
+
+  if (filtrado) {
+    return facturas.length === 0 ? (
+      <p className='text-[13px] text-textMuted m-0'>No hay facturas emitidas en ese período.</p>
+    ) : (
+      <div className='flex flex-col gap-4'>
+        {facturas.map((f) => (
+          <TarjetaFactura key={f.id_factura} factura={f} onActualizar={onActualizar} />
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className='flex flex-col gap-4'>
