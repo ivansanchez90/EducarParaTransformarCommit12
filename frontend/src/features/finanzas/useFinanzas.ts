@@ -42,7 +42,9 @@ export function useFinanzas(idAlumno: number | null) {
     }
   }, [idAlumno, version])
 
-  const recargar = useCallback(() => setVersion((v) => v + 1), [])
+  const recargar = useCallback(() => {
+    setVersion((v) => v + 1)
+  }, [])
 
   // Mientras llegan los datos del alumno elegido, no se muestran los del anterior.
   const actuales = datos && datos.idAlumno === idAlumno ? datos : null

@@ -147,7 +147,9 @@ export function FacturasAlumno({ facturas }: { facturas: FacturaPortal[] }) {
         <>
           <button
             className='self-start bg-transparent border-0 p-0 min-h-11 text-[13px] font-bold text-purple-700 cursor-pointer font-[inherit]'
-            onClick={() => setVerPagadas((v) => !v)}
+            onClick={() => {
+              setVerPagadas((v) => !v)
+            }}
           >
             {verPagadas ? 'Ocultar facturas pagadas' : `Ver facturas pagadas (${pagadas.length})`}
           </button>

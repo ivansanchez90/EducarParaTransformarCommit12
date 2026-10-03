@@ -19,7 +19,9 @@ export function FinanzasAlumno({ finanzas }: { finanzas: Finanzas }) {
       className={`min-h-11 px-4 rounded-btn border text-[13px] font-bold cursor-pointer font-[inherit] ${
         vista === clave ? 'bg-purple-700 border-purple-700 text-white' : 'bg-transparent border-border text-textMuted'
       }`}
-      onClick={() => setVista(clave)}
+      onClick={() => {
+        setVista(clave)
+      }}
     >
       {texto}
     </button>
