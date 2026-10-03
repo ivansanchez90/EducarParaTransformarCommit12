@@ -53,7 +53,7 @@ export function Dashboard({
         },
         {
           icon: '💳',
-          label: 'Cuotas sin pagar',
+          label: 'Facturas sin pagar',
           value: stats.cuotasPendientes,
           color: '#E74C3C',
         },
