@@ -70,7 +70,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T02. Email (nodemailer + Gmail con contraseña de aplicación) y tareas programadas (node-cron, feriados, `ultimoDiaHabil()` con pruebas) | — | 0 | Iván | — | 1,5 días | Hecho |
 | T03. Pruebas y CI: Vitest + Supertest en `backend/`, GitHub Actions con lint, build y test | — | 0 | Juan Manuel | — | 1 día | Pendiente |
 | T04. Quitar "Efectivo" (backend, `constants`, `RegistrarPagos`) y bucket privado de comprobantes con descarga autenticada | — | 0 | Juan Manuel | — | 1 día | Pendiente |
-| T05. `BITACORA-IA.md` con la plantilla de la consigna | — | 0 | Juan Manuel | — | 0,5 días | Pendiente |
+| T05. `BITACORA-IA.md` con la plantilla de la consigna | — | 0 | Juan Manuel | — | 0,5 días | En revisión |
 | T06. Tarifas: ABM por concepto con vigencia y pantalla admin; horario y profesor del deporte (deuda de la Parte 2) | HU04–HU07 | 1 | Iván | T01 | 2,5 días | En revisión |
 | T07. Inscripciones con vigencia (transporte, comedor, deportes) sin romper el tope de 2 ni el cupo | HU08 | 1 | Juan Manuel | T01 | 2 días | Pendiente |
 | T08. Facturación mensual con Strategy, becas, PDF de la factura y botón "Generar facturas" | HU09 | 1 | Iván | T06, T07 | 3 días | Pendiente |
@@ -183,6 +183,12 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Cambios al contrato** (ya actualizados arriba): la tarifa de la cuota se identifica por `nivel` (texto), porque no existe una tabla de niveles. Se suma el concepto *Recargo* para no perder los recargos de las cuotas vencidas. La orden y la imputación tienen tablas propias (`OrdenPagoItem`, `ImputacionPago`).
 - **Verificado:** sobre una base con `seed:demo`, la migración pasa las 984 cuotas a 984 facturas con 1165 ítems. Se cumplen los tres invariantes en todas las facturas, cada pago suma lo mismo que sus imputaciones y `prisma migrate diff` no encuentra diferencias con el schema. `typecheck` sin errores y `seed:demo` corre igual con el schema nuevo.
 - **Falta:** respaldar la base de producción antes de desplegar. Hasta que T08 y T14 reemplacen las pantallas, "Generar cuotas" y "Registrar pago" siguen escribiendo solo en `cuotas` y no actualizan las facturas. Conviene no usarlas en producción en ese tiempo, o regenerar las facturas del mes con T08.
+
+### T05 — Bitácora de IA (Juan Manuel): en revisión
+
+- **Qué quedó:** `BITACORA-IA.md` en la raíz, con las columnas que pide el plan (problema, prompt, respuesta, si funcionó, qué se cambió y resultado) más número, fecha, tarea o PR, quién y herramienta. Incluye cómo completar cada columna y la primera fila, la de T03. Desde ahora cada PR que use IA suma sus filas ahí, en el mismo PR.
+- **Verificado:** se revisó que el archivo no tenga datos personales ni claves. Falta mirarlo en la vista previa del PR, para ver que las tablas se muestren bien.
+- **Falta:** confirmar con la consigna de la cátedra si la plantilla oficial pide otras columnas; si las pide, se agregan acá. Iván completa sus filas desde su próximo PR.
 
 ### T02 — Email y tareas programadas (Iván): hecho, mergeado en el PR #25
 
