@@ -248,6 +248,7 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
   - **Bandeja** (`routes/comprobantes.ts`, solo Admin y Directivo): comprobantes por estado; los pendientes, del más viejo al más nuevo. Aprobar pide el importe que se acreditó en el banco: crea el `Pago`, lo imputa a los ítems y recalcula saldo y estado de la factura. Rechazar pide un motivo (hasta 300 caracteres). Un comprobante ya revisado da 409, así que dos admins no lo pueden validar a la vez, y la API no expone el nombre del archivo en disco.
   - **Imputación y saldos** (`services/saldos.ts`): `calcularImputacion()` es una función pura. Imputa primero los ítems de la orden de pago y después los demás, en el orden de la factura. La beca se salda junto con la cuota, como en la migración de T01, así que una factura pagada queda con todos sus ítems en 0. No acepta más que el saldo. `aplicarPago()` bloquea la fila de la factura (`FOR UPDATE`) para que dos pagos simultáneos no imputen sobre el mismo saldo. `deudaAlumno()` es para T16.
   - **Avisos** (patrón Observer, `services/avisos/`): `publicar()` reparte el evento entre los canales suscriptos, in-app con push y `EmailObserver`. Un canal que falla queda en el log y no frena a los otros ni a la aprobación. Los dos canales usan el mismo texto, con el saldo que queda o el motivo del rechazo, y el email escapa el HTML.
+  - **Pantallas viejas fuera del menú:** se borraron *Cuotas* (`GestionCuotas`) y *Registrar pagos* (`RegistrarPagos`), que seguían escribiendo en la tabla `cuotas`; las reemplazan *Facturación* y *Comprobantes*. También se borraron sus constantes (`METODOS_PAGO`, `CUOTA_ESTADO_COLOR`). El Dashboard cuenta "Facturas sin pagar" (con saldo) en lugar de cuotas. Los endpoints viejos de `/api/cuotas` siguen en el backend porque los usan las pruebas de T03 y T04; se pueden borrar cuando el portal deje de leer `cuotas` (T11).
   - **Pantalla** *Comprobantes* del admin (`features/comprobantes/BandejaComprobantes.tsx`): filtros por estado y diálogo de revisión con el comprobante a la vista (foto o PDF, con "Abrir en otra pestaña" para el celular). Avisa si el importe difiere de lo declarado o si la factura ya está pagada, y ofrece motivos de rechazo frecuentes.
 - **Pruebas:** 40 nuevas (172 en total):
   - `test/saldos.test.ts` (10): pago total y parcial, orden de pago, beca normal y del 100 %, recargo, segundo pago, importes inválidos, y una prueba con 42 combinaciones donde lo imputado siempre suma el importe y ningún saldo queda negativo;
@@ -260,9 +261,10 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
   - **Avisos y permisos:** la familia recibió los tres avisos con el texto esperado. La familia recibe 403 en la bandeja y sí puede bajar su comprobante.
   - **Invariantes:** se cumplen en todas las facturas (`ítem.saldo = importe − imputaciones`, `factura.saldo = Σ ítems`, `total = Σ importes` y `pago = Σ imputaciones`).
   - **En el navegador** (a 1366 y 375 px): aprobación con importe distinto y rechazo con un motivo frecuente; sin scroll horizontal ni errores de consola.
+  - **Lint del frontend:** baja de 46 a 43 errores; los 3 que se van eran de las pantallas borradas.
 - **Falta:**
   - Probar el `EmailObserver` con la cuenta de Gmail real, cuando esté la contraseña de aplicación.
-  - Las pantallas viejas *Cuotas* y *Registrar pagos* siguen escribiendo en `cuotas`, no en las facturas. Hay que decidir si se sacan del menú ahora que existen *Facturación* y *Comprobantes*.
+  - La tarjeta "Cuotas pendientes" del portal todavía lee la tabla `cuotas`, que ya no recibe datos nuevos; la reemplaza T11 (Juan Manuel) con las facturas.
   - Con T13 mergeada, probar la subida real desde el portal.
 
 ### T09 — Login y logout en la PWA instalada (Iván): hecho, mergeado en el PR #34
