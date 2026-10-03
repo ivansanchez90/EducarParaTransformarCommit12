@@ -540,6 +540,23 @@ async function main() {
     skipDuplicates: true,
   })
 
+  // ── Vigencias: cada inscripción de arriba queda vigente desde su fecha ──
+  const [deportes, viajes, almuerzos] = await Promise.all([
+    prisma.inscripcionActividad.findMany({
+      where: { actividades_extracurriculares: { tipo: 'Deporte' } },
+      select: { id_alumno: true, id_actividad: true, fecha_inscripcion: true },
+    }),
+    prisma.inscripcionTransporte.findMany({ select: { id_alumno: true, id_recorrido: true, fecha_inscripcion: true } }),
+    prisma.inscripcionComedor.findMany({ select: { id_alumno: true, fecha_inscripcion: true } }),
+  ])
+  await prisma.vigenciaServicio.createMany({
+    data: [
+      ...deportes.map((d) => ({ id_alumno: d.id_alumno, concepto: 'Deporte', id_referencia: d.id_actividad, desde: d.fecha_inscripcion })),
+      ...viajes.map((v) => ({ id_alumno: v.id_alumno, concepto: 'Transporte', id_referencia: v.id_recorrido, desde: v.fecha_inscripcion })),
+      ...almuerzos.map((c) => ({ id_alumno: c.id_alumno, concepto: 'Comedor', id_referencia: null, desde: c.fecha_inscripcion })),
+    ],
+  })
+
   // ── Reservas de instalaciones ──
   const reservas = Array.from({ length: 12 }, (_, i) => {
     const instalacion = instalaciones[i % instalaciones.length]
@@ -715,6 +732,7 @@ async function main() {
     actividades: await prisma.inscripcionActividad.count(),
     transporte: await prisma.inscripcionTransporte.count(),
     comedor: await prisma.inscripcionComedor.count(),
+    vigencias: await prisma.vigenciaServicio.count(),
     reservas: await prisma.reservaInstalacion.count(),
     noticias: await prisma.noticia.count(),
     empleos: await prisma.empleo.count(),

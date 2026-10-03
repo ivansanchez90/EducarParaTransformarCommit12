@@ -8,6 +8,7 @@ import { HttpError, bool, hora, id, numOrNull, textOrNull } from '../lib/http.js
 import { prisma } from '../lib/prisma.js'
 import { cursoResumen, nombreApellido } from '../lib/selects.js'
 import { ROLES_ADMIN, assertAccesoAlumno, esStaff, requireAuth, requireRole } from '../middleware/auth.js'
+import { abrirVigencia, cerrarVigencia } from '../services/vigencias.js'
 
 export const actividadesRouter = Router()
 actividadesRouter.use(requireAuth)
@@ -226,7 +227,10 @@ actividadesRouter.post('/:id/inscripciones', async (req, res) => {
 
     if (actividad.tipo === TIPO_DEPORTE) await assertTopeDeportes(tx, idAlumno)
 
-    return tx.inscripcionActividad.create({ data: { id_actividad: idActividad, id_alumno: idAlumno } })
+    const creada = await tx.inscripcionActividad.create({ data: { id_actividad: idActividad, id_alumno: idAlumno } })
+    // Solo los deportes se facturan; el resto de las actividades no lleva vigencia.
+    if (actividad.tipo === TIPO_DEPORTE) await abrirVigencia(tx, idAlumno, 'Deporte', idActividad)
+    return creada
   })
   res.status(201).json(inscripcion)
 })
@@ -235,8 +239,13 @@ actividadesRouter.post('/:id/inscripciones', async (req, res) => {
 actividadesRouter.delete('/:id/inscripciones/:idAlumno', async (req, res) => {
   const idAlumno = id(req.params.idAlumno)
   await assertPuedeInscribir(req, idAlumno)
-  await prisma.inscripcionActividad.deleteMany({
-    where: { id_actividad: id(req.params.id), id_alumno: idAlumno },
+  const idActividad = id(req.params.id)
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.inscripcionActividad.deleteMany({
+      where: { id_actividad: idActividad, id_alumno: idAlumno },
+    })
+    // Si la actividad no era un deporte no tiene vigencia abierta y esto no toca nada.
+    if (count > 0) await cerrarVigencia(tx, idAlumno, 'Deporte', idActividad)
   })
   res.status(204).end()
 })
