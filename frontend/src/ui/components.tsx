@@ -15,6 +15,8 @@ import {
   inputField,
   msgError,
   msgOk,
+  precioMensual,
+  precioPorConfirmar,
   safeAreaBottom,
   safeAreaX,
   tableBase,
@@ -146,6 +148,12 @@ export function Badge({
   children: ReactNode
 }) {
   return <span style={badge(color)}>{children}</span>
+}
+
+/** Precio mensual de un servicio; si todavía no hay tarifa cargada, avisa que se confirma después. */
+export function PrecioMensual({ precio }: { precio: number | null }) {
+  if (precio === null) return <span className={precioPorConfirmar}>Precio a confirmar</span>
+  return <span className={precioMensual}>{`$${precio.toLocaleString('es-AR')} por mes`}</span>
 }
 
 /** Resultado de un formulario: verde si salió bien, rojo con el error del backend si no. */

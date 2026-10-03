@@ -18,7 +18,7 @@ import { CambiarPassword } from './features/cuenta/CambiarPassword'
 import type { RecorridoTransporte, ServiciosAlumno } from './types'
 import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/auth'
 import type { Perfil } from './lib/auth'
-import { AvatarMenu, Badge, BottomNav, ResponsiveTable, type Columna } from './ui/components'
+import { AvatarMenu, Badge, BottomNav, PrecioMensual, ResponsiveTable, type Columna } from './ui/components'
 import { btnPrimarySm, conBottomNav, conPaddingX, touchTarget } from './ui/styles'
 import { useEnLinea } from './ui/useEnLinea'
 import { useEsMovil } from './ui/useEsMovil'
@@ -94,6 +94,8 @@ interface ActividadEx {
   cupo_maximo: number
   inscriptos: number
   inscripto: boolean
+  /** Precio mensual de los deportes; `null` si no hay tarifa cargada o no se cobra aparte. */
+  precio: number | null
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1196,6 +1198,7 @@ export default function StudentPortal() {
                                 {a.descripcion}
                               </span>
                             )}
+                            {a.tipo === 'Deporte' && <PrecioMensual precio={a.precio} />}
                             <span
                               className='text-xs font-extrabold'
                               style={{
@@ -1275,6 +1278,9 @@ export default function StudentPortal() {
                       ? 'Inscripto en el servicio de comedor.'
                       : 'No utiliza el servicio de comedor.'}
                   </div>
+                  <div className='mt-1'>
+                    <PrecioMensual precio={servicios?.precio_comedor ?? null} />
+                  </div>
                 </div>
                 {esTutor && (
                   <button
@@ -1305,6 +1311,9 @@ export default function StudentPortal() {
                       {servicios.transporte.recorridos_transporte.zona ?? 'Sin zona'} · Ida{' '}
                       {(servicios.transporte.recorridos_transporte.hora_ida ?? '—').slice(0, 5)} · Vuelta{' '}
                       {(servicios.transporte.recorridos_transporte.hora_vuelta ?? '—').slice(0, 5)}
+                    </div>
+                    <div className='mt-1'>
+                      <PrecioMensual precio={servicios.precio_transporte} />
                     </div>
                     {servicios.transporte.observaciones && (
                       <div className='text-[12px] text-textMuted mt-1'>
@@ -1361,6 +1370,7 @@ export default function StudentPortal() {
                             {r.paradas}
                           </div>
                         )}
+                        <PrecioMensual precio={r.precio} />
                         <button
                           disabled={lleno || actual}
                           className={
