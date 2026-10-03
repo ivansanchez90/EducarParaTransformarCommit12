@@ -287,7 +287,7 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
   Con el `auth.ts` de `main`, la misma prueba sin conexión termina en `/login`. El lint sigue en los 46 errores de `main`.
 - **Falta:**
   - Probarlo en un Android y un iPhone reales (T23).
-  - El token dura 8 h (`JWT_EXPIRES_IN`), así que una familia con la app instalada tiene que volver a entrar todos los días. Hay que decidir si se alarga para las familias o se suma una renovación del token.
+  - **Decidido (03/10):** la sesión sigue durando 8 h para todos (`JWT_EXPIRES_IN`). Una familia con la app instalada vuelve a iniciar sesión cada día. Se puede revisar después del testing del 11/11 si las familias lo piden.
 
 ### T08 — Facturación mensual (Iván): hecho, mergeado en el PR #32
 
