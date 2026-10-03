@@ -9,7 +9,10 @@ import { vi } from 'vitest'
 export const prismaFalso = {
   usuario: { findUnique: vi.fn(), update: vi.fn() },
   alumno: { findFirst: vi.fn(), findUnique: vi.fn() },
-  factura: { findMany: vi.fn() },
+  factura: { findMany: vi.fn(), findUnique: vi.fn() },
+  itemFactura: { findMany: vi.fn() },
+  ordenPago: { create: vi.fn(), findUnique: vi.fn() },
+  $transaction: vi.fn(),
   pago: { findMany: vi.fn() },
   comprobanteTransferencia: { findUnique: vi.fn() },
   actividadExtracurricular: { findMany: vi.fn() },
@@ -18,6 +21,9 @@ export const prismaFalso = {
   inscripcionComedor: { findUnique: vi.fn() },
   tarifa: { findMany: vi.fn() },
 }
+
+// Las transacciones corren su función con el mismo doble.
+prismaFalso.$transaction.mockImplementation(async (funcion: (tx: unknown) => unknown) => funcion(prismaFalso))
 
 // `vitest.config.ts` define JWT_SECRET para las pruebas: se lee de ahí, no se repite el valor.
 const secretoDePruebas = process.env.JWT_SECRET ?? ''
