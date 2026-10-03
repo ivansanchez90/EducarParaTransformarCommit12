@@ -5,8 +5,9 @@
 import { useState } from 'react'
 import { descargar } from '../../lib/api'
 import { Badge } from '../../ui/components'
-import { btnSecondarySm, msgError } from '../../ui/styles'
+import { btnPrimarySm, btnSecondarySm, msgError } from '../../ui/styles'
 import { ESTADO_FACTURA_COLOR, fechaCorta, nombrePeriodo, numeroFactura, pesos } from './formato'
+import { OrdenPagoDialog } from './OrdenPagoDialog'
 import type { ComprobanteFactura, FacturaPortal } from './types'
 
 const COLOR_COMPROBANTE: Record<ComprobanteFactura['estado'], string> = {
@@ -26,6 +27,7 @@ function Dato({ titulo, valor, destacado }: { titulo: string; valor: string; des
 
 function TarjetaFactura({ factura }: { factura: FacturaPortal }) {
   const [mensaje, setMensaje] = useState('')
+  const [pagando, setPagando] = useState(false)
 
   const bajarPdf = async () => {
     setMensaje('')
@@ -78,6 +80,16 @@ function TarjetaFactura({ factura }: { factura: FacturaPortal }) {
       </details>
 
       <div className='flex items-center gap-3 flex-wrap'>
+        {factura.saldo > 0 && (
+          <button
+            className={btnPrimarySm}
+            onClick={() => {
+              setPagando(true)
+            }}
+          >
+            Pagar por transferencia
+          </button>
+        )}
         <button
           className={btnSecondarySm}
           onClick={() => {
@@ -88,6 +100,14 @@ function TarjetaFactura({ factura }: { factura: FacturaPortal }) {
         </button>
         {mensaje && <span className={msgError}>{mensaje}</span>}
       </div>
+      {pagando && (
+        <OrdenPagoDialog
+          factura={factura}
+          onClose={() => {
+            setPagando(false)
+          }}
+        />
+      )}
     </div>
   )
 }

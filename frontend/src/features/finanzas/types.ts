@@ -42,3 +42,15 @@ export interface PagoPortal {
   factura: { id_factura: number; numero: number; anio: number; mes: number } | null
   periodo: { anio: number; mes: number } | null
 }
+
+/** La orden de pago (el comprobante de pago) que emite el sistema para los ítems elegidos. */
+export interface OrdenPago {
+  id_orden: number
+  id_factura: number
+  numero: number
+  fecha: string
+  total: number
+  /** Alias al que se transfiere; vacío si la institución todavía no lo configuró. */
+  alias: string | null
+  items: { id_item: number; importe: number; concepto: string; descripcion: string }[]
+}
