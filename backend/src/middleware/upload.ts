@@ -107,7 +107,7 @@ export function recibirArchivoComprobante(req: Request, res: Response): Promise<
       if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
         reject(new HttpError(400, `El archivo pesa más de ${LIMITE_COMPROBANTE_MB} MB: sacale una foto más liviana o comprimilo`))
       } else if (err) {
-        reject(err)
+        reject(err instanceof Error ? err : new Error(String(err)))
       } else {
         resolve()
       }
@@ -127,6 +127,8 @@ export async function guardarComprobante(archivo: Express.Multer.File | undefine
   const carpeta = path.join(UPLOADS_DIR, 'comprobantes')
   await fs.promises.mkdir(carpeta, { recursive: true })
   const nombre = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${tipo.ext}`
+  // La carpeta es fija y el nombre se genera acá (fecha, bytes al azar y una extensión que sale del contenido).
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.promises.writeFile(path.join(carpeta, nombre), archivo.buffer, { flag: 'wx' })
   return nombre
 }
@@ -134,5 +136,12 @@ export async function guardarComprobante(archivo: Express.Multer.File | undefine
 /** Borra un comprobante de la carpeta privada (si falló el alta en la base). */
 export async function borrarComprobante(nombre: string) {
   const ruta = rutaArchivoPrivado('comprobantes', nombre)
-  if (ruta) await fs.promises.unlink(ruta).catch(() => undefined)
+  if (!ruta) return
+  try {
+    // `rutaArchivoPrivado` ya comprobó que la ruta queda dentro de la carpeta de comprobantes.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    await fs.promises.unlink(ruta)
+  } catch {
+    // Si el archivo ya no estaba, no hay nada que borrar.
+  }
 }
