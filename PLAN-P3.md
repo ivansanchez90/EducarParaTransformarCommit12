@@ -75,7 +75,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T07. Inscripciones con vigencia (transporte, comedor, deportes) sin romper el tope de 2 ni el cupo | HU08 | 1 | Juan Manuel | T01 | 2 días | En revisión |
 | T08. Facturación mensual con Strategy, becas, PDF de la factura y botón "Generar facturas" | HU09 | 1 | Iván | T06, T07 | 3 días | Pendiente |
 | T09. Login/logout en la PWA instalada y pruebas 401/403 de los endpoints nuevos | HU01 | 1 | Iván | T03 | 0,5 días | Pendiente |
-| T10. Cambio de contraseña en la PWA y su prueba automática | HU02 | 1 | Juan Manuel | T03 | 0,5 días | Pendiente |
+| T10. Cambio de contraseña en la PWA y su prueba automática | HU02 | 1 | Juan Manuel | T03 | 0,5 días | En revisión |
 | T11. Portal: cuotas pendientes y pagadas, e historial de pagos | HU10, HU11 | 2 | Juan Manuel | T08 | 2 días | Pendiente |
 | T12. Portal: elegir ítems y emitir el comprobante de pago (PDF con datos bancarios) | HU12 | 2 | Juan Manuel | T08 | 2,5 días | Pendiente |
 | T13. Portal: subir comprobantes de transferencia (foto o PDF, varios por factura) | HU13 | 2 | Juan Manuel | T04, T08 | 1,5 días | Pendiente |
@@ -197,6 +197,13 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Qué quedó:** `BITACORA-IA.md` en la raíz, con las columnas que pide el plan (problema, prompt, respuesta, si funcionó, qué se cambió y resultado) más número, fecha, tarea o PR, quién y herramienta. Incluye cómo completar cada columna y la primera fila, la de T03. Desde ahora cada PR que use IA suma sus filas ahí, en el mismo PR.
 - **Verificado:** se revisó que el archivo no tenga datos personales ni claves. Falta mirarlo en la vista previa del PR, para ver que las tablas se muestren bien.
 - **Falta:** confirmar con la consigna de la cátedra si la plantilla oficial pide otras columnas; si las pide, se agregan acá. Iván completa sus filas desde su próximo PR.
+
+### T10 — Cambio de contraseña en la PWA (Juan Manuel): en revisión
+
+- **Qué quedó:** el cambio ya existía y no hizo falta tocarlo: el diálogo `features/cuenta/CambiarPassword.tsx` (contraseña actual, nueva y repetición; deshabilitado sin conexión) se abre con *Mi contraseña* desde el menú del avatar del panel (Admin, Directivo y Docente) y del portal de familias, y llama a `POST /api/auth/password`, que pide la actual, exige al menos 6 caracteres y una distinta de la actual, y guarda el hash con bcrypt. Lo que faltaba era su prueba automática: `test/password.test.ts` (15 pruebas).
+- **Pruebas:** sin sesión es 401 y un usuario desactivado es 403; los cinco casos de 400 (nueva corta o ausente, igual a la actual, actual incorrecta o ausente) no modifican nada; los cinco roles pueden cambiarla; solo se guarda el hash de la nueva, para el usuario de la sesión (aunque el cuerpo traiga el id de otro); y la respuesta no filtra ningún hash. Total: 68 pruebas.
+- **Verificado:** `typecheck` sin errores. Quitando la regla "distinta de la actual", o guardando la contraseña sin hash, las pruebas fallan. Con la API real sobre `seed:demo`: la nueva corta, la igual y la actual incorrecta devuelven 400; el cambio correcto devuelve 200; después la contraseña vieja da 401 y la nueva 200, el mismo token sigue valiendo y la base guarda el hash (`$2b$`), no el texto.
+- **Falta:** no se probó el diálogo en un teléfono real ni a 375 px, porque no se modificó; queda para la prueba integral (T23). El cambio no cierra las sesiones abiertas en otros dispositivos.
 
 ### T02 — Email y tareas programadas (Iván): hecho, mergeado en el PR #25
 
