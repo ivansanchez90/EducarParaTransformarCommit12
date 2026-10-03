@@ -276,6 +276,19 @@ export interface ResultadoGeneracion {
   errores: { id_alumno: number; alumno: string; motivo: string }[]
 }
 
+/** Resultado del email de fin de mes (`POST /api/tareas/recordatorio-mensual`). */
+export interface ResultadoFinDeMes {
+  anio: number
+  mes: number
+  facturacion: ResultadoGeneracion
+  emailApagado: boolean
+  familias: number
+  enviados: number
+  yaEnviados: number
+  sinDestinatario: string[]
+  errores: { email: string; motivo: string }[]
+}
+
 export type EstadoComprobante = 'En revisión' | 'Aprobado' | 'Rechazado'
 
 /** Comprobante de transferencia en la bandeja del admin (`GET /api/comprobantes`). */

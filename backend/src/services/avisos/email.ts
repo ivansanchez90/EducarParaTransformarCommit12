@@ -4,12 +4,9 @@
  * in-app. Sin SMTP configurado no hace nada (ver `services/email.ts`).
  */
 import { prisma } from '../../lib/prisma.js'
-import { emailHabilitado, enviarEmail } from '../email.js'
+import { emailHabilitado, enviarEmail, escaparHtml as escapar } from '../email.js'
 import type { Observador } from './eventos.js'
 import { textoAviso } from './mensajes.js'
-
-const escapar = (s: string) =>
-  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
 /** Email de la familia del alumno, el mismo destino que las notificaciones in-app. */
 export async function emailDeLaFamilia(idAlumno: number): Promise<string | null> {
