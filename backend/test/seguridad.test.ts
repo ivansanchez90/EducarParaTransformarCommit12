@@ -1,7 +1,6 @@
-import jwt from 'jsonwebtoken'
 import request from 'supertest'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ID_USUARIO, iniciarSesionComo, prismaFalso } from './ayudas.js'
+import { firmarToken, iniciarSesionComo, prismaFalso } from './ayudas.js'
 
 vi.mock('../src/lib/prisma.js', async () => ({ prisma: (await import('./ayudas.js')).prismaFalso }))
 
@@ -49,13 +48,13 @@ describe('401: sin sesión válida', () => {
   })
 
   it('rechaza un token firmado con otro secreto', async () => {
-    const ajeno = jwt.sign({ sub: ID_USUARIO }, 'otro-secreto')
+    const ajeno = firmarToken({}, true)
     const res = await request(app).get('/api/tarifas').set('Authorization', `Bearer ${ajeno}`)
     expect(res.status).toBe(401)
   })
 
   it('rechaza un token vencido', async () => {
-    const vencido = jwt.sign({ sub: ID_USUARIO }, 'test', { expiresIn: -10 })
+    const vencido = firmarToken({ expiresIn: -10 })
     const res = await request(app).get('/api/tarifas').set('Authorization', `Bearer ${vencido}`)
     expect(res.status).toBe(401)
   })

@@ -45,9 +45,9 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.29.3
+      # Como el Dockerfile: pnpm viene con corepack, sin actions de terceros.
+      - run: corepack enable && corepack prepare pnpm@10.29.3 --activate
+        working-directory: .
       - uses: actions/setup-node@v4
         with:
           node-version: 22

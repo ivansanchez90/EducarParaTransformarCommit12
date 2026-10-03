@@ -11,8 +11,9 @@ export const prismaFalso = {
   alumno: { findFirst: vi.fn(), findUnique: vi.fn() },
 }
 
-// Mismo valor que `JWT_SECRET` en `vitest.config.ts`.
-const JWT_SECRET_PRUEBAS = 'test'
+// `vitest.config.ts` define JWT_SECRET para las pruebas: se lee de ahí, no se repite el valor.
+const secretoDePruebas = process.env.JWT_SECRET ?? ''
+const secretoAjeno = `${secretoDePruebas}-ajeno`
 
 export const ID_USUARIO = '11111111-1111-4111-8111-111111111111'
 
@@ -27,8 +28,13 @@ export function usuarioConRol(rol: string, activo = true) {
   }
 }
 
+/** Firma un token del usuario de prueba con el secreto de la app (o con otro, si es `ajeno`). */
+export function firmarToken(opciones: jwt.SignOptions = {}, ajeno = false): string {
+  return jwt.sign({ sub: ID_USUARIO }, ajeno ? secretoAjeno : secretoDePruebas, opciones)
+}
+
 /** Hace que el token válido de `tokenDe()` pertenezca a un usuario con ese rol. */
 export function iniciarSesionComo(rol: string, activo = true): string {
   prismaFalso.usuario.findUnique.mockResolvedValue(usuarioConRol(rol, activo))
-  return `Bearer ${jwt.sign({ sub: ID_USUARIO }, JWT_SECRET_PRUEBAS)}`
+  return `Bearer ${firmarToken()}`
 }
