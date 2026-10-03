@@ -1,10 +1,12 @@
 /**
- * EmailObserver: manda el aviso por email a la familia del alumno (el
- * padre/tutor, o el propio alumno si no tiene), con el mismo texto que el aviso
- * in-app. Sin SMTP configurado no hace nada (ver `services/email.ts`).
+ * EmailObserver: manda el aviso por email a la familia (el padre/tutor, o el
+ * propio alumno si no tiene). El de un comprobante usa el mismo texto que el
+ * aviso in-app; el de deuda, el detalle de `emailDeuda.ts`. Sin SMTP
+ * configurado no hace nada (ver `services/email.ts`).
  */
 import { prisma } from '../../lib/prisma.js'
 import { emailHabilitado, enviarEmail, escaparHtml as escapar } from '../email.js'
+import { emailDeuda } from './emailDeuda.js'
 import type { Observador } from './eventos.js'
 import { textoAviso } from './mensajes.js'
 
@@ -29,10 +31,16 @@ export function htmlAviso(titulo: string, mensaje: string): string {
 </div>`
 }
 
+export const CANAL_EMAIL = 'email'
+
 export const emailObserver: Observador = {
-  nombre: 'email',
+  nombre: CANAL_EMAIL,
   async notificar(evento) {
     if (!emailHabilitado) return
+    if (evento.tipo === 'DeudaDetectada') {
+      await enviarEmail({ para: evento.familia.email, ...emailDeuda(evento) })
+      return
+    }
     const para = await emailDeLaFamilia(evento.id_alumno)
     if (!para) return
     const { titulo, mensaje } = textoAviso(evento)
