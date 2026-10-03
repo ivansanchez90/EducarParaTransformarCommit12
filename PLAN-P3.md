@@ -77,15 +77,15 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T09. Login/logout en la PWA instalada y pruebas 401/403 de los endpoints nuevos | HU01 | 1 | Iván | T03 | 0,5 días | Hecho |
 | T10. Cambio de contraseña en la PWA y su prueba automática | HU02 | 1 | Juan Manuel | T03 | 0,5 días | Hecho |
 | T11. Portal: cuotas pendientes y pagadas, e historial de pagos | HU10, HU11 | 2 | Juan Manuel | T08 | 2 días | Hecho |
-| T12. Portal: elegir ítems y emitir el comprobante de pago (PDF con datos bancarios) | HU12 | 2 | Juan Manuel | T08 | 2,5 días | En revisión |
+| T12. Portal: elegir ítems y emitir el comprobante de pago (PDF con datos bancarios) | HU12 | 2 | Juan Manuel | T08 | 2,5 días | Hecho |
 | T13. Portal: subir comprobantes de transferencia (foto o PDF, varios por factura) | HU13 | 2 | Juan Manuel | T04, T08 | 1,5 días | Pendiente |
 | T14. Admin: bandeja de comprobantes, aprobar/rechazar, imputación, saldo (`services/saldos.ts`) y `EmailObserver` | HU14 | 2 | Iván | T02, T13 (contrato) | 2,5 días | Hecho |
 | T15. Portal: facturas y comprobantes por rango de fechas | HU15 | 3 | Juan Manuel | T13 | 1,5 días | Pendiente |
 | T16. Portal: deuda por ítem | HU16 | 3 | Juan Manuel | T14 | 1,5 días | Pendiente |
 | T17. Email del último día hábil con la composición y la factura adjunta | HU17 | 3 | Iván | T02, T08 | 2,5 días | Hecho |
-| T18. Email del día 20 con la deuda (más in-app y push) | HU18 | 3 | Iván | T14 | 1,5 días | En revisión |
+| T18. Email del día 20 con la deuda (más in-app y push) | HU18 | 3 | Iván | T14 | 1,5 días | Hecho |
 | T19. Portal: precio de cada servicio en "Transporte y comedor" y "Extracurriculares" | HU24 | 3 | Juan Manuel | T06 | 0,5 días | Hecho |
-| T20. Recuperar la contraseña por email | HU03 | 4 | Iván | T02 | 1,5 días | Pendiente |
+| T20. Recuperar la contraseña por email | HU03 | 4 | Iván | T02 | 1,5 días | En revisión |
 | T21. Reportes: ingresos por período, pagos completos e incompletos por año y alumno (PDF y CSV) | HU19–HU21 | 4 | Juan Manuel | T14 | 2 días | Pendiente |
 | T22. Reportes: pagos por deporte/nivel/horario/profesor y por recorrido | HU22, HU23 | 4 | Iván | T06, T21 | 1,5 días | Pendiente |
 | T23. Pruebas integrales con `seed:demo` ampliado (tarifas, facturas, pagos) y en teléfonos reales | — | 4 | Los dos | T01–T22 | 1,5 días | Pendiente |
@@ -156,7 +156,7 @@ con `requireAuth` + `assertAccesoAlumno`):
 - Todo pago pasa por `aplicarPago(tx, …)` de `services/saldos.ts` (crea el `Pago`, lo imputa y recalcula los saldos). El `fecha_pago` de un pago aprobado es la **fecha de la transferencia** (a las 12 h de Argentina), no la de la aprobación: es la que usan los reportes de ingresos (T21).
 - Avisos a las familias: `publicar(evento)` de `services/avisos/index.js` (patrón Observer; hoy, el evento `ComprobanteValidado`). T17 y T18 suman sus eventos en `services/avisos/eventos.ts`.
 - `POST /api/tareas/recordatorio-mensual` y `POST /api/tareas/aviso-deuda` con `{ anio, mes }`: ejecutan a mano lo mismo que el cron (para probar). En el recordatorio, `{ anio, mes }` es el período **facturado** (el cron del último día hábil de octubre manda noviembre); responde `{ facturacion, emailApagado, familias, enviados, yaEnviados, sinDestinatario, errores }`.
-- `POST /api/auth/recuperar` `{ email }` y `POST /api/auth/restablecer` `{ token, password }` (T20).
+- `POST /api/auth/recuperar` `{ email }` → siempre `{ ok: true }` (no dice si el email existe; 503 si no hay SMTP o `PUBLIC_URL`) y `POST /api/auth/restablecer` `{ token, password }` → 200, o 400 si el enlace no vale (T20). El enlace del email es `PUBLIC_URL/restablecer?token=…`.
 
 **Reportes** (en `backend/src/routes/reportesFinancieros.ts` y una opción nueva por reporte en
 `GestionReportes.tsx`; mismo formato `Documento` para PDF/CSV):
@@ -236,7 +236,7 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** `typecheck` y `build` del backend, y `tsc -b` y `build` del frontend, sin errores; el lint del frontend sigue en los 46 errores de `main`, ninguno nuevo. Quitando el bloqueo a docentes, el filtro por alumno o el cálculo del estado, las pruebas fallan. Con la API real sobre `seed:demo`, con tarifas cargadas y las facturas de septiembre y octubre generadas con el motor de T08 (116 cada mes) y un pago parcial por SQL: la familia ve su factura de octubre en *Pago parcial* (saldo 70.000 de 90.000) y la de septiembre *Vencida*, el filtro por estado funciona, el historial trae el pago nuevo y los de cuotas anteriores, el docente y otra familia reciben 403, sin sesión es 401 y el PDF baja (200).
 - **Falta:** no se pudo mirar la pantalla en un teléfono ni a 375 px (la extensión del navegador no estaba conectada); queda para la prueba integral (T23). Elegir ítems y emitir la orden de pago es T12, y subir comprobantes es T13. Los pagos que se registran desde la pantalla vieja *Registrar pagos* siguen escribiendo en `cuotas` hasta T14, por lo que no actualizan el saldo de las facturas.
 
-### T12 — Portal: elegir ítems y emitir la orden de pago (Juan Manuel): en revisión
+### T12 — Portal: elegir ítems y emitir la orden de pago (Juan Manuel): hecho, mergeado en el PR #38
 
 - **Qué quedó:** cada factura con saldo del portal tiene un botón *Pagar por transferencia*. Abre un diálogo donde la familia elige qué ítems paga (todos tildados al empezar), ve el total y emite la orden de pago; después puede bajar su PDF y ve cómo pagar: el alias, qué escribir en el motivo de la transferencia y que luego sube el comprobante. Backend, en `routes/portalFinanzas.ts`: `POST /api/facturas/:id/ordenes-pago` con `{ items: number[] }` (201 con la orden y el `alias` de `BANCO_ALIAS`) y `GET /api/ordenes-pago/:id/pdf`. La orden se crea dentro de una transacción (`services/ordenPago.ts`) por el saldo que tiene cada ítem en ese momento (`OrdenPago` y `OrdenPagoItem` de T01); responde 400 si no se elige ningún ítem, si alguno no es de esa factura o si ya no tiene saldo (y dice cuál). El PDF tiene el estilo del de la factura y muestra datos del alumno, la factura, los ítems, el total a transferir y los datos bancarios. Los puede emitir y ver la administración o la familia del alumno; los docentes y otras familias reciben 403. Frontend, en `features/finanzas/`: `OrdenPagoDialog` y `useOrdenPago`.
 - **Pruebas:** 20 nuevas en `test/ordenPago.test.ts` (174 en total): 401, 403 a docentes y a familias ajenas, 404 de factura y de orden, los 400 (lista ausente, vacía o inválida, ítem ajeno o sin saldo), la orden por el saldo de los ítems con el usuario que la emitió, que no se repitan ids ni se busquen ítems de otra factura, y el PDF con su nombre y su cabecera `%PDF-`.
@@ -256,7 +256,23 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** sobre una base con `seed:demo`, la API responde 401 sin sesión y 403 a una familia; cubre altas, todas las validaciones, el estado de cada tarifa, la edición y el borrado solo de las programadas, y el profesor y los horarios (también los ve el portal). En el navegador, a 1366 px y a 375 px (sin scroll horizontal ni errores de consola): carga de una tarifa, edición de una actividad con profesor y horarios, y el mensaje de horarios superpuestos. `typecheck` y `build` sin errores; el lint del frontend sigue en los 46 errores que ya había en `main`, ninguno nuevo.
 - **Falta:** cargar las tarifas reales antes de facturar (T08).
 
-### T18 — Aviso de deuda del día 20 (Iván): en revisión
+### T20 — Recuperar la contraseña por email (Iván): en revisión
+
+- **Qué quedó:**
+  - **Backend** (`services/recuperacion.ts` y dos rutas en `routes/auth.ts`). `POST /api/auth/recuperar` responde siempre lo mismo y sin esperar el envío, así ni la respuesta ni el tiempo dicen si el email existe. Si es de un usuario activo, le manda un enlace que vale **30 minutos y una sola vez**. El token es aleatorio (32 bytes) y en `tokens_recuperacion` se guarda solo su SHA-256. Pedir un enlace nuevo anula los anteriores, y hay como mucho 3 por hora por usuario. `POST /api/auth/restablecer` toma el token con un update condicional (sin usar y sin vencer), así no sirve dos veces aunque lleguen dos pedidos a la vez, y guarda la contraseña nueva con bcrypt.
+  - **Seguridad del enlace:** se arma con `PUBLIC_URL` y nunca con la cabecera `Host` del pedido; si no, alguien podría hacer que el email apunte a su propio sitio. Sin SMTP o sin `PUBLIC_URL`, la ruta responde 503 con un mensaje para pedirle el cambio a la institución.
+  - **Frontend:** "¿Olvidaste tu contraseña?" en el login, que pasa a un formulario en la misma tarjeta con el email ya cargado. La página nueva `/restablecer` pide la contraseña dos veces y saca el token de la barra de direcciones apenas lo lee, para que no quede en el historial. También avisa si el enlace no es válido o venció.
+- **Pruebas:** 12 nuevas en `test/recuperacion.test.ts` (263 en total, con las de T12): el enlace con 30 minutos y solo el hash en la base; anula los anteriores; email inexistente o usuario desactivado; límite de 3 por hora; un token usado, vencido o inventado no cambia nada; una contraseña corta no gasta el enlace; el usuario desactivado; respuesta igual para un email conocido y uno desconocido; 503 sin SMTP; el enlace usa `PUBLIC_URL` aunque el pedido llegue con otro `Host`.
+- **Verificado sobre una base descartable con `seed:demo`**, con el SMTP de prueba local y Chromium a 375 px:
+  - **Flujo completo:** pedir el enlace desde el login, recibir el email y abrir el enlace (el token desaparece de la URL). El aviso de contraseñas que no coinciden y el cambio funcionan. Después entra con la nueva (200) y no con la vieja (401).
+  - **Un solo uso y vencimiento:** el mismo enlace da 400 la segunda vez, y un enlace anterior queda anulado al pedir otro. Con la expiración adelantada en la base, un enlace vencido da 400.
+  - **Límites:** el cuarto pedido en una hora y un email inexistente responden 200 y no mandan nada.
+  - **Seguridad:** dos usos simultáneos del mismo enlace dan 200 y 400; la base no tiene ningún token en claro y la contraseña queda con bcrypt (`$2b$`). Sin scroll horizontal ni errores de JavaScript.
+- **Falta:**
+  - Probar con la cuenta de Gmail real (igual que T17 y T18) y con `PUBLIC_URL` de producción.
+  - Restablecer la contraseña no cierra las sesiones abiertas en otros dispositivos: duran hasta que vence el token de 8 h, igual que con el cambio de contraseña de T10.
+
+### T18 — Aviso de deuda del día 20 (Iván): hecho, mergeado en el PR #39
 
 - **Qué quedó:**
   - **Tarea "Aviso de deuda"** (`jobs/avisoDeuda.ts`, en `TAREAS`): corre el día 20 a las 9 y a las 18. Busca las facturas con saldo que vencieron antes del día 20 del mes, también las de meses anteriores. A cada familia (el padre/tutor, o el alumno si no tiene) le publica un evento `DeudaDetectada` con lo que debe cada hijo, factura por factura e ítem por ítem.
