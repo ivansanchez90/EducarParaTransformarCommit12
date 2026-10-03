@@ -4,6 +4,7 @@
  * en `/api`, junto a otros que comparten recursos (por ejemplo `/api/comprobantes`).
  */
 import { Router } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import { HttpError, id } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { ROLES_ADMIN, assertAccesoAlumno, esStaff, requireAuth } from '../middleware/auth.js'
@@ -15,7 +16,7 @@ export const portalFinanzasRouter = Router()
  * Descarga el archivo de un comprobante de transferencia. Lo ve la administración
  * o la familia del alumno de la factura; el resto del personal, no.
  */
-portalFinanzasRouter.get('/comprobantes/:id/archivo', requireAuth, async (req, res, next) => {
+async function descargarComprobante(req: Request, res: Response, next: NextFunction) {
   const usuario = req.user
   if (!usuario) throw new HttpError(401, 'No autenticado')
 
@@ -36,7 +37,11 @@ portalFinanzasRouter.get('/comprobantes/:id/archivo', requireAuth, async (req, r
   // Un comprobante tiene datos bancarios: que ningún caché intermedio lo guarde.
   res.setHeader('Cache-Control', 'private, no-store')
   res.setHeader('X-Content-Type-Options', 'nosniff')
-  res.sendFile(ruta, (err) => {
+  res.sendFile(ruta, (err: Error | undefined) => {
     if (err) next(new HttpError(404, 'El archivo del comprobante no está disponible'))
   })
+}
+
+portalFinanzasRouter.get('/comprobantes/:id/archivo', requireAuth, (req, res, next) => {
+  descargarComprobante(req, res, next).catch(next)
 })

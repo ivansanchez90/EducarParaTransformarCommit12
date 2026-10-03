@@ -1,5 +1,4 @@
 import fs from 'node:fs'
-import path from 'node:path'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { iniciarSesionComo, prismaFalso } from './ayudas.js'
@@ -7,26 +6,24 @@ import { iniciarSesionComo, prismaFalso } from './ayudas.js'
 vi.mock('../src/lib/prisma.js', async () => ({ prisma: (await import('./ayudas.js')).prismaFalso }))
 
 const { app } = await import('../src/app.js')
-const { UPLOADS_DIR } = await import('../src/middleware/upload.js')
 
 const CONTENIDO = 'comprobante de prueba'
 const NOMBRE = 'prueba-t04.txt'
-const carpetaPrivada = path.join(UPLOADS_DIR, 'comprobantes')
-const carpetaPublica = path.join(UPLOADS_DIR, 'galeria')
-
 // Un comprobante de la factura de un alumno cuyo archivo existe en la carpeta privada.
 const comprobante = (archivo = NOMBRE) => ({ archivo, facturas: { id_alumno: 7 } })
 
+// Los archivos de prueba se arman con rutas literales relativas a `backend/` (donde corre Vitest),
+// la misma carpeta `uploads/` que usa la app.
 beforeAll(() => {
-  fs.mkdirSync(carpetaPrivada, { recursive: true })
-  fs.mkdirSync(carpetaPublica, { recursive: true })
-  fs.writeFileSync(path.join(carpetaPrivada, NOMBRE), CONTENIDO)
-  fs.writeFileSync(path.join(carpetaPublica, NOMBRE), CONTENIDO)
+  fs.mkdirSync('uploads/comprobantes', { recursive: true })
+  fs.mkdirSync('uploads/galeria', { recursive: true })
+  fs.writeFileSync('uploads/comprobantes/prueba-t04.txt', CONTENIDO)
+  fs.writeFileSync('uploads/galeria/prueba-t04.txt', CONTENIDO)
 })
 
 afterAll(() => {
-  fs.rmSync(path.join(carpetaPrivada, NOMBRE), { force: true })
-  fs.rmSync(path.join(carpetaPublica, NOMBRE), { force: true })
+  fs.rmSync('uploads/comprobantes/prueba-t04.txt', { force: true })
+  fs.rmSync('uploads/galeria/prueba-t04.txt', { force: true })
 })
 
 beforeEach(() => {
