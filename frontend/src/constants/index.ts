@@ -24,15 +24,6 @@ export const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'
 
 export const CONCEPTOS_TARIFA = ['Cuota', 'Deporte', 'Transporte', 'Comedor'] as const
 
-// Desde la Parte 3 los pagos son solo por transferencia.
-export const METODOS_PAGO = ['Transferencia']
-
-export const CUOTA_ESTADO_COLOR: Record<string, string> = {
-  Pendiente: '#E67E22',
-  Vencida: '#E74C3C',
-  'En mora': '#C0392B',
-}
-
 export const DESTINOS_INSUMO = [
   'Laboratorio de computación',
   'Laboratorio de física',
@@ -106,11 +97,9 @@ export const NAV_ADMIN = [
   { key: 'cursos', icon: '🏫', label: 'Cursos' },
   { key: 'materias', icon: '📚', label: 'Materias' },
   { key: 'asignaciones', icon: '🔗', label: 'Asignaciones' },
-  { key: 'cuotas', icon: '💳', label: 'Cuotas' },
   { key: 'tarifas', icon: '🏷️', label: 'Tarifas' },
   { key: 'facturacion', icon: '🧾', label: 'Facturación' },
   { key: 'comprobantes', icon: '📥', label: 'Comprobantes' },
-  { key: 'pagos', icon: '💰', label: 'Registrar pagos' },
   { key: 'becas', icon: '🎟️', label: 'Becas' },
   { key: 'sueldos', icon: '💼', label: 'Sueldos' },
   { key: 'compras', icon: '🧪', label: 'Compras insumos' },

@@ -27,8 +27,6 @@ import { GestionDocentes } from './features/docentes/GestionDocentes'
 import { GestionCursos } from './features/cursos/GestionCursos'
 import { GestionMaterias } from './features/materias/GestionMaterias'
 import { GestionAsignaciones } from './features/asignaciones/GestionAsignaciones'
-import { GestionCuotas } from './features/cuotas/GestionCuotas'
-import { RegistrarPagos } from './features/pagos/RegistrarPagos'
 import { GestionBecas } from './features/becas/GestionBecas'
 import { GestionTarifas } from './features/tarifas/GestionTarifas'
 import { GestionFacturacion } from './features/facturacion/GestionFacturacion'
@@ -278,11 +276,9 @@ export default function AdminPanel() {
           {activeNav === 'cursos' && esAdmin && <GestionCursos />}
           {activeNav === 'materias' && esAdmin && <GestionMaterias />}
           {activeNav === 'asignaciones' && esAdmin && <GestionAsignaciones />}
-          {activeNav === 'cuotas' && esAdmin && <GestionCuotas />}
           {activeNav === 'tarifas' && esAdmin && <GestionTarifas />}
           {activeNav === 'facturacion' && esAdmin && <GestionFacturacion />}
           {activeNav === 'comprobantes' && esAdmin && <BandejaComprobantes />}
-          {activeNav === 'pagos' && esAdmin && <RegistrarPagos />}
           {activeNav === 'becas' && esAdmin && <GestionBecas />}
           {activeNav === 'sueldos' && esAdmin && <GestionSueldos />}
           {activeNav === 'compras' && esAdmin && <GestionCompras />}

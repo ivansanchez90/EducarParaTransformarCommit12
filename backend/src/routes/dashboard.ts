@@ -9,7 +9,8 @@ dashboardRouter.get('/stats', requireAuth, requireRole(...ROLES_ADMIN), async (_
     prisma.alumno.count({ where: { activo: true } }),
     prisma.docente.count({ where: { activo: true } }),
     prisma.inscripcion.count({ where: { estado: 'Pendiente' } }),
-    prisma.cuota.count({ where: { estado: { in: ['Pendiente', 'Vencida', 'En mora'] } } }),
+    // Desde la Parte 3 se cobra con facturas: las que todavía tienen saldo.
+    prisma.factura.count({ where: { saldo: { gt: 0 } } }),
   ])
   res.json({ alumnos, docentes, inscripciones, cuotasPendientes })
 })
