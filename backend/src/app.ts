@@ -20,6 +20,7 @@ import { reportesRouter } from './routes/reportes.js'
 import { tarifasRouter } from './routes/tarifas.js'
 import { facturasRouter } from './routes/facturas.js'
 import { comprobantesRouter } from './routes/comprobantes.js'
+import { tareasRouter } from './routes/tareas.js'
 import { instalacionesRouter, reservasRouter } from './routes/reservas.js'
 import { recorridosRouter, serviciosRouter } from './routes/servicios.js'
 import {
@@ -78,6 +79,7 @@ app.use('/api/tarifas', tarifasRouter)
 app.use('/api/facturas', facturasRouter)
 // Después de `portalFinanzasRouter`: la descarga del archivo (familias y admin) se resuelve ahí.
 app.use('/api/comprobantes', comprobantesRouter)
+app.use('/api/tareas', tareasRouter)
 
 // Frontend (SPA): en producción el backend sirve también el build de React,
 // así la app entera vive en un solo contenedor y un solo dominio.

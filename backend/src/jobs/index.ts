@@ -13,7 +13,8 @@
  */
 import cron from 'node-cron'
 import { config } from '../lib/config.js'
-import { diaEnZona, hayFeriadosCargados, type Dia } from './calendario.js'
+import { diaEnZona, esUltimoDiaHabil, hayFeriadosCargados, type Dia } from './calendario.js'
+import { enviarFinDeMes, periodoAFacturar } from './emailFinDeMes.js'
 
 export interface TareaProgramada {
   nombre: string
@@ -26,11 +27,28 @@ export interface TareaProgramada {
 
 export type ResultadoTarea = 'omitida' | 'ejecutada' | 'fallida'
 
-/**
- * Las tareas del sistema. Se suman en T17 (email del último día hábil, con
- * `corresponde: esUltimoDiaHabil`) y en T18 (aviso de deuda del día 20).
- */
-export const TAREAS: TareaProgramada[] = []
+/** Las tareas del sistema. T18 suma el aviso de deuda del día 20. */
+export const TAREAS: TareaProgramada[] = [
+  {
+    nombre: 'Email de fin de mes',
+    // A las 9 y a las 18: la segunda vuelta solo reintenta los envíos que fallaron.
+    expresion: '0 9,18 * * *',
+    corresponde: esUltimoDiaHabil,
+    async ejecutar(hoy) {
+      const { anio, mes } = periodoAFacturar(hoy)
+      const r = await enviarFinDeMes(anio, mes)
+      console.log(
+        `Fin de mes ${mes}/${anio}: ${r.facturacion.generadas} factura(s) emitida(s), ` +
+          (r.emailApagado
+            ? 'email apagado.'
+            : `${r.enviados} email(s) enviado(s), ${r.yaEnviados} ya enviado(s), ${r.errores.length} con error.`),
+      )
+      if (r.facturacion.errores.length) console.warn('Facturas que no se pudieron emitir:', r.facturacion.errores)
+      if (r.errores.length) console.warn('Emails con error (se reintentan en la próxima vuelta):', r.errores)
+      return r
+    },
+  },
+]
 
 /** Ejecuta una tarea para el día de Argentina que corresponde a `instante`. */
 export async function correrTarea(tarea: TareaProgramada, instante = new Date()): Promise<ResultadoTarea> {

@@ -47,7 +47,7 @@ alumno y mes, solo el admin registra pagos y no hay email ni tareas programadas.
 | Servicios por mes | Vigencia desde/hasta en transporte, comedor y deportes | El transporte puede cambiar de un mes a otro |
 | Pagos | Solo `Transferencia`. El padre elige ítems → el sistema emite un **comprobante de pago** (`OrdenPago`) → el padre sube la **transferencia** (`ComprobanteTransferencia`) → el admin la aprueba y se crea el `Pago` imputado a los ítems | Cumple "el padre selecciona ítems" y "una factura puede tener varios comprobantes" |
 | Estado de la factura | Se calcula por saldo: Pendiente, Pago parcial, Pagada, Vencida | Permite los listados de pagos completos e incompletos |
-| Avisos | Patrón **Observer** (ya usado): eventos `FacturaEmitida`, `ComprobanteValidado`, `DeudaDetectada`; se suma `EmailObserver` a in-app y push | Un canal que falla no revierte la operación |
+| Avisos | Patrón **Observer** (`services/avisos/`): eventos `ComprobanteValidado` (T14) y `DeudaDetectada` (T18), con `EmailObserver` además de in-app y push. El email de fin de mes con la factura (T17) es una tarea propia (`jobs/emailFinDeMes.ts`): junta las facturas de todos los hijos en un email con sus PDF y registra cada envío en `envios_email` | Un canal que falla no revierte la operación |
 | Email | nodemailer con **Gmail** (`smtp.gmail.com`, puerto 465, SSL) y una **contraseña de aplicación** (requiere verificación en dos pasos en la cuenta). Variables: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Gratis y sin dominio propio. Sin claves, el envío queda apagado y la app funciona igual (como el push) |
 | Datos bancarios | El comprobante de pago y los emails indican transferir al alias **`sanchezoliva`**. Va en la variable `BANCO_ALIAS`, no en el código | Si cambia la cuenta, se cambia en Coolify sin tocar código |
 | Tareas programadas | node-cron dentro del backend, zona `America/Argentina/Buenos_Aires`, tabla de feriados; cada envío queda en `EnvioEmail` | Un reinicio o una segunda ejecución no reenvía |
@@ -79,10 +79,10 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T11. Portal: cuotas pendientes y pagadas, e historial de pagos | HU10, HU11 | 2 | Juan Manuel | T08 | 2 días | Hecho |
 | T12. Portal: elegir ítems y emitir el comprobante de pago (PDF con datos bancarios) | HU12 | 2 | Juan Manuel | T08 | 2,5 días | Pendiente |
 | T13. Portal: subir comprobantes de transferencia (foto o PDF, varios por factura) | HU13 | 2 | Juan Manuel | T04, T08 | 1,5 días | Pendiente |
-| T14. Admin: bandeja de comprobantes, aprobar/rechazar, imputación, saldo (`services/saldos.ts`) y `EmailObserver` | HU14 | 2 | Iván | T02, T13 (contrato) | 2,5 días | En revisión |
+| T14. Admin: bandeja de comprobantes, aprobar/rechazar, imputación, saldo (`services/saldos.ts`) y `EmailObserver` | HU14 | 2 | Iván | T02, T13 (contrato) | 2,5 días | Hecho |
 | T15. Portal: facturas y comprobantes por rango de fechas | HU15 | 3 | Juan Manuel | T13 | 1,5 días | Pendiente |
 | T16. Portal: deuda por ítem | HU16 | 3 | Juan Manuel | T14 | 1,5 días | Pendiente |
-| T17. Email del último día hábil con la composición y la factura adjunta | HU17 | 3 | Iván | T02, T08 | 2,5 días | Pendiente |
+| T17. Email del último día hábil con la composición y la factura adjunta | HU17 | 3 | Iván | T02, T08 | 2,5 días | En revisión |
 | T18. Email del día 20 con la deuda (más in-app y push) | HU18 | 3 | Iván | T14 | 1,5 días | Pendiente |
 | T19. Portal: precio de cada servicio en "Transporte y comedor" y "Extracurriculares" | HU24 | 3 | Juan Manuel | T06 | 0,5 días | Hecho |
 | T20. Recuperar la contraseña por email | HU03 | 4 | Iván | T02 | 1,5 días | Pendiente |
@@ -155,7 +155,7 @@ con `requireAuth` + `assertAccesoAlumno`):
 - `GET /api/comprobantes?estado=En revisión` (o varios: `?estado=Aprobado,Rechazado`) → comprobantes con `facturas` (y su alumno), `ordenes_pago`, `carga`, `revision` y `pagos`; `PATCH /api/comprobantes/:id/aprobar` con `{ importe }` → `{ estado, factura: { saldo, estado } }`; `PATCH /api/comprobantes/:id/rechazar` con `{ motivo }`. Un comprobante ya revisado da 409.
 - Todo pago pasa por `aplicarPago(tx, …)` de `services/saldos.ts` (crea el `Pago`, lo imputa y recalcula los saldos). El `fecha_pago` de un pago aprobado es la **fecha de la transferencia** (a las 12 h de Argentina), no la de la aprobación: es la que usan los reportes de ingresos (T21).
 - Avisos a las familias: `publicar(evento)` de `services/avisos/index.js` (patrón Observer; hoy, el evento `ComprobanteValidado`). T17 y T18 suman sus eventos en `services/avisos/eventos.ts`.
-- `POST /api/tareas/recordatorio-mensual` y `POST /api/tareas/aviso-deuda` con `{ anio, mes }`: ejecutan a mano lo mismo que el cron (para probar).
+- `POST /api/tareas/recordatorio-mensual` y `POST /api/tareas/aviso-deuda` con `{ anio, mes }`: ejecutan a mano lo mismo que el cron (para probar). En el recordatorio, `{ anio, mes }` es el período **facturado** (el cron del último día hábil de octubre manda noviembre); responde `{ facturacion, emailApagado, familias, enviados, yaEnviados, sinDestinatario, errores }`.
 - `POST /api/auth/recuperar` `{ email }` y `POST /api/auth/restablecer` `{ token, password }` (T20).
 
 **Reportes** (en `backend/src/routes/reportesFinancieros.ts` y una opción nueva por reporte en
@@ -249,7 +249,29 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** sobre una base con `seed:demo`, la API responde 401 sin sesión y 403 a una familia; cubre altas, todas las validaciones, el estado de cada tarifa, la edición y el borrado solo de las programadas, y el profesor y los horarios (también los ve el portal). En el navegador, a 1366 px y a 375 px (sin scroll horizontal ni errores de consola): carga de una tarifa, edición de una actividad con profesor y horarios, y el mensaje de horarios superpuestos. `typecheck` y `build` sin errores; el lint del frontend sigue en los 46 errores que ya había en `main`, ninguno nuevo.
 - **Falta:** cargar las tarifas reales antes de facturar (T08).
 
-### T14 — Bandeja de comprobantes, imputación y avisos (Iván): en revisión
+### T17 — Email del último día hábil con la factura (Iván): en revisión
+
+- **Qué quedó:**
+  - **Tarea "Email de fin de mes"** (`jobs/emailFinDeMes.ts`, en `TAREAS`): corre todos los días a las 9 y a las 18, pero solo hace algo el último día hábil (`esUltimoDiaHabil`, con los feriados de T02). Emite las facturas del mes siguiente que falten (generar no duplica) y manda un email por familia, al padre/tutor o al alumno si no tiene. El email tiene la composición de la factura de cada hijo, el total a pagar, el vencimiento, el alias de `BANCO_ALIAS` y el enlace a la app, con los PDF adjuntos. La vuelta de las 18 solo reintenta los que fallaron.
+  - **Sin reenvíos:** cada envío queda en `envios_email` (tipo, período y familia, restricción única). Antes de mandar, la fila se toma con un update condicional (`Pendiente`/`Error` → `Enviando`), así dos ejecuciones a la vez no mandan el mismo email. Si un email falla, queda en `Error` con el motivo y se sigue con las demás familias.
+  - **Pausa entre emails:** `EMAIL_PAUSA_MS` (1000 por defecto), porque Gmail corta los envíos muy seguidos. Está en `.env.example` y en el README.
+  - **A mano:** `POST /api/tareas/recordatorio-mensual` (`routes/tareas.ts`, solo administración) y el botón *Enviar por email* en *Facturación*, que muestra cuántos se mandaron, los que ya lo tenían, los que fallaron y los alumnos sin usuario a quien escribirle.
+  - **Plantilla** (`services/facturacion/emailFactura.ts`): función pura con versión HTML y texto. Escapa nombres y descripciones; `escaparHtml` pasó a `services/email.ts` y la usa también el aviso de T14.
+- **Pruebas:** 19 nuevas (213 en total):
+  - `test/email-fin-de-mes.test.ts` (11): agrupado por familia con un PDF por hijo; alumnos sin usuario activo; no reenvía; dos ejecuciones crean el registro a la vez; un error no corta el resto; email apagado; período de diciembre a enero; textos y escape del HTML;
+  - `test/tarea-fin-de-mes.test.ts` (8): corre el 30/10/2026 y manda noviembre; no corre el 29 ni el sábado 31; diciembre manda enero; usa el día de Argentina; el endpoint con 401/403/400.
+- **Verificado sobre una base descartable con `seed:demo`**, con un servidor SMTP de prueba local (ningún email salió a internet) y `BANCO_ALIAS=sanchezoliva`:
+  - **Envíos y reintentos:** en noviembre se emitieron 116 facturas y se mandaron 115 emails; el servidor rechazó a propósito una dirección, que quedó en `Error`. La segunda corrida mandó solo ese y la tercera, ninguno.
+  - **Corridas simultáneas:** dos corridas a la vez de diciembre y de enero terminaron las dos con 200 y no duplicaron ningún email. Esto encontró una carrera en la creación del registro de envío (el `upsert` de Prisma no es atómico), que se corrigió.
+  - **Familia con dos hijos:** un solo email con los dos PDF válidos, la composición de cada uno, el total a pagar y el alias.
+  - **Cron con fecha simulada:** el 28/01/2027 se saltea; el 29/01 a las 9 emite febrero y manda los emails; a las 18 no reenvía nada.
+  - **En el navegador** (1366 y 375 px): el botón *Enviar por email* sin scroll horizontal ni errores de consola.
+- **Falta:**
+  - Probarlo con la cuenta de Gmail real cuando esté la contraseña de aplicación (`SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` en Coolify).
+  - Si el backend se cae mientras manda, esa familia queda en `Enviando` y no se reintenta sola: se pasa a `Error` a mano en la base.
+  - Con unas 100 familias, la ejecución a mano tarda alrededor de 2 minutos por la pausa entre emails.
+
+### T14 — Bandeja de comprobantes, imputación y avisos (Iván): hecho, mergeado en el PR #36
 
 - **Qué quedó:**
   - **Bandeja** (`routes/comprobantes.ts`, solo Admin y Directivo): comprobantes por estado; los pendientes, del más viejo al más nuevo. Aprobar pide el importe que se acreditó en el banco: crea el `Pago`, lo imputa a los ítems y recalcula saldo y estado de la factura. Rechazar pide un motivo (hasta 300 caracteres). Un comprobante ya revisado da 409, así que dos admins no lo pueden validar a la vez, y la API no expone el nombre del archivo en disco.
