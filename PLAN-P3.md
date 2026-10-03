@@ -69,7 +69,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T01. Modelo de datos financiero: `Tarifa`, `Factura`, `ItemFactura`, `OrdenPago`, `ComprobanteTransferencia`, `Pago` ligado a factura e ítems, `EnvioEmail`, `TokenRecuperacion`; migración de las cuotas existentes | — | 0 | Iván | — | 2 días | Hecho |
 | T02. Email (nodemailer + Gmail con contraseña de aplicación) y tareas programadas (node-cron, feriados, `ultimoDiaHabil()` con pruebas) | — | 0 | Iván | — | 1,5 días | Hecho |
 | T03. Pruebas y CI: Vitest + Supertest en `backend/`, GitHub Actions con lint, build y test | — | 0 | Juan Manuel | — | 1 día | En revisión |
-| T04. Quitar "Efectivo" (backend, `constants`, `RegistrarPagos`) y bucket privado de comprobantes con descarga autenticada | — | 0 | Juan Manuel | — | 1 día | Pendiente |
+| T04. Quitar "Efectivo" (backend, `constants`, `RegistrarPagos`) y bucket privado de comprobantes con descarga autenticada | — | 0 | Juan Manuel | — | 1 día | En revisión |
 | T05. `BITACORA-IA.md` con la plantilla de la consigna | — | 0 | Juan Manuel | — | 0,5 días | En revisión |
 | T06. Tarifas: ABM por concepto con vigencia y pantalla admin; horario y profesor del deporte (deuda de la Parte 2) | HU04–HU07 | 1 | Iván | T01 | 2,5 días | En revisión |
 | T07. Inscripciones con vigencia (transporte, comedor, deportes) sin romper el tope de 2 ni el cupo | HU08 | 1 | Juan Manuel | T01 | 2 días | En revisión |
@@ -204,6 +204,13 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Pruebas:** `npm test` (Vitest, `backend/test/`) corre 23 pruebas: el último día hábil de los 12 meses de 2026 calculado a mano, feriados al final del mes, años bisiestos, feriados trasladados, el cambio de día entre Argentina y UTC, y que una tarea no se ejecuta si no corresponde ni propaga sus errores. Vitest quedó instalado con `vitest.config.ts`; T03 suma Supertest y la CI sobre esta base.
 - **Verificado:** `typecheck` sin errores. La API arranca sin claves de email (envío apagado) y con una contraseña inválida (Gmail la rechaza, sale en el log y la API sigue). Un cron real de prueba se ejecuta cada segundo con el día de Argentina.
 - **Falta:** crear la contraseña de aplicación en la cuenta que va a enviar, definir `MAIL_FROM` y cargarlos en Coolify. Agregar los días no laborables turísticos de 2027 cuando se publiquen. Las tareas concretas (emails del último día hábil y del día 20) se suman en T17 y T18.
+
+### T04 — Sin efectivo y comprobantes privados (Juan Manuel): en revisión
+
+- **Qué quedó:** los pagos aceptan solo `Transferencia`: `PATCH /api/cuotas/:id/pago` responde 400 con cualquier otro método (`routes/administracion.ts`), `constants` y `RegistrarPagos` ofrecen solo esa opción y el `seed:demo` ya no genera pagos en efectivo. Los pagos anteriores conservan su método, porque no se reescribe la historia. Los comprobantes de transferencia tienen una carpeta privada, `uploads/comprobantes/` (el bucket `comprobantes` de `middleware/upload.ts`): `/uploads` ahora sirve solo los buckets de una lista (`galeria`, `noticias`, `documentos-alumnos`), así que una carpeta nueva nace privada. En la base se guarda solo el nombre del archivo (`ComprobanteTransferencia.archivo`), y `rutaArchivoPrivado()` rechaza nombres que salgan de la carpeta. La descarga es `GET /api/comprobantes/:id/archivo` (`routes/portalFinanzas.ts`): la ve la administración o la familia del alumno de la factura; el Docente y otra familia reciben 403, y la respuesta lleva `Cache-Control: private, no-store`.
+- **Pruebas:** 16 nuevas en `test/comprobantes.test.ts` (63 en total): el archivo no se abre por `/uploads`, las carpetas públicas siguen funcionando, la descarga por rol (401, 403 y 200), comprobante inexistente, id inválido, nombre con `../`, archivo ausente del disco, y que ningún método distinto de transferencia se acepta.
+- **Verificado:** `typecheck` y `build` del backend, y `tsc -b` y `build` del frontend, sin errores. El lint del frontend sigue en los 46 errores de `main`, sin ninguno nuevo.
+- **Falta:** el endpoint de subida (T13) usará el bucket `comprobantes` y deberá limitar el tipo de archivo a foto o PDF. Los archivos de `documentos-alumnos` siguen siendo públicos por URL; no son comprobantes y quedan fuera de esta tarea. En producción, `uploads/` ya es el volumen persistente (`/app/uploads`), así que no hace falta configurar nada más.
 
 ### T03 — Pruebas y CI (Juan Manuel): en revisión
 

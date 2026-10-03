@@ -12,7 +12,8 @@ const MESES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
-const METODOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta de débito', 'Tarjeta de crédito', 'Cheque', 'Otro']
+// Desde la Parte 3 los pagos son solo por transferencia; los anteriores conservan su método.
+const METODOS_PAGO = ['Transferencia']
 const DESTINOS_INSUMO = [
   'Laboratorio de computación',
   'Laboratorio de física',
@@ -127,7 +128,7 @@ cuotasRouter.get('/pagos', async (req, res) => {
 cuotasRouter.patch('/:id/pago', async (req, res) => {
   const idCuota = id(req.params.id)
   const metodo = String(req.body?.metodo_pago ?? '')
-  if (!METODOS_PAGO.includes(metodo)) throw new HttpError(400, 'Método de pago inválido')
+  if (!METODOS_PAGO.includes(metodo)) throw new HttpError(400, 'Solo se aceptan pagos por transferencia')
   const hoy = hoyISO()
   const diaPago = textOrNull(req.body?.fecha_pago) ?? hoy
 

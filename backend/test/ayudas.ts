@@ -9,6 +9,7 @@ import { vi } from 'vitest'
 export const prismaFalso = {
   usuario: { findUnique: vi.fn() },
   alumno: { findFirst: vi.fn(), findUnique: vi.fn() },
+  comprobanteTransferencia: { findUnique: vi.fn() },
 }
 
 // `vitest.config.ts` define JWT_SECRET para las pruebas: se lee de ahí, no se repite el valor.
