@@ -67,11 +67,11 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | Tarea | HU | Sprint | Responsable | Depende de | Estimación | Estado |
 | --- | --- | --- | --- | --- | --- | --- |
 | T01. Modelo de datos financiero: `Tarifa`, `Factura`, `ItemFactura`, `OrdenPago`, `ComprobanteTransferencia`, `Pago` ligado a factura e ítems, `EnvioEmail`, `TokenRecuperacion`; migración de las cuotas existentes | — | 0 | Iván | — | 2 días | Hecho |
-| T02. Email (nodemailer + Gmail con contraseña de aplicación) y tareas programadas (node-cron, feriados, `ultimoDiaHabil()` con pruebas) | — | 0 | Iván | — | 1,5 días | En revisión |
+| T02. Email (nodemailer + Gmail con contraseña de aplicación) y tareas programadas (node-cron, feriados, `ultimoDiaHabil()` con pruebas) | — | 0 | Iván | — | 1,5 días | Hecho |
 | T03. Pruebas y CI: Vitest + Supertest en `backend/`, GitHub Actions con lint, build y test | — | 0 | Juan Manuel | — | 1 día | Pendiente |
 | T04. Quitar "Efectivo" (backend, `constants`, `RegistrarPagos`) y bucket privado de comprobantes con descarga autenticada | — | 0 | Juan Manuel | — | 1 día | Pendiente |
 | T05. `BITACORA-IA.md` con la plantilla de la consigna | — | 0 | Juan Manuel | — | 0,5 días | Pendiente |
-| T06. Tarifas: ABM por concepto con vigencia y pantalla admin; horario y profesor del deporte (deuda de la Parte 2) | HU04–HU07 | 1 | Iván | T01 | 2,5 días | Pendiente |
+| T06. Tarifas: ABM por concepto con vigencia y pantalla admin; horario y profesor del deporte (deuda de la Parte 2) | HU04–HU07 | 1 | Iván | T01 | 2,5 días | En revisión |
 | T07. Inscripciones con vigencia (transporte, comedor, deportes) sin romper el tope de 2 ni el cupo | HU08 | 1 | Juan Manuel | T01 | 2 días | Pendiente |
 | T08. Facturación mensual con Strategy, becas, PDF de la factura y botón "Generar facturas" | HU09 | 1 | Iván | T06, T07 | 3 días | Pendiente |
 | T09. Login/logout en la PWA instalada y pruebas 401/403 de los endpoints nuevos | HU01 | 1 | Iván | T03 | 0,5 días | Pendiente |
@@ -147,7 +147,9 @@ con `requireAuth` + `assertAccesoAlumno`):
 
 **Endpoints de administración** (Iván; `requireRole(ROLES_ADMIN)`):
 
-- `GET|POST|PUT /api/tarifas`.
+- `GET|POST|PUT /api/tarifas` (con `?concepto=`; cada tarifa trae `referencia`, el nombre de lo que se cobra, y `estado`: Vigente, Programada o Anterior), `DELETE /api/tarifas/:id` y `GET /api/tarifas/opciones` (niveles, deportes, recorridos y lo que no tiene precio vigente). Solo se editan o borran las tarifas programadas.
+- Para leer precios desde otro módulo (T08, T19): `tarifasVigentes(fecha)` y `claveTarifa()` de `services/tarifas.ts`.
+- `GET /api/actividades` suma `docentes` (profesor) y `horarios` (`dia_semana`, `hora_inicio`, `hora_fin`); `POST|PUT /api/actividades` aceptan `id_docente` y `horarios` (sin `horarios`, el PUT no los toca).
 - `POST /api/facturas/generar` con `{ anio, mes }` → `{ generadas, omitidas, errores[] }`.
 - `GET /api/comprobantes?estado=En revisión`; `PATCH /api/comprobantes/:id/aprobar` con `{ importe }`; `PATCH /api/comprobantes/:id/rechazar` con `{ motivo }`.
 - `POST /api/tareas/recordatorio-mensual` y `POST /api/tareas/aviso-deuda` con `{ anio, mes }`: ejecutan a mano lo mismo que el cron (para probar).
@@ -182,12 +184,19 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Verificado:** sobre una base con `seed:demo`, la migración pasa las 984 cuotas a 984 facturas con 1165 ítems. Se cumplen los tres invariantes en todas las facturas, cada pago suma lo mismo que sus imputaciones y `prisma migrate diff` no encuentra diferencias con el schema. `typecheck` sin errores y `seed:demo` corre igual con el schema nuevo.
 - **Falta:** respaldar la base de producción antes de desplegar. Hasta que T08 y T14 reemplacen las pantallas, "Generar cuotas" y "Registrar pago" siguen escribiendo solo en `cuotas` y no actualizan las facturas. Conviene no usarlas en producción en ese tiempo, o regenerar las facturas del mes con T08.
 
-### T02 — Email y tareas programadas (Iván): en revisión
+### T02 — Email y tareas programadas (Iván): hecho, mergeado en el PR #25
 
 - **Qué quedó:** `backend/src/services/email.ts` (`enviarEmail` con nodemailer por el SMTP de Gmail, con adjuntos). Sin `SMTP_USER` y `SMTP_PASS` el envío queda apagado, como el push. Al arrancar se prueba el login con Gmail y, si falla, queda en el log sin tumbar la API. `backend/src/jobs/calendario.ts` tiene la tabla de feriados y días no laborables turísticos de 2026 y 2027, `esDiaHabil`, `ultimoDiaHabil` y `diaEnZona`, que da el día de Argentina y no el de UTC. `backend/src/jobs/index.ts` es el programador con node-cron en hora de Argentina: cada tarea tiene una condición `corresponde` (por ejemplo, `esUltimoDiaHabil`), no se superpone consigo misma y sus errores no tumban el backend. Variables nuevas en `.env.example` y en el README.
 - **Pruebas:** `npm test` (Vitest, `backend/test/`) corre 23 pruebas: el último día hábil de los 12 meses de 2026 calculado a mano, feriados al final del mes, años bisiestos, feriados trasladados, el cambio de día entre Argentina y UTC, y que una tarea no se ejecuta si no corresponde ni propaga sus errores. Vitest quedó instalado con `vitest.config.ts`; T03 suma Supertest y la CI sobre esta base.
 - **Verificado:** `typecheck` sin errores. La API arranca sin claves de email (envío apagado) y con una contraseña inválida (Gmail la rechaza, sale en el log y la API sigue). Un cron real de prueba se ejecuta cada segundo con el día de Argentina.
 - **Falta:** crear la contraseña de aplicación en la cuenta que va a enviar, definir `MAIL_FROM` y cargarlos en Coolify. Agregar los días no laborables turísticos de 2027 cuando se publiquen. Las tareas concretas (emails del último día hábil y del día 20) se suman en T17 y T18.
+
+### T06 — Tarifas, horario y profesor del deporte (Iván): en revisión
+
+- **Qué quedó:** `backend/src/routes/tarifas.ts` y `services/tarifas.ts`, y la pantalla *Tarifas* del admin (`frontend/src/features/tarifas/GestionTarifas.tsx`). La pantalla tiene alta, filtro por concepto, precios anteriores ocultos por defecto y un aviso de lo que no tiene precio vigente (la facturación no lo podría cobrar). Una tarifa que ya rige no se edita ni se borra: para cambiar el precio se carga una nueva con su fecha. Solo se corrigen las programadas. No se aceptan dos tarifas de lo mismo con la misma fecha, ni un nivel sin cursos, ni un deporte o recorrido que no existe. Deuda de la Parte 2: la migración `20261002130000_horario_profesor_actividad` suma el profesor responsable (`id_docente`) y los días y horarios (`horarios_actividades`, varios por actividad) a las actividades. Se cargan desde *Extracurriculares* y se rechazan franjas superpuestas dentro de la misma actividad.
+- **Archivos de Juan Manuel que toqué** (cambios chicos): `routes/actividades.ts` (profesor y horarios en el GET, POST y PUT) y `ui/components.tsx`: en `ResponsiveTable`, si la columna `pie` devuelve `null`, la tarjeta del celular no muestra el pie vacío. El rechazo de una **inscripción** cuyos horarios chocan con otro deporte del alumno (HU 2 de `PENDIENTES.md`) sigue pendiente, ahora que los horarios existen.
+- **Verificado:** sobre una base con `seed:demo`, la API responde 401 sin sesión y 403 a una familia; cubre altas, todas las validaciones, el estado de cada tarifa, la edición y el borrado solo de las programadas, y el profesor y los horarios (también los ve el portal). En el navegador, a 1366 px y a 375 px (sin scroll horizontal ni errores de consola): carga de una tarifa, edición de una actividad con profesor y horarios, y el mensaje de horarios superpuestos. `typecheck` y `build` sin errores; el lint del frontend sigue en los 46 errores que ya había en `main`, ninguno nuevo.
+- **Falta:** cargar las tarifas reales antes de facturar (T08).
 
 ## Pruebas
 

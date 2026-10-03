@@ -193,6 +193,13 @@ export interface Pago {
   usuarios: { nombre: string; apellido: string } | null
 }
 
+export interface HorarioActividad {
+  dia_semana: string
+  /** 'HH:MM:SS' */
+  hora_inicio: string
+  hora_fin: string
+}
+
 export interface ActividadEx {
   id_actividad: number
   nombre: string
@@ -200,6 +207,35 @@ export interface ActividadEx {
   descripcion: string | null
   cupo_maximo: number
   activo: boolean
+  /** Profesor responsable */
+  id_docente: number | null
+  docentes: { id_docente: number; usuarios: { nombre: string; apellido: string } | null } | null
+  horarios: HorarioActividad[]
+}
+
+export type ConceptoTarifa = 'Cuota' | 'Deporte' | 'Transporte' | 'Comedor'
+
+export interface Tarifa {
+  id_tarifa: number
+  concepto: ConceptoTarifa
+  /** Cuota: nivel educativo */
+  nivel: string | null
+  /** Deporte: id de la actividad · Transporte: id del recorrido */
+  id_referencia: number | null
+  importe: number
+  /** 'YYYY-MM-DD' */
+  vigente_desde: string
+  /** Nombre de lo que se cobra ("Cuota Primario", "Fútbol"...) */
+  referencia: string
+  estado: 'Vigente' | 'Programada' | 'Anterior'
+}
+
+export interface OpcionesTarifa {
+  niveles: string[]
+  deportes: { id: number; nombre: string }[]
+  recorridos: { id: number; nombre: string }[]
+  /** Lo que hoy no tiene precio vigente */
+  sin_precio: { concepto: ConceptoTarifa; nivel?: string; id_referencia?: number; nombre: string }[]
 }
 
 export interface DocumentoAlumno {

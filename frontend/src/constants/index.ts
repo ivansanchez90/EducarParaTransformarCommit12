@@ -20,6 +20,10 @@ export const MESES = [
   'Diciembre',
 ]
 
+export const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+
+export const CONCEPTOS_TARIFA = ['Cuota', 'Deporte', 'Transporte', 'Comedor'] as const
+
 export const METODOS_PAGO = [
   'Efectivo',
   'Transferencia',
@@ -109,6 +113,7 @@ export const NAV_ADMIN = [
   { key: 'materias', icon: '📚', label: 'Materias' },
   { key: 'asignaciones', icon: '🔗', label: 'Asignaciones' },
   { key: 'cuotas', icon: '💳', label: 'Cuotas' },
+  { key: 'tarifas', icon: '🏷️', label: 'Tarifas' },
   { key: 'pagos', icon: '💰', label: 'Registrar pagos' },
   { key: 'becas', icon: '🎟️', label: 'Becas' },
   { key: 'sueldos', icon: '💼', label: 'Sueldos' },
