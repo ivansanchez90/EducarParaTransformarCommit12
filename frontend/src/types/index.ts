@@ -182,6 +182,10 @@ export interface OpcionesReportes {
   materias: { id_materia: number; nombre: string }[]
   actividades: { id_actividad: number; nombre: string; tipo: string }[]
   recorridos: { id_recorrido: number; nombre: string; zona: string | null }[]
+  /** Profesores a cargo de algún deporte. */
+  profesores: { id_docente: number; nombre: string }[]
+  /** Franjas de los deportes, sin repetir (hora en `HH:MM`). */
+  horariosDeportes: { dia_semana: string; hora_inicio: string }[]
 }
 
 /** Movimiento del historial de pagos de cuotas. */
