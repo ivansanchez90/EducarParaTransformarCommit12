@@ -8,29 +8,15 @@ import type { NextFunction, Request, Response } from 'express'
 import { Prisma } from '../generated/prisma/client.js'
 import { HttpError, fecha, fechaObligatoria, hoyISO, id, lista } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
-import { ROLES_ADMIN, assertAccesoAlumno, esStaff, requireAuth } from '../middleware/auth.js'
+import { ROLES_ADMIN, assertAccesoAlumno, esStaff } from '../middleware/auth.js'
 import type { UsuarioAuth } from '../middleware/auth.js'
+import { asincrono, conSesion } from '../middleware/envoltorios.js'
 import { borrarComprobante, guardarComprobante, recibirArchivoComprobante, rutaArchivoPrivado } from '../middleware/upload.js'
 import { estadoFactura } from '../services/facturacion/estado.js'
 import { crearOrdenPago, idsDeItems, pdfOrdenPago } from '../services/ordenPago.js'
 import { deudaAlumno } from '../services/saldos.js'
 
 export const portalFinanzasRouter = Router()
-
-/**
- * `requireAuth` es async: se lo envuelve para que Express no reciba una promesa donde
- * espera `void`. Si falla, el error llega al manejador igual que antes.
- */
-const conSesion = (req: Request, res: Response, next: NextFunction) => {
-  requireAuth(req, res, next).catch(next)
-}
-
-type Manejador = (req: Request, res: Response, next: NextFunction) => Promise<void>
-
-/** Lo mismo para los manejadores async de este archivo. */
-const asincrono = (manejador: Manejador) => (req: Request, res: Response, next: NextFunction) => {
-  manejador(req, res, next).catch(next)
-}
 
 function usuarioDe(req: Request): UsuarioAuth {
   if (!req.user) throw new HttpError(401, 'No autenticado')

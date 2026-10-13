@@ -6,11 +6,10 @@
  * `json` (para mostrarlo en pantalla), `pdf` y `csv`.
  */
 import { Router } from 'express'
-import type { Response } from 'express'
-import { HttpError, hoyISO, id, numOrNull } from '../lib/http.js'
+import { HttpError, id, numOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import type { Documento } from '../lib/documentos.js'
-import { documentoCsv, documentoPdf } from '../lib/documentos.js'
+import { responderDocumento as responder } from '../lib/documentos.js'
 import { ROLES_ADMIN, requireAuth, requireRole } from '../middleware/auth.js'
 
 export const reportesRouter = Router()
@@ -23,24 +22,6 @@ const nivelDe = (c: Curso) => c?.nivel ?? 'Sin nivel'
 const nombreCompleto = (p: { apellido: string; nombre: string }) => `${p.apellido}, ${p.nombre}`
 const horaTexto = (d: Date | null) => (d ? d.toISOString().slice(11, 16) : '—')
 const fechaTexto = (d: Date) => d.toISOString().slice(0, 10).split('-').reverse().join('/')
-
-/** Envía el reporte en el formato pedido. */
-function responder(res: Response, doc: Documento, formato: unknown) {
-  const archivo = `${doc.archivo}-${hoyISO()}`
-  if (formato === 'pdf') {
-    res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `attachment; filename="${archivo}.pdf"`)
-    documentoPdf(doc).pipe(res)
-    return
-  }
-  if (formato === 'csv') {
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
-    res.setHeader('Content-Disposition', `attachment; filename="${archivo}.csv"`)
-    res.send(documentoCsv(doc))
-    return
-  }
-  res.json(doc)
-}
 
 const filtroNivel = (req: { query: Record<string, unknown> }) =>
   typeof req.query.nivel === 'string' && req.query.nivel ? req.query.nivel : undefined

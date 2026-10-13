@@ -5,8 +5,10 @@
  * bloques de datos o tablas) y desde ahí se genera el PDF con PDFKit o el CSV.
  * Así un mismo reporte se sirve en los dos formatos sin duplicar la consulta.
  */
+import type { Response } from 'express'
 import PDFDocument from 'pdfkit'
 import { config } from './config.js'
+import { hoyISO } from './http.js'
 
 export interface Columna {
   key: string
@@ -238,4 +240,25 @@ function piePaginas(pdf: PDFKit.PDFDocument) {
     })
   }
   pdf.flushPages()
+}
+
+/**
+ * Envía el reporte en el formato pedido con `?formato=`: `pdf` y `csv` se descargan con la
+ * fecha de hoy en el nombre; cualquier otro valor devuelve el documento en JSON (para la pantalla).
+ */
+export function responderDocumento(res: Response, doc: Documento, formato: unknown) {
+  const archivo = `${doc.archivo}-${hoyISO()}`
+  if (formato === 'pdf') {
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${archivo}.pdf"`)
+    documentoPdf(doc).pipe(res)
+    return
+  }
+  if (formato === 'csv') {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${archivo}.csv"`)
+    res.send(documentoCsv(doc))
+    return
+  }
+  res.json(doc)
 }
