@@ -17,6 +17,7 @@ import { notificacionesRouter } from './routes/notificaciones.js'
 import { portalFinanzasRouter } from './routes/portalFinanzas.js'
 import { pushRouter } from './routes/push.js'
 import { reportesRouter } from './routes/reportes.js'
+import { reportesFinancierosRouter } from './routes/reportesFinancieros.js'
 import { tarifasRouter } from './routes/tarifas.js'
 import { facturasRouter } from './routes/facturas.js'
 import { comprobantesRouter } from './routes/comprobantes.js'
@@ -74,6 +75,8 @@ app.use('/api', portalFinanzasRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/recorridos', recorridosRouter)
 app.use('/api/servicios', serviciosRouter)
+// El de reportes financieros va primero: su propia guarda (sesión y rol) es la que protege sus rutas.
+app.use('/api/reportes', reportesFinancierosRouter)
 app.use('/api/reportes', reportesRouter)
 app.use('/api/tarifas', tarifasRouter)
 app.use('/api/facturas', facturasRouter)

@@ -14,6 +14,7 @@ import {
   btnSecondary,
   card,
   fieldLabel,
+  inputField,
   selectField,
   tdCell,
   thCell,
@@ -25,6 +26,9 @@ type ClaveReporte =
   | 'alumnos-por-deporte'
   | 'alumnos-por-transporte'
   | 'ficha-alumno'
+  | 'ingresos'
+  | 'pagos-completos'
+  | 'pagos-incompletos'
 
 const REPORTES: { key: ClaveReporte; icono: string; label: string; descripcion: string }[] = [
   {
@@ -57,7 +61,27 @@ const REPORTES: { key: ClaveReporte; icono: string; label: string; descripcion: 
     label: 'Ficha individual del alumno',
     descripcion: 'Curso, materias, profesores, actividades y servicios.',
   },
+  {
+    key: 'ingresos',
+    icono: '💰',
+    label: 'Ingresos por período',
+    descripcion: 'Lo cobrado entre dos fechas, por mes o por día y por método de pago.',
+  },
+  {
+    key: 'pagos-completos',
+    icono: '✅',
+    label: 'Pagos completos',
+    descripcion: 'Alumnos con todas las facturas del año pagadas, o el detalle de uno.',
+  },
+  {
+    key: 'pagos-incompletos',
+    icono: '⚠️',
+    label: 'Pagos incompletos',
+    descripcion: 'Alumnos con facturas con saldo en el año: lo adeudado y las vencidas.',
+  },
 ]
+
+const esReportePagos = (r: ClaveReporte) => r === 'pagos-completos' || r === 'pagos-incompletos'
 
 export function GestionReportes() {
   const [opciones, setOpciones] = useState<OpcionesReportes | null>(null)
@@ -74,6 +98,11 @@ export function GestionReportes() {
   const [idActividad, setIdActividad] = useState('')
   const [idRecorrido, setIdRecorrido] = useState('')
   const [idAlumno, setIdAlumno] = useState('')
+  // Reportes financieros
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
+  const [agrupar, setAgrupar] = useState<'mes' | 'dia'>('mes')
+  const [anio, setAnio] = useState(String(new Date().getFullYear()))
 
   useEffect(() => {
     api.get<OpcionesReportes>('/reportes/opciones').then(({ data }) => {
@@ -90,6 +119,8 @@ export function GestionReportes() {
       if (reporte === 'ficha-alumno') {
         return `/reportes/alumno/${idAlumno}${qs({ formato })}`
       }
+      if (reporte === 'ingresos') return `/reportes/ingresos${qs({ desde, hasta, agrupar, formato })}`
+      if (esReportePagos(reporte)) return `/reportes/${reporte}${qs({ anio, nivel, id_alumno: idAlumno, formato })}`
       const filtros: Record<string, string | undefined> = { nivel, formato }
       if (reporte === 'alumnos-por-curso') filtros.id_curso = idCurso
       if (reporte === 'alumnos-por-materia') filtros.id_materia = idMateria
@@ -97,7 +128,7 @@ export function GestionReportes() {
       if (reporte === 'alumnos-por-transporte') filtros.id_recorrido = idRecorrido
       return `/reportes/${reporte}${qs(filtros)}`
     },
-    [reporte, nivel, idCurso, idMateria, idActividad, idRecorrido, idAlumno],
+    [reporte, nivel, idCurso, idMateria, idActividad, idRecorrido, idAlumno, desde, hasta, agrupar, anio],
   )
 
   const faltaAlumno = reporte === 'ficha-alumno' && !idAlumno
@@ -131,6 +162,7 @@ export function GestionReportes() {
     setReporte(key)
     setDoc(null)
     setMsg('')
+    setIdAlumno('')
   }
 
   const cursosDelNivel = (opciones?.cursos ?? []).filter((c) => !nivel || c.nivel === nivel)
@@ -174,7 +206,7 @@ export function GestionReportes() {
       <div className={`${card} mb-6`}>
         <div className='text-[15px] font-extrabold text-text mb-5'>Filtros</div>
         <div className='flex flex-wrap gap-4 items-end'>
-          {reporte !== 'ficha-alumno' && (
+          {reporte !== 'ficha-alumno' && reporte !== 'ingresos' && (
             <div>
               <span className={fieldLabel}>Nivel educativo</span>
               <select
@@ -249,6 +281,65 @@ export function GestionReportes() {
                 ))}
               </select>
             </div>
+          )}
+
+          {reporte === 'ingresos' && (
+            <>
+              <div>
+                <span className={fieldLabel}>Desde</span>
+                <input type='date' className={inputField} value={desde} max={hasta || undefined} onChange={(e) => {
+                    setDesde(e.target.value)
+                  }} />
+              </div>
+              <div>
+                <span className={fieldLabel}>Hasta</span>
+                <input type='date' className={inputField} value={hasta} min={desde || undefined} onChange={(e) => {
+                    setHasta(e.target.value)
+                  }} />
+              </div>
+              <div>
+                <span className={fieldLabel}>Agrupar por</span>
+                <select className={selectField} value={agrupar} onChange={(e) => {
+                    setAgrupar(e.target.value === 'dia' ? 'dia' : 'mes')
+                  }}>
+                  <option value='mes'>Mes</option>
+                  <option value='dia'>Día</option>
+                </select>
+              </div>
+              <div className='basis-full text-[11px] text-textMuted'>Sin fechas: desde el 1 de enero de este año hasta hoy.</div>
+            </>
+          )}
+
+          {esReportePagos(reporte) && (
+            <>
+              <div>
+                <span className={fieldLabel}>Año</span>
+                <input
+                  type='number'
+                  min={2000}
+                  max={2100}
+                  className={inputField}
+                  style={{ width: 110 }}
+                  value={anio}
+                  onChange={(e) => {
+                    setAnio(e.target.value)
+                  }}
+                />
+              </div>
+              <div className='flex-1' style={{ minWidth: 260 }}>
+                <span className={fieldLabel}>Alumno (opcional: baja al detalle de sus facturas)</span>
+                <select className={selectField} value={idAlumno} onChange={(e) => {
+                    setIdAlumno(e.target.value)
+                  }}>
+                  <option value=''>Todos los alumnos</option>
+                  {alumnos.map((a) => (
+                    <option key={a.id_alumno} value={a.id_alumno}>
+                      {a.apellido}, {a.nombre} — DNI {a.dni}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
           )}
 
           {reporte === 'ficha-alumno' && (
