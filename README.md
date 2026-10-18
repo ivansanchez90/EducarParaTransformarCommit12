@@ -54,9 +54,14 @@ npm run seed:demo
 
 Carga doce cursos de los tres niveles, doce docentes, más de cien alumnos con
 sus familias, asignaciones y horarios, asistencia de las últimas jornadas,
-calificaciones, cuotas con sus pagos, becas, sueldos, compras, servicios de
-transporte y comedor, reservas, noticias, galería, empleos con postulaciones,
-preinscripciones sin resolver y mensajes de contacto.
+calificaciones, becas, sueldos, compras, servicios de transporte y comedor,
+deportes con profesor y horarios, reservas, noticias, galería, empleos con
+postulaciones, preinscripciones sin resolver y mensajes de contacto. En lo
+financiero carga las tarifas (con un aumento en agosto y uno programado para el
+mes que viene), las facturas de marzo al mes actual, órdenes de pago y
+comprobantes de transferencia aprobados, rechazados y en revisión, con sus pagos.
+Necesita `JWT_SECRET` en el `.env`, porque factura con los mismos servicios que
+la API.
 
 Todos los usuarios que crea entran con la contraseña `demo1234`
 (configurable con `SEED_DEMO_PASSWORD`); el admin conserva la suya. Al
