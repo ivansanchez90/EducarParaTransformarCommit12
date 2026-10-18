@@ -1,0 +1,67 @@
+# Pruebas de la Parte 3 (T23)
+
+Tabla para recorrer la app antes del testing del 11/11. Cada fila tiene un casillero de resultado:
+completarlo con ✅ (anda), ❌ (falla; anotar qué pasó y avisar) o ➖ (no aplica), con la fecha y quién probó.
+
+## Preparar los datos
+
+```bash
+cd backend
+npm run seed:demo        # vacía la base local y la llena (ver "Datos de prueba" en el README)
+npm run dev
+```
+
+El seed ya carga lo necesario para esta tabla, sin cargar nada a mano:
+
+- **Tarifas** de cuota por nivel, de cada deporte y recorrido y del comedor. El comedor tiene un aumento desde el mes
+  actual, así que la factura del mes anterior y la del actual muestran precios distintos.
+- **Facturas del mes anterior y del actual**, generadas con el mismo motor que el botón "Generar facturas"
+  (una por alumno, con un ítem por concepto y la beca en negativo cuando corresponde).
+- **Comprobantes en todos los estados** (aprobado, en revisión y rechazado, con su motivo), algunos desde una orden de pago,
+  y los pagos aprobados ya imputados a los ítems. Hay facturas pagadas, con pago parcial y sin pagar (vencidas).
+- Las **cuotas viejas** llegan hasta dos meses antes del actual: son el historial anterior al sistema de facturas.
+
+Accesos (contraseña `demo1234`): `directora@educar.local` (Directivo), `bianca.diaz0@educar.local` (Docente),
+`flia.acosta6217@mail.com` (familia) y `47002118@alumno.local` (alumno); el admin es `admin@educar.local`.
+Para probar a una familia **con beca** se puede entrar con `flia.acosta6857@mail.com` (con el seed actual).
+
+Para el celular: levantar el backend con el frontend compilado (`npm run build` en `frontend/` y copiar a `backend/public`, o
+usar el despliegue) y abrir la dirección desde un Android con Chrome y un iPhone con Safari.
+Variables a cargar para probar todo: `BANCO_ALIAS` (si falta, la orden de pago dice que se consulte el alias) y
+`SMTP_USER`, `SMTP_PASS` y `MAIL_FROM` (si faltan, los emails no salen).
+
+## Tabla de pruebas
+
+| Quién | Qué probar | HU | Tarea | Cómo probarlo | Resultado |
+| --- | --- | --- | --- | --- | --- |
+| Familia (PWA) | Iniciar y cerrar sesión con la app instalada, también sin señal | HU01 | T09 | Instalar la PWA, entrar y salir; abrirla en modo avión | |
+| Familia | Cambiar la contraseña desde "Mi contraseña" | HU02 | T10 | Cambiarla y volver a entrar con la nueva | |
+| Familia | Recuperar la contraseña por email; el enlace sirve una vez y vence a los 30 min | HU03 | T20 | Pedir el enlace, usarlo dos veces y esperar el vencimiento | |
+| Familia | Precio de cada servicio en "Transporte y comedor" y "Extracurriculares"; "Precio a confirmar" si falta la tarifa | HU24 | T19 | Mirar con la tarifa cargada y, en *Tarifas*, probar con un servicio sin precio | |
+| Familia | Facturas pendientes y pagadas, detalle e historial de pagos | HU10, HU11 | T11 | Pestaña *Cuotas* → Facturas y Pagos | |
+| Familia | Elegir ítems y emitir la orden de pago en PDF con el alias | HU12 | T12 | "Pagar por transferencia", tildar ítems, bajar el PDF y revisar el alias | |
+| Familia | **Con beca:** la orden descuenta la beca y el total coincide con lo que se debe | HU12 | T12 | Familia con beca: el total de la orden = saldo de la factura; subir el comprobante y aprobarlo desde la bandeja | |
+| Familia | Subir comprobantes (JPG, PNG, PDF, AVIF y foto del iPhone), varios por factura | HU13 | T13 | Subir uno de cada; probar uno de más de 10 MB y un archivo con extensión falsa | |
+| Familia | Filtrar facturas y comprobantes por fechas (Desde/Hasta) | HU15 | T15 | Filtros con uno y con los dos extremos, y un rango al revés | |
+| Familia | Deuda por ítem, con la beca en negativo | HU16 | T16 | Pestaña *Cuotas* → Deuda, con una familia con beca | |
+| Familia | Que una familia no vea datos de otra | — | T09 | Con otra sesión, abrir una factura o un comprobante ajeno: error | |
+| Admin | ABM de tarifas con vigencia, más horario y profesor de cada deporte | HU04–07 | T06 | Cargar una tarifa programada y ver que las facturas ya emitidas no cambian | |
+| Admin | Inscripciones con vigencia (transporte, comedor y deportes por mes) | HU08 | T07 | Dar de baja el transporte y mirar la factura del mes siguiente | |
+| Admin | Botón "Generar facturas": una por alumno, un ítem por concepto, becas y PDF; generar dos veces no duplica | HU09 | T08 | Generar un mes nuevo, repetirlo y bajar un PDF | |
+| Admin | Bandeja de comprobantes: aprobar con el importe acreditado, rechazar con motivo | HU14 | T14 | Aprobar uno y revisar saldo y estado; rechazar otro y ver el aviso a la familia | |
+| Admin | Pago en dos transferencias: primero Pago parcial, después Pagada | HU14 | T14 | Aprobar dos comprobantes de la misma factura | |
+| Admin | Reportes de ingresos, pagos completos e incompletos (pantalla, PDF y CSV) | HU19–21 | T21 | Probar los tres, con año, nivel y un alumno; comparar un total con la bandeja | |
+| Admin | Reportes de pagos por deporte y por recorrido | HU22, HU23 | T22 | Probar los dos en PDF y CSV | |
+| Admin | Que no se acepte "Efectivo" en ningún lado | — | T04 | Buscar la opción en las pantallas y probar el endpoint | |
+| Automático | Email del último día hábil con la composición y la factura adjunta; un feriado se saltea; ejecutarlo dos veces no reenvía | HU17 | T17 | Ejecutar a mano con fecha simulada, dos veces | |
+| Automático | Aviso de deuda del día 20 por email, en la app y por push; solo a familias con saldo | HU18 | T18 | Ejecutar a mano y mirar los tres canales | |
+| Seguridad | El archivo de un comprobante no se abre sin sesión ni con otra familia | — | T04 | Abrir la URL del archivo sin iniciar sesión | |
+| Celular | Todas las pantallas nuevas a 375 px, sin scroll horizontal ni errores | — | T23 | Android con Chrome y iPhone con Safari | |
+
+## Defectos encontrados
+
+Anotar acá lo que falle, con la pantalla, el mensaje y la tarea; se corrige en T24.
+
+| # | Fecha | Quién lo encontró | Dónde | Qué pasó | Estado |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 2026-10-18 | Juan Manuel (con el seed ampliado) | T12, orden de pago | A una familia con beca la orden le pedía transferir el valor completo de la cuota, sin descontar la beca; la bandeja no podía aprobar ese importe ("supera el saldo") | Corregido en el mismo PR de T23 |

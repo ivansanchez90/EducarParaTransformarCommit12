@@ -1,7 +1,7 @@
 /**
  * Seed de demostración: llena la base con un colegio completo y coherente
  * (cursos, docentes, familias, alumnos, notas, asistencia, cuotas, servicios,
- * noticias, empleos, preinscripciones...) para poder probar o mostrar el
+ * tarifas, facturas, comprobantes, noticias, empleos, preinscripciones...) para poder probar o mostrar el
  * sistema sin cargar nada a mano.
  *
  *   npm run seed:demo
@@ -17,6 +17,7 @@ import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client.js'
+import { cargarFinanzas } from './seed-finanzas.js'
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL!, options: '-c timezone=UTC' }),
@@ -443,10 +444,12 @@ async function main() {
   const mesActual = new Date().getMonth() + 1
   const cuotas: { id_alumno: number; mes: number; anio: number; monto_base: number; recargo: number; descuento: number; fecha_vencimiento: Date; estado: string; fecha_pago: Date | null; metodo_pago: string | null }[] = []
   for (const alumno of alumnos) {
-    for (let mes = 3; mes <= Math.min(mesActual, 12); mes++) {
+    // Las cuotas son el historial anterior al sistema de facturas: llegan hasta dos meses antes del
+    // actual; el mes anterior y el actual se facturan con el motor nuevo (ver seed-finanzas.ts).
+    for (let mes = 3; mes <= Math.min(mesActual - 2, 12); mes++) {
       const descuento = Math.round((MONTO_BASE * (becasActivas.get(alumno.id_alumno) ?? 0)) / 100)
       const vencimiento = fecha(ANIO, mes, 10)
-      const vencida = mes < mesActual
+      const vencida = true
       const pagada = vencida ? quizas(0.85) : quizas(0.45)
       cuotas.push({
         id_alumno: alumno.id_alumno,
@@ -540,22 +543,28 @@ async function main() {
     skipDuplicates: true,
   })
 
-  // ── Vigencias: cada inscripción de arriba queda vigente desde su fecha ──
+  // ── Vigencias: cada inscripción de arriba queda vigente desde el inicio del ciclo, así las facturas de
+  // los meses anteriores al de la carga también incluyen deportes, transporte y comedor ──
+  const inicioCiclo = fecha(ANIO, 3, 1)
   const [deportes, viajes, almuerzos] = await Promise.all([
     prisma.inscripcionActividad.findMany({
       where: { actividades_extracurriculares: { tipo: 'Deporte' } },
-      select: { id_alumno: true, id_actividad: true, fecha_inscripcion: true },
+      select: { id_alumno: true, id_actividad: true },
     }),
-    prisma.inscripcionTransporte.findMany({ select: { id_alumno: true, id_recorrido: true, fecha_inscripcion: true } }),
-    prisma.inscripcionComedor.findMany({ select: { id_alumno: true, fecha_inscripcion: true } }),
+    prisma.inscripcionTransporte.findMany({ select: { id_alumno: true, id_recorrido: true } }),
+    prisma.inscripcionComedor.findMany({ select: { id_alumno: true } }),
   ])
   await prisma.vigenciaServicio.createMany({
     data: [
-      ...deportes.map((d) => ({ id_alumno: d.id_alumno, concepto: 'Deporte', id_referencia: d.id_actividad, desde: d.fecha_inscripcion })),
-      ...viajes.map((v) => ({ id_alumno: v.id_alumno, concepto: 'Transporte', id_referencia: v.id_recorrido, desde: v.fecha_inscripcion })),
-      ...almuerzos.map((c) => ({ id_alumno: c.id_alumno, concepto: 'Comedor', id_referencia: null, desde: c.fecha_inscripcion })),
+      ...deportes.map((d) => ({ id_alumno: d.id_alumno, concepto: 'Deporte', id_referencia: d.id_actividad, desde: inicioCiclo })),
+      ...viajes.map((v) => ({ id_alumno: v.id_alumno, concepto: 'Transporte', id_referencia: v.id_recorrido, desde: inicioCiclo })),
+      ...almuerzos.map((c) => ({ id_alumno: c.id_alumno, concepto: 'Comedor', id_referencia: null, desde: inicioCiclo })),
     ],
   })
+
+  // ── Finanzas: tarifas, facturas del mes anterior y el actual, comprobantes y pagos ──
+  console.log('Generando tarifas, facturas y comprobantes...')
+  const finanzas = await cargarFinanzas({ prisma, anio: ANIO, mesActual, alumnos, idRevisor: directivo.id_usuario, azar, entre, fecha })
 
   // ── Reservas de instalaciones ──
   const reservas = Array.from({ length: 12 }, (_, i) => {
@@ -726,6 +735,10 @@ async function main() {
     asistencias: await prisma.asistencia.count(),
     calificaciones: await prisma.calificacion.count(),
     cuotas: await prisma.cuota.count(),
+    tarifas: await prisma.tarifa.count(),
+    facturas: await prisma.factura.count(),
+    ordenesPago: await prisma.ordenPago.count(),
+    comprobantes: await prisma.comprobanteTransferencia.count(),
     pagos: await prisma.pago.count(),
     becas: await prisma.beca.count(),
     sueldos: await prisma.sueldo.count(),
@@ -742,6 +755,7 @@ async function main() {
     notificaciones: await prisma.notificacion.count(),
   }
 
+  if (finanzas.errores > 0) console.log(`\nOjo: ${finanzas.errores} facturas no se pudieron emitir (falta una tarifa o el curso del alumno).`)
   console.log('\nDatos de demostración cargados:')
   for (const [clave, valor] of Object.entries(conteos)) {
     console.log(`  ${clave.padEnd(18)} ${valor}`)
