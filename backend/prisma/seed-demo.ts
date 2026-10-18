@@ -1,8 +1,13 @@
 /**
  * Seed de demostración: llena la base con un colegio completo y coherente
- * (cursos, docentes, familias, alumnos, notas, asistencia, cuotas, servicios,
- * noticias, empleos, preinscripciones...) para poder probar o mostrar el
- * sistema sin cargar nada a mano.
+ * (cursos, docentes, familias, alumnos, notas, asistencia, servicios, tarifas,
+ * facturas, comprobantes y pagos, noticias, empleos, preinscripciones...) para
+ * poder probar o mostrar el sistema sin cargar nada a mano.
+ *
+ * Las facturas salen del mismo servicio que usa el botón "Generar facturas"
+ * (precios vigentes, vigencias de los servicios y becas) y los pagos se
+ * aprueban con `aplicarPago()`, como la bandeja de comprobantes: así cumplen
+ * los mismos invariantes que los datos reales.
  *
  *   npm run seed:demo
  *
@@ -14,9 +19,17 @@
  * (o la que se defina en SEED_DEMO_PASSWORD).
  */
 import 'dotenv/config'
+import fs from 'node:fs'
+import path from 'node:path'
 import bcrypt from 'bcryptjs'
+import PDFDocument from 'pdfkit'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client.js'
+import { prisma as prismaApp } from '../src/lib/prisma.js'
+import { UPLOADS_DIR } from '../src/middleware/upload.js'
+import { generarFacturas } from '../src/services/facturacion/generar.js'
+import { crearOrdenPago } from '../src/services/ordenPago.js'
+import { aplicarPago } from '../src/services/saldos.js'
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL!, options: '-c timezone=UTC' }),
@@ -47,6 +60,8 @@ const varios = <T>(items: readonly T[], n: number): T[] => {
 }
 
 const fecha = (anio: number, mes: number, dia: number) => new Date(Date.UTC(anio, mes - 1, dia))
+/** El mediodía de Argentina de ese día: no cambia de fecha al pasar a UTC. */
+const mediodia = (anio: number, mes: number, dia: number) => new Date(Date.UTC(anio, mes - 1, dia, 15))
 const hora = (hhmm: string) => new Date(`1970-01-01T${hhmm}:00Z`)
 const diasAtras = (n: number) => new Date(Date.now() - n * 86400000)
 const sinAcentos = (s: string) =>
@@ -131,9 +146,32 @@ const RECORRIDOS = [
   { nombre: 'Recorrido 4 - Oeste', zona: 'Zona oeste y rutas', paradas: 'Ruta 9 km 12\nBarrio El Molino\nAv. Oeste 800', hora_ida: '06:30', hora_vuelta: '18:00' },
 ]
 
+/** Días y horarios de cada deporte. No se superponen entre deportes: un alumno puede hacer dos. */
+const HORARIOS_DEPORTES: Record<string, [string, string, string][]> = {
+  Atletismo: [['Lunes', '17:00', '18:00'], ['Miércoles', '17:00', '18:00']],
+  Natación: [['Martes', '17:00', '18:00'], ['Jueves', '17:00', '18:00']],
+  Fútbol: [['Lunes', '18:30', '19:30'], ['Miércoles', '18:30', '19:30']],
+  'Artes marciales': [['Martes', '18:30', '19:30'], ['Jueves', '18:30', '19:30']],
+  Vóleibol: [['Viernes', '17:00', '18:30']],
+  Danza: [['Lunes', '14:00', '15:00'], ['Jueves', '14:00', '15:00']],
+  Básquet: [['Viernes', '18:30', '20:00']],
+  Ajedrez: [['Martes', '14:00', '15:30']],
+}
+
+/** Precios de enero. En agosto suben la cuota, el transporte y el comedor. */
+const PRECIO_CUOTA: Record<string, number> = { Inicial: 72000, Primario: 85000, Secundario: 98000 }
+const PRECIO_COMEDOR = 48000
+const MES_AUMENTO = 8
+const conAumento = (importe: number) => Math.round((importe * 1.12) / 500) * 500
+
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
 const TIPOS_EVALUACION = ['Parcial', 'Trabajo práctico', 'Oral', 'Concepto', 'Recuperatorio']
-const METODOS_PAGO = ['Transferencia']
+const MOTIVOS_RECHAZO = [
+  'El importe del comprobante no coincide con la transferencia recibida',
+  'La foto no se lee: subí una más nítida',
+  'No encontramos la transferencia en el banco',
+]
+const ARCHIVO_COMPROBANTE = 'demo-transferencia.pdf'
 
 // ── Seguridad: por defecto, solo contra una base local ──────────
 
@@ -158,6 +196,26 @@ async function vaciarBase() {
   if (tablas.length === 0) return
   const lista = tablas.map((t) => `"${t.tablename}"`).join(', ')
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${lista} RESTART IDENTITY CASCADE`)
+}
+
+/**
+ * Un PDF de ejemplo en la carpeta privada de comprobantes. Todos los comprobantes
+ * del seed apuntan a él, así la bandeja y el portal tienen algo para mostrar.
+ */
+async function guardarComprobanteDemo() {
+  const pdf = new PDFDocument({ size: 'A5', margin: 40 })
+  const partes: Buffer[] = []
+  pdf.on('data', (c: Buffer) => partes.push(c))
+  const listo = new Promise<Buffer>((resolve) => pdf.on('end', () => resolve(Buffer.concat(partes))))
+  pdf.fontSize(16).text('Comprobante de transferencia', { align: 'center' }).moveDown()
+  pdf.fontSize(11).text('Archivo de demostración cargado por seed:demo.').moveDown()
+  pdf.text('Destino: alias sanchezoliva').text('Concepto: pago de factura')
+  pdf.end()
+  const carpeta = path.join(UPLOADS_DIR, 'comprobantes')
+  await fs.promises.mkdir(carpeta, { recursive: true })
+  // La carpeta y el nombre son fijos.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  await fs.promises.writeFile(path.join(carpeta, ARCHIVO_COMPROBANTE), await listo)
 }
 
 // ── Carga ───────────────────────────────────────────────────────
@@ -207,8 +265,38 @@ async function main() {
   const materias = await prisma.materia.findMany({ orderBy: { id_materia: 'asc' } })
   const materiaPorNombre = new Map(materias.map((m) => [m.nombre, m]))
 
+  // ── Tarifas: precios de enero, aumento de agosto y uno programado para el mes que viene ──
+  const hoy = new Date()
+  const mesActual = hoy.getMonth() + 1
+  // Ayer al mediodía: las fechas que inventa el seed (altas, transferencias) nunca pasan de ahí.
+  const tope = mediodia(hoy.getFullYear(), mesActual, hoy.getDate() - 1)
+  const noFuturo = (d: Date) => (d > tope ? tope : d)
+  const masDias = (d: Date, n: number) => noFuturo(new Date(d.getTime() + n * 86400000))
+  const enero = fecha(ANIO, 1, 1)
+  const agosto = fecha(ANIO, MES_AUMENTO, 1)
+  const precioRecorrido = new Map(recorridos.map((r, i) => [r.id_recorrido, 32000 + i * 3000]))
+  await prisma.tarifa.createMany({
+    data: [
+      ...Object.entries(PRECIO_CUOTA).flatMap(([nivel, importe]) => [
+        { concepto: 'Cuota', nivel, importe, vigente_desde: enero },
+        { concepto: 'Cuota', nivel, importe: conAumento(importe), vigente_desde: agosto },
+      ]),
+      ...actividades
+        .filter((a) => a.tipo === 'Deporte')
+        .map((a) => ({ concepto: 'Deporte', id_referencia: a.id_actividad, importe: entre(36, 52) * 500, vigente_desde: enero })),
+      ...[...precioRecorrido].flatMap(([id_referencia, importe]) => [
+        { concepto: 'Transporte', id_referencia, importe, vigente_desde: enero },
+        { concepto: 'Transporte', id_referencia, importe: conAumento(importe), vigente_desde: agosto },
+      ]),
+      { concepto: 'Comedor', importe: PRECIO_COMEDOR, vigente_desde: enero },
+      { concepto: 'Comedor', importe: conAumento(PRECIO_COMEDOR), vigente_desde: agosto },
+      // Todavía no rige: aparece como "Programada" en Tarifas y no cambia las facturas emitidas.
+      { concepto: 'Comedor', importe: conAumento(conAumento(PRECIO_COMEDOR)), vigente_desde: fecha(ANIO, mesActual + 1, 1) },
+    ],
+  })
+
   // ── Personal ──
-  await prisma.usuario.create({
+  const admin = await prisma.usuario.create({
     data: { email: emailAdmin, password_hash: hashAdmin, nombre: 'Admin', apellido: 'Sistema', rol: 'Admin' },
   })
   const directivo = await prisma.usuario.create({
@@ -245,6 +333,25 @@ async function main() {
       },
     })
     docentes.push({ id_docente: docente.id_docente, id_usuario: usuario.id_usuario, nombre, apellido })
+  }
+
+  // ── Profesor y horarios de los deportes ──
+  // Los dan el docente de Educación Física y dos más, para poder filtrar por profesor.
+  const profesores = [docentes[ESPECIALIDADES.indexOf('Educación Física')], docentes[0], docentes[1]]
+  const deportesDelColegio = actividades.filter((a) => a.tipo === 'Deporte')
+  for (const [i, deporte] of deportesDelColegio.entries()) {
+    await prisma.actividadExtracurricular.update({
+      where: { id_actividad: deporte.id_actividad },
+      data: { id_docente: profesores[i % profesores.length].id_docente },
+    })
+    await prisma.horarioActividad.createMany({
+      data: (HORARIOS_DEPORTES[deporte.nombre] ?? []).map(([dia_semana, inicio, fin]) => ({
+        id_actividad: deporte.id_actividad,
+        dia_semana,
+        hora_inicio: hora(inicio),
+        hora_fin: hora(fin),
+      })),
+    })
   }
 
   // ── Familias, alumnos y sus usuarios ──
@@ -438,45 +545,6 @@ async function main() {
     (await prisma.beca.findMany({ where: { activo: true } })).map((b) => [b.id_alumno, b.porcentaje.toNumber()]),
   )
 
-  // ── Cuotas y pagos ──
-  const MONTO_BASE = 85000
-  const mesActual = new Date().getMonth() + 1
-  const cuotas: { id_alumno: number; mes: number; anio: number; monto_base: number; recargo: number; descuento: number; fecha_vencimiento: Date; estado: string; fecha_pago: Date | null; metodo_pago: string | null }[] = []
-  for (const alumno of alumnos) {
-    for (let mes = 3; mes <= Math.min(mesActual, 12); mes++) {
-      const descuento = Math.round((MONTO_BASE * (becasActivas.get(alumno.id_alumno) ?? 0)) / 100)
-      const vencimiento = fecha(ANIO, mes, 10)
-      const vencida = mes < mesActual
-      const pagada = vencida ? quizas(0.85) : quizas(0.45)
-      cuotas.push({
-        id_alumno: alumno.id_alumno,
-        mes,
-        anio: ANIO,
-        monto_base: MONTO_BASE,
-        recargo: vencida && !pagada ? 5000 : 0,
-        descuento,
-        fecha_vencimiento: vencimiento,
-        estado: pagada ? 'Pagada' : vencida ? 'Vencida' : 'Pendiente',
-        fecha_pago: pagada ? fecha(ANIO, mes, entre(1, 10)) : null,
-        metodo_pago: pagada ? elegir(METODOS_PAGO) : null,
-      })
-    }
-  }
-  await prisma.cuota.createMany({ data: cuotas })
-
-  // Cada cuota pagada deja su movimiento en el historial de pagos.
-  const pagadas = await prisma.cuota.findMany({ where: { estado: 'Pagada' } })
-  await prisma.pago.createMany({
-    data: pagadas.map((c) => ({
-      id_cuota: c.id_cuota,
-      fecha_pago: new Date(`${c.fecha_pago!.toISOString().slice(0, 10)}T12:00:00Z`),
-      monto_pagado: c.monto_base.plus(c.recargo ?? 0).minus(c.descuento ?? 0),
-      metodo_pago: c.metodo_pago,
-      nro_comprobante: `REC-${String(c.id_cuota).padStart(6, '0')}`,
-      id_usuario_registra: directivo.id_usuario,
-    })),
-  })
-
   // ── Sueldos y compras ──
   const personal = [directivo, ...(await prisma.usuario.findMany({ where: { rol: 'Docente' } }))]
   const sueldos = personal.flatMap((u) =>
@@ -509,7 +577,10 @@ async function main() {
   })
 
   // ── Extracurriculares ──
-  const inscripcionesActividades: { id_actividad: number; id_alumno: number }[] = []
+  // La mayoría se anota al empezar las clases y el resto durante el año: así las
+  // facturas de los primeros meses no traen todos los servicios.
+  const alta = () => (quizas(0.7) ? mediodia(ANIO, 3, 1) : noFuturo(mediodia(ANIO, entre(3, mesActual), entre(1, 28))))
+  const inscripcionesActividades: { id_actividad: number; id_alumno: number; fecha_inscripcion: Date }[] = []
   const cupoUsado = new Map(actividades.map((a) => [a.id_actividad, 0]))
   for (const alumno of alumnos) {
     if (!quizas(0.55)) continue
@@ -517,7 +588,7 @@ async function main() {
       const usado = cupoUsado.get(actividad.id_actividad)!
       if (usado >= actividad.cupo_maximo) continue
       cupoUsado.set(actividad.id_actividad, usado + 1)
-      inscripcionesActividades.push({ id_actividad: actividad.id_actividad, id_alumno: alumno.id_alumno })
+      inscripcionesActividades.push({ id_actividad: actividad.id_actividad, id_alumno: alumno.id_alumno, fecha_inscripcion: alta() })
     }
   }
   await prisma.inscripcionActividad.createMany({ data: inscripcionesActividades, skipDuplicates: true })
@@ -529,6 +600,7 @@ async function main() {
       id_alumno: a.id_alumno,
       id_recorrido: recorridos[i % recorridos.length].id_recorrido,
       observaciones: quizas(0.25) ? 'Baja acompañado/a por un adulto' : null,
+      fecha_inscripcion: alta(),
     })),
     skipDuplicates: true,
   })
@@ -536,6 +608,7 @@ async function main() {
     data: varios(alumnos, Math.round(alumnos.length * 0.4)).map((a) => ({
       id_alumno: a.id_alumno,
       observaciones: quizas(0.3) ? elegir(['Sin lácteos', 'Celíaco/a', 'Vegetariano/a', 'Alergia al maní']) : null,
+      fecha_inscripcion: alta(),
     })),
     skipDuplicates: true,
   })
@@ -556,6 +629,109 @@ async function main() {
       ...almuerzos.map((c) => ({ id_alumno: c.id_alumno, concepto: 'Comedor', id_referencia: null, desde: c.fecha_inscripcion })),
     ],
   })
+
+  // Algunas familias dejaron el comedor durante el año: se les cobra hasta el mes de la baja.
+  if (mesActual > 5) {
+    const desdeMarzo = almuerzos.filter((c) => c.fecha_inscripcion.getTime() === mediodia(ANIO, 3, 1).getTime())
+    for (const baja of varios(desdeMarzo, 5)) {
+      await prisma.vigenciaServicio.updateMany({
+        where: { id_alumno: baja.id_alumno, concepto: 'Comedor' },
+        data: { hasta: mediodia(ANIO, entre(4, mesActual - 1), 20) },
+      })
+      await prisma.inscripcionComedor.delete({ where: { id_alumno: baja.id_alumno } })
+    }
+  }
+
+  // ── Facturas de marzo al mes actual ──
+  const facturacion = { generadas: 0, errores: 0 }
+  for (let mes = 3; mes <= mesActual; mes++) {
+    const r = await generarFacturas(ANIO, mes)
+    facturacion.generadas += r.generadas
+    facturacion.errores += r.errores.length
+    for (const e of r.errores) console.warn(`  Sin factura de ${mes}/${ANIO} para ${e.alumno}: ${e.motivo}`)
+    // Se emiten el último día del mes anterior, como el email de fin de mes (T17).
+    await prisma.factura.updateMany({ where: { anio: ANIO, mes }, data: { fecha_emision: fecha(ANIO, mes, 0) } })
+  }
+
+  // ── Comprobantes de transferencia y pagos ──
+  await guardarComprobanteDemo()
+  const padreDe = new Map(alumnos.map((a) => [a.id_alumno, a.id_padre]))
+  const revisores = [admin.id_usuario, directivo.id_usuario]
+  // Casi la mitad de las familias paga todo a tiempo: así hay alumnos con pagos completos en el año.
+  const cumplidores = new Set(varios(alumnos, Math.round(alumnos.length * 0.45)).map((a) => a.id_alumno))
+
+  /** Lo que hace la familia al subir el comprobante y la administración al revisarlo. */
+  async function transferencia(f: { id_factura: number; id_alumno: number }, importe: number, cuando: Date, opciones: { id_orden?: number; estado?: 'Aprobado' | 'Rechazado' | 'En revisión' } = {}) {
+    const estado = opciones.estado ?? 'Aprobado'
+    const revisado = estado !== 'En revisión'
+    const revisor = elegir(revisores)
+    const fechaRevision = masDias(cuando, entre(0, 2))
+    await prismaApp.$transaction(async (tx) => {
+      const comprobante = await tx.comprobanteTransferencia.create({
+        data: {
+          id_factura: f.id_factura,
+          id_orden: opciones.id_orden ?? null,
+          archivo: ARCHIVO_COMPROBANTE,
+          importe,
+          fecha_transferencia: fecha(cuando.getUTCFullYear(), cuando.getUTCMonth() + 1, cuando.getUTCDate()),
+          estado,
+          motivo_rechazo: estado === 'Rechazado' ? elegir(MOTIVOS_RECHAZO) : null,
+          id_usuario_carga: padreDe.get(f.id_alumno) ?? null,
+          fecha_carga: cuando,
+          id_usuario_revisa: revisado ? revisor : null,
+          fecha_revision: revisado ? fechaRevision : null,
+        },
+      })
+      if (estado !== 'Aprobado') return
+      await aplicarPago(tx, {
+        id_factura: f.id_factura,
+        importe,
+        id_comprobante: comprobante.id_comprobante,
+        id_orden: opciones.id_orden,
+        fecha_pago: cuando,
+        id_usuario_registra: revisor,
+      })
+    })
+  }
+
+  const facturas = await prismaApp.factura.findMany({
+    where: { saldo: { gt: 0 } },
+    select: { id_factura: true, id_alumno: true, mes: true, saldo: true, items: { select: { id_item: true, concepto: true, saldo: true }, orderBy: { id_item: 'asc' } } },
+    orderBy: { id_factura: 'asc' },
+  })
+  for (const f of facturas) {
+    const saldo = f.saldo.toNumber()
+    const mitad = Math.round(saldo / 2 / 100) * 100
+    const cuando = noFuturo(mediodia(ANIO, f.mes, entre(1, 14)))
+    const delMesActual = f.mes === mesActual
+    // Los cumplidores siempre pagan el total, en una o en dos transferencias.
+    const r = cumplidores.has(f.id_alumno) ? azar() * 0.38 : azar()
+
+    // Un comprobante rechazado antes del bueno (la familia vuelve a subirlo).
+    if (quizas(0.03)) await transferencia(f, saldo, masDias(cuando, -1), { estado: 'Rechazado' })
+
+    if (r < (delMesActual ? 0.3 : 0.74)) {
+      await transferencia(f, saldo, cuando)
+    } else if (r < (delMesActual ? 0.38 : 0.84)) {
+      // Pagada en dos transferencias: la factura pasa por "Pago parcial".
+      await transferencia(f, mitad, cuando)
+      await transferencia(f, saldo - mitad, masDias(cuando, entre(5, 15)))
+    } else if (r < (delMesActual ? 0.46 : 0.9)) {
+      // La familia eligió solo la cuota en la orden de pago (si hay otros ítems y no hay beca).
+      const cuota = f.items.find((i) => i.concepto === 'Cuota')
+      const sinBeca = !f.items.some((i) => i.concepto === 'Beca')
+      if (cuota && sinBeca && f.items.length > 1) {
+        const orden = await crearOrdenPago(f.id_factura, [cuota.id_item], padreDe.get(f.id_alumno)!)
+        await prismaApp.ordenPago.update({ where: { id_orden: orden.id_orden }, data: { fecha: masDias(cuando, -1) } })
+        await transferencia(f, cuota.saldo.toNumber(), cuando, { id_orden: orden.id_orden })
+      } else {
+        await transferencia(f, mitad, cuando)
+      }
+    } else if (delMesActual && r < 0.58) {
+      // Esperan en la bandeja de Comprobantes.
+      await transferencia(f, saldo, masDias(tope, -entre(0, 3)), { estado: 'En revisión' })
+    }
+  }
 
   // ── Reservas de instalaciones ──
   const reservas = Array.from({ length: 12 }, (_, i) => {
@@ -725,7 +901,12 @@ async function main() {
     horarios: await prisma.horario.count(),
     asistencias: await prisma.asistencia.count(),
     calificaciones: await prisma.calificacion.count(),
-    cuotas: await prisma.cuota.count(),
+    tarifas: await prisma.tarifa.count(),
+    facturas: await prisma.factura.count(),
+    facturasConSaldo: await prisma.factura.count({ where: { saldo: { gt: 0 } } }),
+    ordenesPago: await prisma.ordenPago.count(),
+    comprobantes: await prisma.comprobanteTransferencia.count(),
+    enRevision: await prisma.comprobanteTransferencia.count({ where: { estado: 'En revisión' } }),
     pagos: await prisma.pago.count(),
     becas: await prisma.beca.count(),
     sueldos: await prisma.sueldo.count(),
@@ -742,6 +923,7 @@ async function main() {
     notificaciones: await prisma.notificacion.count(),
   }
 
+  if (facturacion.errores > 0) console.warn(`\n${facturacion.errores} facturas no se emitieron (ver arriba).`)
   console.log('\nDatos de demostración cargados:')
   for (const [clave, valor] of Object.entries(conteos)) {
     console.log(`  ${clave.padEnd(18)} ${valor}`)
@@ -763,4 +945,4 @@ main()
     console.error(err)
     process.exit(1)
   })
-  .finally(() => prisma.$disconnect())
+  .finally(() => Promise.all([prisma.$disconnect(), prismaApp.$disconnect()]))

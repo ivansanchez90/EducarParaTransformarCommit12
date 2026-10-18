@@ -88,7 +88,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T20. Recuperar la contraseña por email | HU03 | 4 | Iván | T02 | 1,5 días | Hecho |
 | T21. Reportes: ingresos por período, pagos completos e incompletos por año y alumno (PDF y CSV) | HU19–HU21 | 4 | Juan Manuel | T14 | 2 días | Hecho |
 | T22. Reportes: pagos por deporte/nivel/horario/profesor y por recorrido | HU22, HU23 | 4 | Iván | T06, T21 | 1,5 días | En revisión |
-| T23. Pruebas integrales con `seed:demo` ampliado (tarifas, facturas, pagos) y en teléfonos reales | — | 4 | Los dos | T01–T22 | 1,5 días | Pendiente |
+| T23. Pruebas integrales con `seed:demo` ampliado (tarifas, facturas, pagos) y en teléfonos reales | — | 4 | Los dos | T01–T22 | 1,5 días | En curso |
 | T24. Testing del 11/11 y corrección de defectos | — | 5 | Los dos | T23 | 3 días | Pendiente |
 | T25. Informe de uso de IA: apartados 1 y 4 (Iván), 3 y 5 (Juan Manuel), 2 bitácora (los dos) | — | 5 | Los dos | T05 | 2 días | Pendiente |
 
@@ -286,6 +286,35 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Archivos de Juan Manuel que toqué** (cambios chicos): `routes/actividades.ts` (profesor y horarios en el GET, POST y PUT) y `ui/components.tsx`: en `ResponsiveTable`, si la columna `pie` devuelve `null`, la tarjeta del celular no muestra el pie vacío. El rechazo de una **inscripción** cuyos horarios chocan con otro deporte del alumno (HU 2 de `PENDIENTES.md`) sigue pendiente, ahora que los horarios existen.
 - **Verificado:** sobre una base con `seed:demo`, la API responde 401 sin sesión y 403 a una familia; cubre altas, todas las validaciones, el estado de cada tarifa, la edición y el borrado solo de las programadas, y el profesor y los horarios (también los ve el portal). En el navegador, a 1366 px y a 375 px (sin scroll horizontal ni errores de consola): carga de una tarifa, edición de una actividad con profesor y horarios, y el mensaje de horarios superpuestos. `typecheck` y `build` sin errores; el lint del frontend sigue en los 46 errores que ya había en `main`, ninguno nuevo.
 - **Falta:** cargar las tarifas reales antes de facturar (T08).
+
+### T23 — Pruebas integrales con `seed:demo` ampliado (los dos): en curso, falta en teléfonos reales
+
+- **Qué quedó (Iván):** `backend/prisma/seed-demo.ts` ahora carga todo lo financiero, así ya no hay que preparar la base a mano para probar:
+  - **Deportes:** profesor a cargo (el docente de Educación Física y dos más) y días y horarios. Los horarios no se superponen entre deportes, así un alumno puede hacer dos.
+  - **Tarifas:** cuota por nivel, cada deporte, cada recorrido y el comedor desde enero; un aumento del 12 % en agosto (cuota, transporte y comedor) y otro del comedor programado para el mes que viene, que aparece como *Programada*.
+  - **Altas y bajas:** el 70 % de las inscripciones es del 1/3 y el resto durante el año, así las primeras facturas no traen todos los servicios. Cinco familias dejaron el comedor durante el año (vigencia cerrada e inscripción borrada, como una baja real).
+  - **Facturas de marzo al mes actual**, generadas con `generarFacturas()`, el mismo servicio del botón *Generar facturas*, con la emisión el último día del mes anterior (como el email de T17).
+  - **Comprobantes y pagos:** cerca de la mitad de las familias paga todo a tiempo y el resto paga, paga en dos transferencias, paga solo la cuota con una orden de pago (`crearOrdenPago()`) o no paga. Los pagos se aprueban con `aplicarPago()`, igual que la bandeja. Hay comprobantes rechazados con su motivo y algunos del mes actual en revisión. Todos apuntan a un PDF de ejemplo que el seed deja en la carpeta privada de comprobantes, así se pueden abrir desde la bandeja y el portal.
+  - **Se sacaron** las cuotas y los pagos viejos (tabla `cuotas`), que ya no muestra ninguna pantalla desde T14 y duplicaban lo que ahora cobran las facturas.
+- **Verificado sobre una base descartable con la API real** (con el seed corrido el 18/10: 944 facturas, ninguna con error, 939 pagos, 25 órdenes, 7 comprobantes en revisión y 27 rechazados; 62 alumnos con el año pagado y 56 con saldo):
+  - **Invariantes:** se cumplen en las 944 facturas (`total = Σ ítems`, `factura.saldo = Σ saldos`, `ítem.saldo = importe − imputaciones` y `pago = Σ imputaciones`). Ninguna factura queda con saldo negativo y ningún pago tiene fecha futura.
+  - Pasaron **28 comprobaciones de punta a punta**, hechas con la API y SQL:
+    - **Facturación:** noviembre da una factura por alumno activo (118) sin errores, y generarlo otra vez omite las 118. Ningún servicio se repite en una factura, y los deportes facturados son las inscripciones vigentes (88).
+    - **Precios:** el comedor sale a $48.000 en julio, $54.000 de agosto a octubre y $60.500 en noviembre (el programado). El aumento no toca lo ya emitido.
+    - **Bajas:** el comedor se cobra hasta el mes de la baja, y después no.
+    - **Pago en dos transferencias:** la familia emite la orden y sube dos comprobantes. Al aprobar el primero, la factura queda en *Pago parcial*, y al aprobar el segundo, en *Pagada* con saldo 0. La orden baja en PDF.
+    - **Sin efectivo:** todos los pagos son transferencias y no queda "Efectivo" en el código.
+    - **Privacidad:** el archivo de un comprobante da 401 sin sesión y 403 a otra familia, y lo bajan la familia dueña y el admin. El PDF de ejemplo del seed también se abre.
+    - **Consultas:** las facturas por fecha de emisión y los comprobantes por rango funcionan. En cinco alumnos, la deuda por ítem coincide con el saldo de sus facturas.
+    - **Reportes:** los cinco (ingresos, pagos completos e incompletos, deportes y transporte) responden en JSON, PDF y CSV. Sus totales coinciden con SQL: $118.169.550 en 941 pagos; en deportes, 62 alumnos, $13.835.000 facturados y $10.365.000 pagados; en transporte, 60 alumnos, $19.325.000 y $15.050.000.
+    - **Aviso del día 20** (con el email apagado): avisa a 56 familias, las mismas que tienen saldo hasta octubre según SQL.
+    - **Roles:** dan 403 la factura del hijo de otra familia, las facturas y la bandeja del admin pedidas por una familia, y un reporte pedido por un docente. La bandeja muestra los comprobantes en revisión del seed.
+  - **En Chromium a 375 y 1280 px**, con el build servido por el backend: el portal (inicio, cuotas, extracurriculares, transporte y comedor) y el admin (Tarifas, Facturación, Comprobantes y Reportes) cargan con datos y sin errores de consola, y ninguna de esas pantallas tiene scroll horizontal.
+  - `typecheck` del backend sin errores y 447 pruebas en verde.
+- **Defecto encontrado (para T24):** a 375 px el **Dashboard** del admin tiene scroll horizontal. Las cuatro tarjetas de arriba usan `gridTemplateColumns: 'repeat(4,1fr)'` en `features/dashboard/Dashboard.tsx` y no se acomodan al ancho. Viene de antes de la PWA.
+- **Falta:**
+  - Las pruebas en un Android con Chrome y en un iPhone con Safari (la lista de [Pruebas](#pruebas)), con el seed nuevo. Lo de arriba se probó con la API y en Chromium, no en teléfonos.
+  - El email del último día hábil y la recuperación de contraseña necesitan la cuenta de Gmail real. Sin SMTP, la API responde que el email está apagado.
 
 ### T22 — Reportes: pagos de deportes y de transporte (Iván): en revisión
 
