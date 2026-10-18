@@ -205,7 +205,12 @@ function reportePagos(completos: boolean) {
       return
     }
 
-    const suma = (campo: 'facturado' | 'pagado' | 'adeudado') => Math.round(alumnos.reduce((s, a) => s + a[campo] * 100, 0)) / 100
+    const enCentavos = (importe: number) => Math.round(importe * 100)
+    const totales = {
+      facturado: alumnos.reduce((s, a) => s + enCentavos(a.facturado), 0) / 100,
+      pagado: alumnos.reduce((s, a) => s + enCentavos(a.pagado), 0) / 100,
+      adeudado: alumnos.reduce((s, a) => s + enCentavos(a.adeudado), 0) / 100,
+    }
     const columnas = [
       { key: 'alumno', label: 'Alumno', ancho: 1.8 },
       { key: 'legajo', label: 'Legajo', ancho: 0.7 },
@@ -226,9 +231,9 @@ function reportePagos(completos: boolean) {
           tipo: 'datos',
           items: [
             ['Alumnos', String(alumnos.length)],
-            ['Total facturado', pesos(suma('facturado'))],
-            ['Total pagado', pesos(suma('pagado'))],
-            ...(completos ? [] : ([['Total adeudado', pesos(suma('adeudado'))]] as [string, string][])),
+            ['Total facturado', pesos(totales.facturado)],
+            ['Total pagado', pesos(totales.pagado)],
+            ...(completos ? [] : ([['Total adeudado', pesos(totales.adeudado)]] as [string, string][])),
           ],
         },
         {
