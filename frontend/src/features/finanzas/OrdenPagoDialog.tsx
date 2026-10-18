@@ -17,7 +17,7 @@ interface Props {
 }
 
 export function OrdenPagoDialog({ factura, onClose, onSubirComprobante }: Props) {
-  const { conSaldo, elegidos, alternar, total, orden, emitiendo, error, emitir, bajarPdf } = useOrdenPago(factura)
+  const { conSaldo, becas, descuento, elegidos, alternar, total, orden, emitiendo, error, emitir, bajarPdf } = useOrdenPago(factura)
   const enLinea = useEnLinea()
 
   return (
@@ -98,6 +98,12 @@ export function OrdenPagoDialog({ factura, onClose, onSubirComprobante }: Props)
                 </label>
               ))}
             </div>
+            {becas.length > 0 && (
+              <div className='flex justify-between gap-3 text-[13px] text-textMuted px-3'>
+                <span>{becas[0].descripcion}</span>
+                <span className='font-bold whitespace-nowrap'>{descuento === 0 ? 'no aplica a lo elegido' : pesos(descuento)}</span>
+              </div>
+            )}
             <div className='flex justify-between text-[15px] font-black text-text'>
               <span>Total a transferir</span>
               <span className='text-purple-700'>{pesos(total)}</span>
@@ -107,7 +113,7 @@ export function OrdenPagoDialog({ factura, onClose, onSubirComprobante }: Props)
             <div className='flex gap-3 flex-wrap'>
               <button
                 className={btnPrimary}
-                disabled={emitiendo || !enLinea || elegidos.size === 0}
+                disabled={emitiendo || !enLinea || elegidos.size === 0 || total <= 0}
                 onClick={() => {
                   void emitir()
                 }}

@@ -10,6 +10,7 @@ import type { FacturaPortal, OrdenPago } from './types'
 
 export function useOrdenPago(factura: FacturaPortal) {
   const conSaldo = factura.items.filter((i) => i.saldo > 0)
+  const becas = factura.items.filter((i) => i.saldo < 0)
   const [elegidos, setElegidos] = useState<Set<number>>(() => new Set(conSaldo.map((i) => i.id_item)))
   const [orden, setOrden] = useState<OrdenPago | null>(null)
   const [emitiendo, setEmitiendo] = useState(false)
@@ -23,7 +24,11 @@ export function useOrdenPago(factura: FacturaPortal) {
       return nuevos
     })
 
-  const total = conSaldo.filter((i) => elegidos.has(i.id_item)).reduce((suma, i) => suma + i.saldo, 0)
+  // La beca pendiente descuenta sobre la cuota (o el primer ítem con saldo): si se la paga, la orden la incluye.
+  // Es la misma regla que aplica el servidor, así lo que se ve es lo que hay que transferir.
+  const destinoDeLaBeca = conSaldo.find((i) => i.concepto === 'Cuota') ?? conSaldo[0]
+  const descuento = destinoDeLaBeca && elegidos.has(destinoDeLaBeca.id_item) ? becas.reduce((suma, b) => suma + b.saldo, 0) : 0
+  const total = conSaldo.filter((i) => elegidos.has(i.id_item)).reduce((suma, i) => suma + i.saldo, 0) + descuento
 
   const emitir = async () => {
     setError('')
@@ -43,5 +48,5 @@ export function useOrdenPago(factura: FacturaPortal) {
     if (fallo) setError(fallo.message)
   }
 
-  return { conSaldo, elegidos, alternar, total, orden, emitiendo, error, emitir, bajarPdf }
+  return { conSaldo, becas, descuento, elegidos, alternar, total, orden, emitiendo, error, emitir, bajarPdf }
 }

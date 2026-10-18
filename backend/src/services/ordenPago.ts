@@ -27,8 +27,9 @@ const MESES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
 
+/** $ 85.000,00 · - $ 17.000,00 (Helvetica no tiene el signo menos tipográfico). */
 const pesos = (n: number) =>
-  `$ ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  `${n < 0 ? '- ' : ''}$ ${Math.abs(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 const fechaCorta = (d: Date) => d.toISOString().slice(0, 10).split('-').reverse().join('/')
 
@@ -40,21 +41,41 @@ export function idsDeItems(valor: unknown): number[] {
   return [...new Set(ids)]
 }
 
+interface ItemConSaldo {
+  id_item: number
+  concepto: string
+  saldo: Prisma.Decimal
+}
+
+/**
+ * Los ítems que se pagan junto con los elegidos: la beca pendiente (saldo negativo) descuenta sobre la
+ * cuota, así que si se paga la cuota la orden la incluye y el total sale neto, igual que el saldo de la
+ * factura. Es el mismo criterio con que `services/saldos.ts` (`agrupar`) imputa un pago: la beca va con
+ * la cuota o, si no hay cuota con saldo, con el primer ítem que tenga saldo.
+ */
+export function becasDeLaOrden<T extends ItemConSaldo>(todos: T[], elegidos: T[]): T[] {
+  const positivos = todos.filter((i) => i.saldo.gt(0)).sort((a, b) => a.id_item - b.id_item)
+  const destino = positivos.find((i) => i.concepto === 'Cuota') ?? positivos[0]
+  if (!destino || !elegidos.some((i) => i.id_item === destino.id_item)) return []
+  return todos.filter((i) => i.saldo.lt(0))
+}
+
 /**
  * Emite la orden de pago de los ítems elegidos de una factura, por el saldo que
- * tienen hoy. Responde 400 si algún ítem no es de esa factura o ya no tiene saldo.
+ * tienen hoy (descontando la beca pendiente si se paga la cuota). Responde 400 si
+ * algún ítem no es de esa factura o ya no tiene saldo, o si lo elegido no deja nada para pagar.
  */
 export async function crearOrdenPago(idFactura: number, idsItems: number[], idUsuario: string) {
   const orden = await prisma.$transaction(async (tx) => {
-    const items = await tx.itemFactura.findMany({
-      where: { id_factura: idFactura, id_item: { in: idsItems } },
-      orderBy: { id_item: 'asc' },
-    })
-    if (items.length !== idsItems.length) throw new HttpError(400, 'Alguno de los ítems elegidos no es de esta factura')
-    const pagado = items.find((i) => i.saldo.lte(0))
+    const todos = await tx.itemFactura.findMany({ where: { id_factura: idFactura }, orderBy: { id_item: 'asc' } })
+    const elegidos = todos.filter((i) => idsItems.includes(i.id_item))
+    if (elegidos.length !== idsItems.length) throw new HttpError(400, 'Alguno de los ítems elegidos no es de esta factura')
+    const pagado = elegidos.find((i) => i.saldo.lte(0))
     if (pagado) throw new HttpError(400, `"${pagado.descripcion}" ya está pagado: sacalo de la lista para seguir`)
 
+    const items = [...elegidos, ...becasDeLaOrden(todos, elegidos)].sort((a, b) => a.id_item - b.id_item)
     const total = items.reduce((suma, i) => suma.plus(i.saldo), new Prisma.Decimal(0))
+    if (total.lte(0)) throw new HttpError(400, 'Lo que elegiste ya está cubierto por la beca: no hay nada para transferir')
     return tx.ordenPago.create({
       data: {
         id_factura: idFactura,
