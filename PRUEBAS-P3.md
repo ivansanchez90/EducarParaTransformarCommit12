@@ -13,17 +13,21 @@ npm run dev
 
 El seed ya carga lo necesario para esta tabla, sin cargar nada a mano:
 
-- **Tarifas** de cuota por nivel, de cada deporte y recorrido y del comedor. El comedor tiene un aumento desde el mes
-  actual, así que la factura del mes anterior y la del actual muestran precios distintos.
-- **Facturas del mes anterior y del actual**, generadas con el mismo motor que el botón "Generar facturas"
-  (una por alumno, con un ítem por concepto y la beca en negativo cuando corresponde).
-- **Comprobantes en todos los estados** (aprobado, en revisión y rechazado, con su motivo), algunos desde una orden de pago,
-  y los pagos aprobados ya imputados a los ítems. Hay facturas pagadas, con pago parcial y sin pagar (vencidas).
-- Las **cuotas viejas** llegan hasta dos meses antes del actual: son el historial anterior al sistema de facturas.
+- **Tarifas** de cuota por nivel, de cada deporte y recorrido y del comedor desde enero, con un aumento en agosto
+  (cuota, transporte y comedor) y otro del comedor **programado** para el mes que viene: sirve para ver que un cambio de
+  precio no toca las facturas ya emitidas.
+- **Deportes** con profesor y días y horarios, para los filtros del reporte de deportes.
+- **Facturas de marzo al mes actual**, generadas con el mismo motor que el botón "Generar facturas" (una por alumno, con
+  un ítem por concepto y la beca en negativo cuando corresponde). Algunos alumnos se anotaron a servicios durante el año
+  y cinco dejaron el comedor: sus facturas lo cobran hasta el mes de la baja.
+- **Comprobantes en todos los estados** (aprobados, en revisión y rechazados, con su motivo), algunos desde una orden
+  de pago, y los pagos aprobados ya imputados a los ítems. Hay facturas pagadas, pagadas en dos transferencias, con
+  pago parcial y sin pagar. Todos los comprobantes abren el mismo PDF de ejemplo.
 
-Accesos (contraseña `demo1234`): `directora@educar.local` (Directivo), `bianca.diaz0@educar.local` (Docente),
-`flia.acosta6217@mail.com` (familia) y `47002118@alumno.local` (alumno); el admin es `admin@educar.local`.
-Para probar a una familia **con beca** se puede entrar con `flia.acosta6857@mail.com` (con el seed actual).
+Accesos (contraseña `demo1234`): `directora@educar.local` (Directivo), `agustina.ramirez8@educar.local` (Docente),
+`flia.acosta1444@mail.com` (familia) y `47003381@alumno.local` (alumno); el admin es `admin@educar.local` / `admin1234`.
+Para probar a una familia **con beca** se puede entrar con `flia.ojeda5111@mail.com` (beca del 30 %) o
+`flia.ruiz0783@mail.com` (50 %). El seed genera siempre los mismos datos, así que estos accesos no cambian.
 
 Para el celular: levantar el backend con el frontend compilado (`npm run build` en `frontend/` y copiar a `backend/public`, o
 usar el despliegue) y abrir la dirección desde un Android con Chrome y un iPhone con Safari.
@@ -65,3 +69,4 @@ Anotar acá lo que falle, con la pantalla, el mensaje y la tarea; se corrige en 
 | # | Fecha | Quién lo encontró | Dónde | Qué pasó | Estado |
 | --- | --- | --- | --- | --- | --- |
 | 1 | 2026-10-18 | Juan Manuel (con el seed ampliado) | T12, orden de pago | A una familia con beca la orden le pedía transferir el valor completo de la cuota, sin descontar la beca; la bandeja no podía aprobar ese importe ("supera el saldo") | Corregido en el mismo PR de T23 |
+| 2 | 2026-10-18 | Iván (Chromium a 375 px) | Admin, Dashboard | Las cuatro tarjetas de arriba tienen scroll horizontal: `gridTemplateColumns: 'repeat(4,1fr)'` en `features/dashboard/Dashboard.tsx` no se acomoda al ancho (viene de antes de la PWA) | Pendiente (T24) |

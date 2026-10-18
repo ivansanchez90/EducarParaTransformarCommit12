@@ -1,6 +1,6 @@
 /**
- * Reportes financieros para la Dirección (T21): ingresos por período y pagos completos o
- * incompletos por año y alumno. T22 suma acá los de pagos por deporte y por recorrido.
+ * Reportes financieros para la Dirección: ingresos por período y pagos completos o incompletos
+ * por año y alumno (T21), y la cobranza de deportes y de transporte (T22).
  *
  * Igual que `reportes.ts`, cada uno se sirve con `?formato=json|pdf|csv` (ver `responderDocumento`).
  * Se monta en `/api/reportes`, junto al router de reportes académicos.
@@ -10,7 +10,7 @@ import type { Request, Response } from 'express'
 import { config } from '../lib/config.js'
 import type { Documento, Fila } from '../lib/documentos.js'
 import { responderDocumento } from '../lib/documentos.js'
-import { HttpError, fecha, hoyISO, id } from '../lib/http.js'
+import { HttpError, fecha, hora, hoyISO, id } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { ROLES_ADMIN, requireRole } from '../middleware/auth.js'
 import { asincrono, conSesion } from '../middleware/envoltorios.js'
@@ -22,6 +22,8 @@ import {
   resumenPorAlumno,
 } from '../services/reportesFinancieros.js'
 import type { Agrupacion, FacturaDelAnio } from '../services/reportesFinancieros.js'
+import { DIAS_SEMANA, cobranzaPorServicio, horaTexto, horariosTexto } from '../services/reportesCobranza.js'
+import type { Cobranza, ItemServicio } from '../services/reportesCobranza.js'
 
 export const reportesFinancierosRouter = Router()
 reportesFinancierosRouter.use(conSesion, requireRole(...ROLES_ADMIN))
@@ -255,6 +257,264 @@ function reportePagos(completos: boolean) {
   }
 }
 
+// ── Cobranza de deportes y de transporte ───────────────────────
+
+/** Mes de la consulta (1 a 12), o null para todo el año; responde 400 si no es un mes. */
+function mesDeLaConsulta(valor: unknown): number | null {
+  if (valor === undefined || valor === '') return null
+  const mes = Number(valor)
+  if (!Number.isInteger(mes) || mes < 1 || mes > 12) throw new HttpError(400, 'El mes tiene que estar entre 1 y 12')
+  return mes
+}
+
+const textoDeLaConsulta = (valor: unknown) => (typeof valor === 'string' && valor ? valor : undefined)
+const idOpcional = (valor: unknown) => (valor === undefined || valor === '' ? undefined : id(valor))
+
+/** Período, servicio y nivel que piden los dos reportes de cobranza. */
+function filtrosComunes(req: Request) {
+  const anio = anioDeLaConsulta(req.query.anio)
+  const mes = mesDeLaConsulta(req.query.mes)
+  const nivel = textoDeLaConsulta(req.query.nivel)
+  return { anio, mes, nivel, periodo: mes ? `${MESES[mes - 1]} ${anio}` : `Año ${anio}` }
+}
+
+/**
+ * Ítems de deporte o de transporte facturados en el período, con su alumno. Con `ids`, solo los
+ * de esos servicios; sin `ids`, todos (también los de un servicio ya borrado, para no perder plata).
+ */
+async function itemsDelPeriodo(
+  concepto: 'Deporte' | 'Transporte',
+  ids: number[] | undefined,
+  { anio, mes, nivel }: { anio: number; mes: number | null; nivel: string | undefined },
+  nombres: Map<number, string>,
+): Promise<ItemServicio[]> {
+  const items = await prisma.itemFactura.findMany({
+    where: {
+      concepto,
+      id_referencia: ids ? { in: ids } : { not: null },
+      facturas: { anio, mes: mes ?? undefined, alumnos: nivel ? { cursos: { nivel } } : undefined },
+    },
+    select: {
+      id_referencia: true,
+      importe: true,
+      saldo: true,
+      facturas: {
+        select: {
+          anio: true,
+          mes: true,
+          fecha_vencimiento: true,
+          id_alumno: true,
+          alumnos: { select: { nombre: true, apellido: true, cursos: { select: { nivel: true, grado_anio: true, division: true } } } },
+        },
+      },
+    },
+  })
+  return items.map((i) => {
+    const idServicio = i.id_referencia ?? 0
+    const f = i.facturas
+    return {
+      id_servicio: idServicio,
+      servicio: nombres.get(idServicio) ?? `${concepto} ${idServicio} (dado de baja)`,
+      id_alumno: f.id_alumno,
+      nombre: f.alumnos.nombre,
+      apellido: f.alumnos.apellido,
+      curso: f.alumnos.cursos ? `${f.alumnos.cursos.grado_anio}° ${f.alumnos.cursos.division}` : 'Sin curso',
+      nivel: f.alumnos.cursos?.nivel ?? 'Sin nivel',
+      anio: f.anio,
+      mes: f.mes,
+      importe: i.importe.toNumber(),
+      saldo: i.saldo.toNumber(),
+      fecha_vencimiento: f.fecha_vencimiento,
+    }
+  })
+}
+
+const totales = (c: Cobranza): [string, string][] => [
+  ['Alumnos', String(c.alumnos)],
+  ['Total facturado', pesos(c.facturado)],
+  ['Total pagado', pesos(c.pagado)],
+  ['Saldo', pesos(c.saldo)],
+]
+
+/** Tabla con una fila por ítem: lo facturado, lo pagado y el saldo del servicio de cada alumno. */
+function tablaDetalle(c: Cobranza, servicio: string): Documento['bloques'][number] {
+  return {
+    tipo: 'tabla',
+    titulo: 'Detalle por alumno',
+    columnas: [
+      { key: 'servicio', label: servicio, ancho: 1.2 },
+      { key: 'alumno', label: 'Alumno', ancho: 1.6 },
+      { key: 'legajo', label: 'Legajo', ancho: 0.6 },
+      { key: 'curso', label: 'Curso', ancho: 0.6 },
+      { key: 'nivel', label: 'Nivel', ancho: 0.9 },
+      { key: 'periodo', label: 'Período', ancho: 1.1 },
+      { key: 'facturado', label: 'Facturado', ancho: 1 },
+      { key: 'pagado', label: 'Pagado', ancho: 1 },
+      { key: 'saldo', label: 'Saldo', ancho: 1 },
+      { key: 'estado', label: 'Estado', ancho: 0.9 },
+    ],
+    filas: c.filas.map((f) => ({
+      servicio: f.servicio,
+      alumno: f.alumno,
+      legajo: f.id_alumno,
+      curso: f.curso,
+      nivel: f.nivel,
+      periodo: f.periodo,
+      facturado: pesos(f.facturado),
+      pagado: pesos(f.pagado),
+      saldo: pesos(f.saldo),
+      estado: f.estado,
+    })),
+  }
+}
+
+/**
+ * Pagos de deportes (HU22): lo facturado, pagado y adeudado de cada deporte en un año o un mes
+ * (`?anio=&mes=`), filtrado por deporte (`?id_actividad=`), nivel educativo del alumno
+ * (`?nivel=`), horario (`?dia=` y/o `?hora=` de inicio) y profesor a cargo (`?id_docente=`).
+ */
+async function pagosDeportes(req: Request, res: Response) {
+  const comunes = filtrosComunes(req)
+  const idActividad = idOpcional(req.query.id_actividad)
+  const idDocente = idOpcional(req.query.id_docente)
+  const dia = textoDeLaConsulta(req.query.dia)
+  if (dia && !DIAS_SEMANA.includes(dia)) throw new HttpError(400, `Día inválido: ${dia}`)
+  const horaInicio = req.query.hora ? hora(req.query.hora) : undefined
+
+  const actividades = await prisma.actividadExtracurricular.findMany({
+    where: {
+      id_actividad: idActividad,
+      id_docente: idDocente,
+      horarios: dia || horaInicio ? { some: { dia_semana: dia, hora_inicio: horaInicio } } : undefined,
+    },
+    select: {
+      id_actividad: true,
+      nombre: true,
+      horarios: { select: { dia_semana: true, hora_inicio: true, hora_fin: true } },
+      docentes: { select: { usuarios: { select: { nombre: true, apellido: true } } } },
+    },
+  })
+  const profesorDe = (a: (typeof actividades)[number]) =>
+    a.docentes?.usuarios ? `${a.docentes.usuarios.apellido}, ${a.docentes.usuarios.nombre}` : 'Sin asignar'
+  const datos = new Map(actividades.map((a) => [a.id_actividad, { profesor: profesorDe(a), horario: horariosTexto(a.horarios) }]))
+
+  const filtraActividad = idActividad !== undefined || idDocente !== undefined || dia !== undefined || horaInicio !== undefined
+  const items = await itemsDelPeriodo(
+    'Deporte',
+    filtraActividad ? actividades.map((a) => a.id_actividad) : undefined,
+    comunes,
+    new Map(actividades.map((a) => [a.id_actividad, a.nombre])),
+  )
+  const cobranza = cobranzaPorServicio(items, fecha(hoyISO()) ?? new Date())
+
+  const horarioPedido = [dia, horaInicio ? horaTexto(horaInicio) : undefined].filter(Boolean).join(' ')
+  const doc: Documento = {
+    titulo: 'Pagos de deportes',
+    filtros: [
+      `Período: ${comunes.periodo}`,
+      `Deporte: ${idActividad ? (actividades[0]?.nombre ?? '—') : 'Todos'}`,
+      `Nivel educativo: ${comunes.nivel ?? 'Todos'}`,
+      `Horario: ${horarioPedido || 'Todos'}`,
+      `Profesor: ${idDocente ? (actividades[0] ? profesorDe(actividades[0]) : '—') : 'Todos'}`,
+    ],
+    archivo: 'pagos-deportes',
+    orientacion: 'landscape',
+    bloques: [
+      { tipo: 'datos', items: totales(cobranza) },
+      {
+        tipo: 'tabla',
+        titulo: 'Por deporte',
+        columnas: [
+          { key: 'deporte', label: 'Deporte', ancho: 1.2 },
+          { key: 'profesor', label: 'Profesor a cargo', ancho: 1.3 },
+          { key: 'horario', label: 'Horario', ancho: 2 },
+          { key: 'alumnos', label: 'Alumnos', ancho: 0.7 },
+          { key: 'facturado', label: 'Facturado', ancho: 1 },
+          { key: 'pagado', label: 'Pagado', ancho: 1 },
+          { key: 'saldo', label: 'Saldo', ancho: 1 },
+        ],
+        filas: cobranza.porServicio.map((s) => ({
+          deporte: s.servicio,
+          profesor: datos.get(s.id_servicio)?.profesor ?? '—',
+          horario: datos.get(s.id_servicio)?.horario ?? '—',
+          alumnos: s.alumnos,
+          facturado: pesos(s.facturado),
+          pagado: pesos(s.pagado),
+          saldo: pesos(s.saldo),
+        })),
+      },
+      tablaDetalle(cobranza, 'Deporte'),
+    ],
+  }
+  responderDocumento(res, doc, req.query.formato)
+}
+
+/**
+ * Pagos de transporte (HU23): lo facturado, pagado y adeudado de cada recorrido en un año o un
+ * mes (`?anio=&mes=`), filtrado por recorrido (`?id_recorrido=`) y nivel educativo (`?nivel=`).
+ */
+async function pagosTransporte(req: Request, res: Response) {
+  const comunes = filtrosComunes(req)
+  const idRecorrido = idOpcional(req.query.id_recorrido)
+
+  const recorridos = await prisma.recorridoTransporte.findMany({
+    where: { id_recorrido: idRecorrido },
+    select: { id_recorrido: true, nombre: true, zona: true, hora_ida: true, hora_vuelta: true },
+  })
+  const datos = new Map(recorridos.map((r) => [r.id_recorrido, r]))
+  const items = await itemsDelPeriodo(
+    'Transporte',
+    idRecorrido === undefined ? undefined : recorridos.map((r) => r.id_recorrido),
+    comunes,
+    new Map(recorridos.map((r) => [r.id_recorrido, r.nombre])),
+  )
+  const cobranza = cobranzaPorServicio(items, fecha(hoyISO()) ?? new Date())
+  const horaOGuion = (d: Date | null) => (d ? horaTexto(d) : '—')
+
+  const doc: Documento = {
+    titulo: 'Pagos de transporte',
+    filtros: [
+      `Período: ${comunes.periodo}`,
+      `Recorrido: ${idRecorrido ? (recorridos[0]?.nombre ?? '—') : 'Todos'}`,
+      `Nivel educativo: ${comunes.nivel ?? 'Todos'}`,
+    ],
+    archivo: 'pagos-transporte',
+    orientacion: 'landscape',
+    bloques: [
+      { tipo: 'datos', items: totales(cobranza) },
+      {
+        tipo: 'tabla',
+        titulo: 'Por recorrido',
+        columnas: [
+          { key: 'recorrido', label: 'Recorrido', ancho: 1.3 },
+          { key: 'zona', label: 'Zona', ancho: 1.2 },
+          { key: 'horario', label: 'Ida / vuelta', ancho: 1 },
+          { key: 'alumnos', label: 'Alumnos', ancho: 0.7 },
+          { key: 'facturado', label: 'Facturado', ancho: 1 },
+          { key: 'pagado', label: 'Pagado', ancho: 1 },
+          { key: 'saldo', label: 'Saldo', ancho: 1 },
+        ],
+        filas: cobranza.porServicio.map((s) => {
+          const r = datos.get(s.id_servicio)
+          return {
+            recorrido: s.servicio,
+            zona: r?.zona ?? '—',
+            horario: r ? `${horaOGuion(r.hora_ida)} / ${horaOGuion(r.hora_vuelta)}` : '—',
+            alumnos: s.alumnos,
+            facturado: pesos(s.facturado),
+            pagado: pesos(s.pagado),
+            saldo: pesos(s.saldo),
+          }
+        }),
+      },
+      tablaDetalle(cobranza, 'Recorrido'),
+    ],
+  }
+  responderDocumento(res, doc, req.query.formato)
+}
+
 reportesFinancierosRouter.get('/ingresos', asincrono(ingresos))
 reportesFinancierosRouter.get('/pagos-completos', asincrono(reportePagos(true)))
 reportesFinancierosRouter.get('/pagos-incompletos', asincrono(reportePagos(false)))
+reportesFinancierosRouter.get('/pagos-deportes', asincrono(pagosDeportes))
+reportesFinancierosRouter.get('/pagos-transporte', asincrono(pagosTransporte))

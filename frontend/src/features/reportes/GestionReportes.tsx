@@ -6,6 +6,7 @@
  * exactamente lo que se está viendo.
  */
 import { useCallback, useEffect, useState } from 'react'
+import { DIAS_SEMANA, MESES } from '../../constants'
 import { api, descargar, qs } from '../../lib/api'
 import type { AlumnoServicios, OpcionesReportes, ReporteDoc } from '../../types'
 import { TablaScroll } from '../../ui/components'
@@ -29,6 +30,8 @@ type ClaveReporte =
   | 'ingresos'
   | 'pagos-completos'
   | 'pagos-incompletos'
+  | 'pagos-deportes'
+  | 'pagos-transporte'
 
 const REPORTES: { key: ClaveReporte; icono: string; label: string; descripcion: string }[] = [
   {
@@ -79,9 +82,22 @@ const REPORTES: { key: ClaveReporte; icono: string; label: string; descripcion: 
     label: 'Pagos incompletos',
     descripcion: 'Alumnos con facturas con saldo en el año: lo adeudado y las vencidas.',
   },
+  {
+    key: 'pagos-deportes',
+    icono: '🏅',
+    label: 'Pagos de deportes',
+    descripcion: 'Facturado, pagado y saldo por deporte, nivel, horario y profesor.',
+  },
+  {
+    key: 'pagos-transporte',
+    icono: '🚐',
+    label: 'Pagos de transporte',
+    descripcion: 'Facturado, pagado y saldo de cada recorrido en el período.',
+  },
 ]
 
 const esReportePagos = (r: ClaveReporte) => r === 'pagos-completos' || r === 'pagos-incompletos'
+const esReporteCobranza = (r: ClaveReporte) => r === 'pagos-deportes' || r === 'pagos-transporte'
 
 export function GestionReportes() {
   const [opciones, setOpciones] = useState<OpcionesReportes | null>(null)
@@ -103,6 +119,10 @@ export function GestionReportes() {
   const [hasta, setHasta] = useState('')
   const [agrupar, setAgrupar] = useState<'mes' | 'dia'>('mes')
   const [anio, setAnio] = useState(String(new Date().getFullYear()))
+  const [mes, setMes] = useState('')
+  const [dia, setDia] = useState('')
+  const [hora, setHora] = useState('')
+  const [idDocente, setIdDocente] = useState('')
 
   useEffect(() => {
     api.get<OpcionesReportes>('/reportes/opciones').then(({ data }) => {
@@ -121,6 +141,10 @@ export function GestionReportes() {
       }
       if (reporte === 'ingresos') return `/reportes/ingresos${qs({ desde, hasta, agrupar, formato })}`
       if (esReportePagos(reporte)) return `/reportes/${reporte}${qs({ anio, nivel, id_alumno: idAlumno, formato })}`
+      if (reporte === 'pagos-deportes') {
+        return `/reportes/pagos-deportes${qs({ anio, mes, nivel, id_actividad: idActividad, dia, hora, id_docente: idDocente, formato })}`
+      }
+      if (reporte === 'pagos-transporte') return `/reportes/pagos-transporte${qs({ anio, mes, nivel, id_recorrido: idRecorrido, formato })}`
       const filtros: Record<string, string | undefined> = { nivel, formato }
       if (reporte === 'alumnos-por-curso') filtros.id_curso = idCurso
       if (reporte === 'alumnos-por-materia') filtros.id_materia = idMateria
@@ -128,7 +152,7 @@ export function GestionReportes() {
       if (reporte === 'alumnos-por-transporte') filtros.id_recorrido = idRecorrido
       return `/reportes/${reporte}${qs(filtros)}`
     },
-    [reporte, nivel, idCurso, idMateria, idActividad, idRecorrido, idAlumno, desde, hasta, agrupar, anio],
+    [reporte, nivel, idCurso, idMateria, idActividad, idRecorrido, idAlumno, desde, hasta, agrupar, anio, mes, dia, hora, idDocente],
   )
 
   const faltaAlumno = reporte === 'ficha-alumno' && !idAlumno
@@ -163,9 +187,14 @@ export function GestionReportes() {
     setDoc(null)
     setMsg('')
     setIdAlumno('')
+    // "Alumnos por deporte" también lista idiomas, que "Pagos de deportes" no ofrece.
+    setIdActividad('')
   }
 
   const cursosDelNivel = (opciones?.cursos ?? []).filter((c) => !nivel || c.nivel === nivel)
+  const deportes = (opciones?.actividades ?? []).filter((a) => a.tipo === 'Deporte')
+  const horariosDelDia = (opciones?.horariosDeportes ?? []).filter((h) => h.dia_semana === dia)
+  const diasConDeporte = DIAS_SEMANA.filter((d) => (opciones?.horariosDeportes ?? []).some((h) => h.dia_semana === d))
 
   return (
     <div>
@@ -255,12 +284,12 @@ export function GestionReportes() {
             </div>
           )}
 
-          {reporte === 'alumnos-por-deporte' && (
+          {(reporte === 'alumnos-por-deporte' || reporte === 'pagos-deportes') && (
             <div>
               <span className={fieldLabel}>Actividad</span>
               <select className={selectField} value={idActividad} onChange={(e) => setIdActividad(e.target.value)}>
                 <option value=''>Todos los deportes</option>
-                {(opciones?.actividades ?? []).map((a) => (
+                {(reporte === 'pagos-deportes' ? deportes : (opciones?.actividades ?? [])).map((a) => (
                   <option key={a.id_actividad} value={a.id_actividad}>
                     {a.nombre} ({a.tipo})
                   </option>
@@ -269,7 +298,7 @@ export function GestionReportes() {
             </div>
           )}
 
-          {reporte === 'alumnos-por-transporte' && (
+          {(reporte === 'alumnos-por-transporte' || reporte === 'pagos-transporte') && (
             <div>
               <span className={fieldLabel}>Recorrido</span>
               <select className={selectField} value={idRecorrido} onChange={(e) => setIdRecorrido(e.target.value)}>
@@ -335,6 +364,83 @@ export function GestionReportes() {
                   {alumnos.map((a) => (
                     <option key={a.id_alumno} value={a.id_alumno}>
                       {a.apellido}, {a.nombre} — DNI {a.dni}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {reporte === 'pagos-deportes' && (
+            <>
+              <div>
+                <span className={fieldLabel}>Día</span>
+                <select className={selectField} value={dia} onChange={(e) => {
+                    setDia(e.target.value)
+                    setHora('')
+                  }}>
+                  <option value=''>Todos</option>
+                  {diasConDeporte.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <span className={fieldLabel}>Horario</span>
+                <select className={selectField} value={hora} disabled={!dia} onChange={(e) => {
+                    setHora(e.target.value)
+                  }}>
+                  <option value=''>{dia ? 'Todo el día' : 'Elegí un día'}</option>
+                  {horariosDelDia.map((h) => (
+                    <option key={h.hora_inicio} value={h.hora_inicio}>
+                      {h.hora_inicio}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <span className={fieldLabel}>Profesor a cargo</span>
+                <select className={selectField} value={idDocente} onChange={(e) => {
+                    setIdDocente(e.target.value)
+                  }}>
+                  <option value=''>Todos</option>
+                  {(opciones?.profesores ?? []).map((p) => (
+                    <option key={p.id_docente} value={p.id_docente}>
+                      {p.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {esReporteCobranza(reporte) && (
+            <>
+              <div>
+                <span className={fieldLabel}>Año</span>
+                <input
+                  type='number'
+                  min={2000}
+                  max={2100}
+                  className={inputField}
+                  style={{ width: 110 }}
+                  value={anio}
+                  onChange={(e) => {
+                    setAnio(e.target.value)
+                  }}
+                />
+              </div>
+              <div>
+                <span className={fieldLabel}>Mes</span>
+                <select className={selectField} value={mes} onChange={(e) => {
+                    setMes(e.target.value)
+                  }}>
+                  <option value=''>Todo el año</option>
+                  {MESES.map((m, i) => (
+                    <option key={m} value={i + 1}>
+                      {m}
                     </option>
                   ))}
                 </select>

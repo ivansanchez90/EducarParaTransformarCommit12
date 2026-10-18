@@ -54,14 +54,14 @@ npm run seed:demo
 
 Carga doce cursos de los tres niveles, doce docentes, más de cien alumnos con
 sus familias, asignaciones y horarios, asistencia de las últimas jornadas,
-calificaciones, cuotas con sus pagos (el historial anterior a las facturas), becas,
-sueldos, compras, servicios de transporte y comedor, reservas, noticias, galería,
-empleos con postulaciones, preinscripciones sin resolver y mensajes de contacto.
-
-También carga la parte financiera de la Parte 3: las tarifas, las facturas del mes anterior
-y del actual (generadas con el mismo motor que el botón "Generar facturas") y los
-comprobantes de transferencia en todos sus estados, con sus órdenes de pago y los pagos ya
-imputados. La tabla para recorrerlo está en `PRUEBAS-P3.md`.
+calificaciones, becas, sueldos, compras, servicios de transporte y comedor,
+deportes con profesor y horarios, reservas, noticias, galería, empleos con
+postulaciones, preinscripciones sin resolver y mensajes de contacto. En lo
+financiero carga las tarifas (con un aumento en agosto y uno programado para el
+mes que viene), las facturas de marzo al mes actual, órdenes de pago y
+comprobantes de transferencia aprobados, rechazados y en revisión, con sus pagos.
+Necesita `JWT_SECRET` en el `.env`, porque factura con los mismos servicios que
+la API. La tabla para recorrer la app con estos datos está en `PRUEBAS-P3.md`.
 
 Todos los usuarios que crea entran con la contraseña `demo1234`
 (configurable con `SEED_DEMO_PASSWORD`); el admin conserva la suya. Al
