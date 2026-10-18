@@ -77,14 +77,8 @@ export function Dashboard({
       </div>
 
       {esAdmin && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4,1fr)',
-            gap: 16,
-            marginBottom: 28,
-          }}
-        >
+        // Dos columnas en el celular y cuatro desde tablet: con cuatro fijas, a 375 px la fila desbordaba.
+        <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-7'>
           {statItems.map((s) => (
             <div
               key={s.label}
