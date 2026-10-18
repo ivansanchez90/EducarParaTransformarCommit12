@@ -6,11 +6,12 @@
  * `json` (para mostrarlo en pantalla), `pdf` y `csv`.
  */
 import { Router } from 'express'
-import { HttpError, id, numOrNull } from '../lib/http.js'
+import { HttpError, hora, id, numOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import type { Documento } from '../lib/documentos.js'
 import { responderDocumento as responder } from '../lib/documentos.js'
 import { ROLES_ADMIN, requireAuth, requireRole } from '../middleware/auth.js'
+import { DIAS_SEMANA, horariosTexto } from '../services/reportesCobranza.js'
 
 export const reportesRouter = Router()
 reportesRouter.use(requireAuth, requireRole(...ROLES_ADMIN))
@@ -25,6 +26,15 @@ const fechaTexto = (d: Date) => d.toISOString().slice(0, 10).split('-').reverse(
 
 const filtroNivel = (req: { query: Record<string, unknown> }) =>
   typeof req.query.nivel === 'string' && req.query.nivel ? req.query.nivel : undefined
+
+/** Profesor y horarios de una actividad, para mostrarlos al lado del deporte. */
+const profesorYHorarios = {
+  horarios: { select: { dia_semana: true, hora_inicio: true, hora_fin: true } },
+  docentes: { select: { usuarios: { select: { nombre: true, apellido: true } } } },
+} as const
+
+const profesorDe = (a: { docentes: { usuarios: { nombre: string; apellido: string } | null } | null }) =>
+  a.docentes?.usuarios ? nombreCompleto(a.docentes.usuarios) : 'Sin asignar'
 
 /** Opciones para armar los filtros en pantalla. */
 reportesRouter.get('/opciones', async (_req, res) => {
@@ -194,51 +204,81 @@ reportesRouter.get('/alumnos-por-materia', async (req, res) => {
 
 // ── Alumnos por deporte ────────────────────────────────────────
 
+/**
+ * Alumnos por deporte (Parte 2): filtra por deporte (`?id_actividad=`), nivel del alumno
+ * (`?nivel=`), horario (`?dia=` y/o `?hora=` de inicio de una franja) y profesor a cargo
+ * (`?id_docente=`). Con `?tipo=Idioma`, los talleres de idiomas.
+ */
 reportesRouter.get('/alumnos-por-deporte', async (req, res) => {
   const nivel = filtroNivel(req)
   const idActividad = numOrNull(req.query.id_actividad)
   const tipo = req.query.tipo === 'Idioma' ? 'Idioma' : 'Deporte'
+  const dia = typeof req.query.dia === 'string' && req.query.dia ? req.query.dia : undefined
+  if (dia && !DIAS_SEMANA.includes(dia)) throw new HttpError(400, `Día inválido: ${dia}`)
+  const horaInicio = req.query.hora ? hora(req.query.hora) : undefined
+  const idDocente = req.query.id_docente ? id(req.query.id_docente) : undefined
 
-  const inscripciones = await prisma.inscripcionActividad.findMany({
-    where: {
-      id_actividad: idActividad ?? undefined,
-      actividades_extracurriculares: idActividad ? undefined : { tipo },
-      alumnos: { activo: true, cursos: nivel ? { nivel } : undefined },
-    },
-    select: {
-      fecha_inscripcion: true,
-      actividades_extracurriculares: { select: { nombre: true, tipo: true } },
-      alumnos: {
-        select: {
-          id_alumno: true,
-          nombre: true,
-          apellido: true,
-          cursos: { select: { nivel: true, grado_anio: true, division: true } },
+  const [inscripciones, docente] = await Promise.all([
+    prisma.inscripcionActividad.findMany({
+      where: {
+        id_actividad: idActividad ?? undefined,
+        actividades_extracurriculares: {
+          tipo: idActividad ? undefined : tipo,
+          id_docente: idDocente,
+          horarios: dia || horaInicio ? { some: { dia_semana: dia, hora_inicio: horaInicio } } : undefined,
+        },
+        alumnos: { activo: true, cursos: nivel ? { nivel } : undefined },
+      },
+      select: {
+        fecha_inscripcion: true,
+        actividades_extracurriculares: { select: { nombre: true, tipo: true, ...profesorYHorarios } },
+        alumnos: {
+          select: {
+            id_alumno: true,
+            nombre: true,
+            apellido: true,
+            cursos: { select: { nivel: true, grado_anio: true, division: true } },
+          },
         },
       },
-    },
-    orderBy: [{ id_actividad: 'asc' }, { id_alumno: 'asc' }],
-  })
+      orderBy: [
+        { actividades_extracurriculares: { nombre: 'asc' } },
+        { alumnos: { apellido: 'asc' } },
+        { alumnos: { nombre: 'asc' } },
+      ],
+    }),
+    idDocente
+      ? prisma.docente.findUnique({ where: { id_docente: idDocente }, select: { usuarios: { select: { nombre: true, apellido: true } } } })
+      : null,
+  ])
 
+  const horarioPedido = [dia, horaInicio ? horaTexto(horaInicio) : undefined].filter(Boolean).join(' ')
   responder(res, {
     titulo: tipo === 'Idioma' ? 'Listado de alumnos por idioma' : 'Listado de alumnos por deporte',
     filtros: [
       `Nivel educativo: ${nivel ?? 'Todos'}`,
       `Actividad: ${idActividad ? (inscripciones[0]?.actividades_extracurriculares.nombre ?? '—') : `Todas (${tipo.toLowerCase()}s)`}`,
+      `Horario: ${horarioPedido || 'Todos'}`,
+      `Profesor: ${idDocente ? (docente?.usuarios ? nombreCompleto(docente.usuarios) : '—') : 'Todos'}`,
     ],
     archivo: 'alumnos-por-deporte',
+    orientacion: 'landscape',
     bloques: [
       {
         tipo: 'tabla',
         columnas: [
-          { key: 'actividad', label: 'Actividad', ancho: 1.3 },
-          { key: 'alumno', label: 'Alumno', ancho: 1.8 },
-          { key: 'legajo', label: 'Legajo', ancho: 0.7 },
-          { key: 'curso', label: 'Curso', ancho: 0.8 },
-          { key: 'nivel', label: 'Nivel', ancho: 1.2 },
+          { key: 'actividad', label: 'Actividad', ancho: 1.1 },
+          { key: 'profesor', label: 'Profesor a cargo', ancho: 1.3 },
+          { key: 'horario', label: 'Horario', ancho: 2 },
+          { key: 'alumno', label: 'Alumno', ancho: 1.6 },
+          { key: 'legajo', label: 'Legajo', ancho: 0.6 },
+          { key: 'curso', label: 'Curso', ancho: 0.7 },
+          { key: 'nivel', label: 'Nivel', ancho: 1 },
         ],
         filas: inscripciones.map((i) => ({
           actividad: i.actividades_extracurriculares.nombre,
+          profesor: profesorDe(i.actividades_extracurriculares),
+          horario: horariosTexto(i.actividades_extracurriculares.horarios),
           alumno: nombreCompleto(i.alumnos),
           legajo: i.alumnos.id_alumno,
           curso: nombreCurso(i.alumnos.cursos),
@@ -323,7 +363,7 @@ reportesRouter.get('/alumno/:id', async (req, res) => {
       cursos: { select: { id_curso: true, nivel: true, grado_anio: true, division: true } },
       padre: { select: { nombre: true, apellido: true, email: true } },
       inscripciones_actividades: {
-        select: { actividades_extracurriculares: { select: { nombre: true, tipo: true } } },
+        select: { actividades_extracurriculares: { select: { nombre: true, tipo: true, ...profesorYHorarios } } },
         orderBy: { id_actividad: 'asc' },
       },
       transporte: { select: { observaciones: true, recorridos_transporte: true } },
@@ -387,12 +427,16 @@ reportesRouter.get('/alumno/:id', async (req, res) => {
         tipo: 'tabla',
         titulo: 'Actividades extracurriculares',
         columnas: [
-          { key: 'actividad', label: 'Actividad', ancho: 2 },
-          { key: 'tipo', label: 'Tipo', ancho: 1 },
+          { key: 'actividad', label: 'Actividad', ancho: 1.2 },
+          { key: 'tipo', label: 'Tipo', ancho: 0.7 },
+          { key: 'profesor', label: 'Profesor a cargo', ancho: 1.3 },
+          { key: 'horario', label: 'Horario', ancho: 2 },
         ],
         filas: alumno.inscripciones_actividades.map((i) => ({
           actividad: i.actividades_extracurriculares.nombre,
           tipo: i.actividades_extracurriculares.tipo,
+          profesor: profesorDe(i.actividades_extracurriculares),
+          horario: horariosTexto(i.actividades_extracurriculares.horarios),
         })),
       },
       {

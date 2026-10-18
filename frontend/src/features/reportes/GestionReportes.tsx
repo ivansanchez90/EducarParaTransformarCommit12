@@ -50,7 +50,7 @@ const REPORTES: { key: ClaveReporte; icono: string; label: string; descripcion: 
     key: 'alumnos-por-deporte',
     icono: '⚽',
     label: 'Alumnos por deporte',
-    descripcion: 'Deporte, alumno, curso y nivel educativo.',
+    descripcion: 'Deporte, profesor, horario, alumno, curso y nivel educativo.',
   },
   {
     key: 'alumnos-por-transporte',
@@ -148,7 +148,7 @@ export function GestionReportes() {
       const filtros: Record<string, string | undefined> = { nivel, formato }
       if (reporte === 'alumnos-por-curso') filtros.id_curso = idCurso
       if (reporte === 'alumnos-por-materia') filtros.id_materia = idMateria
-      if (reporte === 'alumnos-por-deporte') filtros.id_actividad = idActividad
+      if (reporte === 'alumnos-por-deporte') Object.assign(filtros, { id_actividad: idActividad, dia, hora, id_docente: idDocente })
       if (reporte === 'alumnos-por-transporte') filtros.id_recorrido = idRecorrido
       return `/reportes/${reporte}${qs(filtros)}`
     },
@@ -371,7 +371,7 @@ export function GestionReportes() {
             </>
           )}
 
-          {reporte === 'pagos-deportes' && (
+          {(reporte === 'pagos-deportes' || reporte === 'alumnos-por-deporte') && (
             <>
               <div>
                 <span className={fieldLabel}>Día</span>

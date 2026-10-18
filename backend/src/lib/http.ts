@@ -54,7 +54,8 @@ export function fechaObligatoria(valor: unknown, campo: string): Date {
 /** 'HH:MM' o 'HH:MM:SS' → Date para columnas `time`. */
 export function hora(valor: unknown): Date {
   const s = String(valor ?? '')
-  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(s)) throw new HttpError(400, `Hora inválida: ${s}`)
+  // Con el formato solo, "25:00" daba una fecha inválida y la consulta terminaba en 500.
+  if (!/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(s)) throw new HttpError(400, `Hora inválida: ${s}`)
   return new Date(`1970-01-01T${s.length === 5 ? `${s}:00` : s}Z`)
 }
 

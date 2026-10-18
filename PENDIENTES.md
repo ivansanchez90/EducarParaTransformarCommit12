@@ -17,13 +17,12 @@ inscripciones duplicadas. Ya están hechos:
   qué deporte choca y en qué franja (`services/choqueHorarios.ts`). También se
   rechaza cambiar el horario de un deporte si deja a un inscripto con dos clases a
   la vez. Solo se comparan deportes entre sí: los idiomas no entran en el control.
+- El reporte "Alumnos por deporte" muestra el profesor a cargo y los horarios, y
+  filtra por deporte, nivel, día, hora de inicio y profesor ("Listado de alumnos por
+  deporte, nivel, horario y profesor a cargo" de la consigna). La ficha individual
+  del alumno muestra el profesor y los horarios de cada actividad.
 
-Falta:
-
-- El reporte "alumnos por deporte" debería mostrar también los horarios y el
-  profesor, y filtrar por ellos ("Listado de alumnos por deporte, nivel, horario y
-  profesor a cargo" de la consigna de la Parte 2), y la ficha individual del alumno,
-  sus horarios deportivos.
+HU 2 queda completa.
 
 ## HU 4 — Gestión de profesores
 **Responsable:** Iván Sánchez · **Prioridad:** alta
