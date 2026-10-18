@@ -69,4 +69,4 @@ Anotar acá lo que falle, con la pantalla, el mensaje y la tarea; se corrige en 
 | # | Fecha | Quién lo encontró | Dónde | Qué pasó | Estado |
 | --- | --- | --- | --- | --- | --- |
 | 1 | 2026-10-18 | Juan Manuel (con el seed ampliado) | T12, orden de pago | A una familia con beca la orden le pedía transferir el valor completo de la cuota, sin descontar la beca; la bandeja no podía aprobar ese importe ("supera el saldo") | Corregido en el mismo PR de T23 |
-| 2 | 2026-10-18 | Iván (Chromium a 375 px) | Admin, Dashboard | Las cuatro tarjetas de arriba tienen scroll horizontal: `gridTemplateColumns: 'repeat(4,1fr)'` en `features/dashboard/Dashboard.tsx` no se acomoda al ancho (viene de antes de la PWA) | Pendiente (T24) |
+| 2 | 2026-10-18 | Iván (Chromium a 375 px) | Admin, Dashboard | Las cuatro tarjetas de arriba tienen scroll horizontal: `gridTemplateColumns: 'repeat(4,1fr)'` en `features/dashboard/Dashboard.tsx` no se acomoda al ancho (viene de antes de la PWA) | Corregido: dos columnas en el celular y cuatro desde 768 px |
