@@ -28,7 +28,7 @@ const filtroNivel = (req: { query: Record<string, unknown> }) =>
 
 /** Opciones para armar los filtros en pantalla. */
 reportesRouter.get('/opciones', async (_req, res) => {
-  const [cursos, materias, actividades, recorridos] = await Promise.all([
+  const [cursos, materias, actividades, recorridos, deportes] = await Promise.all([
     prisma.curso.findMany({
       where: { activo: true },
       select: { id_curso: true, nivel: true, grado_anio: true, division: true },
@@ -45,8 +45,34 @@ reportesRouter.get('/opciones', async (_req, res) => {
       select: { id_recorrido: true, nombre: true, zona: true },
       orderBy: { nombre: 'asc' },
     }),
+    // Profesores y horarios de los deportes, para los filtros de "Pagos de deportes" (T22).
+    prisma.actividadExtracurricular.findMany({
+      where: { tipo: 'Deporte' },
+      select: {
+        id_docente: true,
+        docentes: { select: { usuarios: { select: { nombre: true, apellido: true } } } },
+        horarios: { select: { dia_semana: true, hora_inicio: true } },
+      },
+    }),
   ])
-  res.json({ niveles: [...new Set(cursos.map((c) => c.nivel))], cursos, materias, actividades, recorridos })
+  const profesores = new Map<number, string>()
+  const horarios = new Map<string, { dia_semana: string; hora_inicio: string }>()
+  for (const d of deportes) {
+    if (d.id_docente && d.docentes?.usuarios) profesores.set(d.id_docente, nombreCompleto(d.docentes.usuarios))
+    for (const h of d.horarios) {
+      const hora = horaTexto(h.hora_inicio)
+      horarios.set(`${h.dia_semana} ${hora}`, { dia_semana: h.dia_semana, hora_inicio: hora })
+    }
+  }
+  res.json({
+    niveles: [...new Set(cursos.map((c) => c.nivel))],
+    cursos,
+    materias,
+    actividades,
+    recorridos,
+    profesores: [...profesores].map(([id_docente, nombre]) => ({ id_docente, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    horariosDeportes: [...horarios.values()].sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio)),
+  })
 })
 
 // ── Alumnos por curso ──────────────────────────────────────────

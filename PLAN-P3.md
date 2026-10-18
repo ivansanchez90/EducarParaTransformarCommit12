@@ -87,7 +87,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T19. Portal: precio de cada servicio en "Transporte y comedor" y "Extracurriculares" | HU24 | 3 | Juan Manuel | T06 | 0,5 días | Hecho |
 | T20. Recuperar la contraseña por email | HU03 | 4 | Iván | T02 | 1,5 días | Hecho |
 | T21. Reportes: ingresos por período, pagos completos e incompletos por año y alumno (PDF y CSV) | HU19–HU21 | 4 | Juan Manuel | T14 | 2 días | Hecho |
-| T22. Reportes: pagos por deporte/nivel/horario/profesor y por recorrido | HU22, HU23 | 4 | Iván | T06, T21 | 1,5 días | Pendiente |
+| T22. Reportes: pagos por deporte/nivel/horario/profesor y por recorrido | HU22, HU23 | 4 | Iván | T06, T21 | 1,5 días | En revisión |
 | T23. Pruebas integrales con `seed:demo` ampliado (tarifas, facturas, pagos) y en teléfonos reales | — | 4 | Los dos | T01–T22 | 1,5 días | Pendiente |
 | T24. Testing del 11/11 y corrección de defectos | — | 5 | Los dos | T23 | 3 días | Pendiente |
 | T25. Informe de uso de IA: apartados 1 y 4 (Iván), 3 y 5 (Juan Manuel), 2 bitácora (los dos) | — | 5 | Los dos | T05 | 2 días | Pendiente |
@@ -286,6 +286,28 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Archivos de Juan Manuel que toqué** (cambios chicos): `routes/actividades.ts` (profesor y horarios en el GET, POST y PUT) y `ui/components.tsx`: en `ResponsiveTable`, si la columna `pie` devuelve `null`, la tarjeta del celular no muestra el pie vacío. El rechazo de una **inscripción** cuyos horarios chocan con otro deporte del alumno (HU 2 de `PENDIENTES.md`) sigue pendiente, ahora que los horarios existen.
 - **Verificado:** sobre una base con `seed:demo`, la API responde 401 sin sesión y 403 a una familia; cubre altas, todas las validaciones, el estado de cada tarifa, la edición y el borrado solo de las programadas, y el profesor y los horarios (también los ve el portal). En el navegador, a 1366 px y a 375 px (sin scroll horizontal ni errores de consola): carga de una tarifa, edición de una actividad con profesor y horarios, y el mensaje de horarios superpuestos. `typecheck` y `build` sin errores; el lint del frontend sigue en los 46 errores que ya había en `main`, ninguno nuevo.
 - **Falta:** cargar las tarifas reales antes de facturar (T08).
+
+### T22 — Reportes: pagos de deportes y de transporte (Iván): en revisión
+
+- **Qué quedó:**
+  - **Backend:** dos reportes nuevos en `routes/reportesFinancieros.ts` (el router de T21, con su guarda de Admin y Directivo), con los cálculos en `services/reportesCobranza.ts`. Salen de los **ítems de factura** de cada servicio (`concepto` + `id_referencia`): lo facturado es el importe del ítem, lo pagado es lo que se le imputó (importe − saldo) y el estado se calcula como el de una factura, con el vencimiento de la suya.
+  - **`GET /api/reportes/pagos-deportes` (HU22):** filtra por período (`?anio=`, por defecto el de hoy, y `?mes=` opcional), deporte (`?id_actividad=`), nivel educativo del alumno (`?nivel=`), horario (`?dia=` y `?hora=` de inicio de la franja) y profesor a cargo (`?id_docente=`). Muestra los totales, una tabla **por deporte** (profesor, horarios, alumnos, facturado, pagado, saldo) y el **detalle por alumno** (deporte, alumno, legajo, curso, nivel, período, facturado, pagado, saldo, estado).
+  - **`GET /api/reportes/pagos-transporte` (HU23):** filtra por período, recorrido (`?id_recorrido=`) y nivel. Muestra los totales, una tabla **por recorrido** (zona, horario de ida y vuelta, alumnos, facturado, pagado, saldo) y el mismo detalle por alumno.
+  - Los dos se ven en pantalla y se descargan en PDF apaisado y CSV con `responderDocumento()`. Un mes, año, día, hora o id inválido da 400 antes de consultar la base. Sin filtros de actividad o de recorrido también aparecen los ítems de un servicio ya borrado ("Deporte 9 (dado de baja)"), para que los totales no pierdan plata.
+  - **`GET /api/reportes/opciones`** suma `profesores` (los docentes a cargo de algún deporte) y `horariosDeportes` (las franjas sin repetir) para los filtros.
+  - **Frontend:** `GestionReportes.tsx` suma *Pagos de deportes* y *Pagos de transporte*, con los filtros de deporte o recorrido, nivel, año y mes. En deportes también hay día, horario y profesor; el horario se habilita al elegir un día y ofrece las franjas que empiezan ese día.
+- **Decisiones que conviene mirar:**
+  - El **nivel** es el nivel educativo del alumno (Inicial, Primario, Secundario), porque los deportes no tienen nivel propio.
+  - Filtrar por **horario** trae los deportes que tienen una franja ese día (y a esa hora), con **todo** lo que se les facturó: la factura cobra el deporte por mes, no por día. Fútbol, que va lunes y miércoles, aparece entero al filtrar por lunes.
+  - Se sumó el filtro por **período** también a deportes (la HU22 no lo pide, la HU23 sí), para controlar la cobranza de un mes.
+- **Pruebas:** 49 nuevas (447 en total). `test/reportesCobranza.test.ts` prueba los cálculos: facturado, pagado y saldo por ítem; estado con el vencimiento de la factura; alumnos distintos por servicio; dos servicios con el mismo nombre; orden por servicio, alumno con acentos y período; suma en centavos; y texto de los horarios. `test/reportesCobranzaRutas.test.ts` prueba 401 y 403 (Padre, Alumno y Docente); los 400 por mes, año, día, hora o id inválidos sin consultar la base; el filtro por año, mes y nivel; los filtros de deporte, profesor y horario, que piden solo los ítems de esas actividades; el filtro sin coincidencias; el deporte dado de baja; los dos documentos completos; y las descargas en CSV y PDF.
+- **Verificado:**
+  - `typecheck` y `build` del backend, y `tsc -b` y `build` del frontend, sin errores. El lint del frontend sigue en los 43 errores de `main`, ninguno nuevo.
+  - Rompiendo a propósito lo pagado, el filtro por actividad, la validación del día, el filtro por mes o el conteo de alumnos distintos, las pruebas fallan.
+  - Con la API real sobre una base descartable con `seed:demo`, tarifas, profesores y horarios cargados, las facturas de septiembre y octubre generadas con `POST /api/facturas/generar` y pagos completos y parciales simulados: los totales de 8 consultas coinciden centavo por centavo con SQL independiente (todo el año, lunes, lunes 18:30, un profesor, Secundario en octubre, septiembre sin deportes, todo el transporte y un recorrido). Por ejemplo, deportes 2026 dan 64 alumnos, $1.492.000 facturados, $441.500 pagados y $1.050.500 de saldo.
+  - Familia y docente reciben 403 y sin sesión 401. El CSV baja con BOM y `;`, y el PDF apaisado sale de 4 páginas.
+  - En Chromium a 375 y 1280 px, la pantalla de Reportes con los dos reportes no tiene scroll horizontal en `main`; las tablas anchas se desplazan dentro de su contenedor.
+- **Falta:** el `seed:demo` no trae tarifas, horarios ni profesores en los deportes, ni facturas. Para la prueba integral (T23) conviene sumarlos, así los reportes financieros tienen datos sin preparar la base a mano.
 
 ### T20 — Recuperar la contraseña por email (Iván): hecho, mergeado en el PR #41
 
