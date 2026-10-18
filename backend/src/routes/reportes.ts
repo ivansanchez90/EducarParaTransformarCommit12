@@ -11,7 +11,7 @@ import { prisma } from '../lib/prisma.js'
 import type { Documento } from '../lib/documentos.js'
 import { responderDocumento as responder } from '../lib/documentos.js'
 import { ROLES_ADMIN, requireAuth, requireRole } from '../middleware/auth.js'
-import { DIAS_SEMANA, horariosTexto } from '../services/reportesCobranza.js'
+import { DIAS_SEMANA, franjaTexto, horariosTexto } from '../services/reportesCobranza.js'
 
 export const reportesRouter = Router()
 reportesRouter.use(requireAuth, requireRole(...ROLES_ADMIN))
@@ -38,7 +38,7 @@ const profesorDe = (a: { docentes: { usuarios: { nombre: string; apellido: strin
 
 /** Opciones para armar los filtros en pantalla. */
 reportesRouter.get('/opciones', async (_req, res) => {
-  const [cursos, materias, actividades, recorridos, deportes] = await Promise.all([
+  const [cursos, materias, actividades, recorridos, deportes, docentes] = await Promise.all([
     prisma.curso.findMany({
       where: { activo: true },
       select: { id_curso: true, nivel: true, grado_anio: true, division: true },
@@ -64,6 +64,11 @@ reportesRouter.get('/opciones', async (_req, res) => {
         horarios: { select: { dia_semana: true, hora_inicio: true } },
       },
     }),
+    // Todos los docentes, para la ficha del docente.
+    prisma.docente.findMany({
+      select: { id_docente: true, activo: true, usuarios: { select: { nombre: true, apellido: true } } },
+      orderBy: [{ usuarios: { apellido: 'asc' } }, { usuarios: { nombre: 'asc' } }],
+    }),
   ])
   const profesores = new Map<number, string>()
   const horarios = new Map<string, { dia_semana: string; hora_inicio: string }>()
@@ -82,6 +87,11 @@ reportesRouter.get('/opciones', async (_req, res) => {
     recorridos,
     profesores: [...profesores].map(([id_docente, nombre]) => ({ id_docente, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
     horariosDeportes: [...horarios.values()].sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio)),
+    docentes: docentes.map((d) => ({
+      id_docente: d.id_docente,
+      nombre: d.usuarios ? nombreCompleto(d.usuarios) : `Docente ${d.id_docente}`,
+      activo: d.activo,
+    })),
   })
 })
 
@@ -289,6 +299,83 @@ reportesRouter.get('/alumnos-por-deporte', async (req, res) => {
   }, req.query.formato)
 })
 
+// ── Docentes por nivel educativo ──────────────────────────────
+
+/** Niveles en el orden de la escuela; uno que no esté en la lista va al final. */
+const ORDEN_NIVEL = ['Inicial', 'Primario', 'Secundario']
+
+/** "1° A, 2° A y 3° A" en el orden de la escuela. */
+const unir = (items: string[]) => (items.length <= 1 ? (items[0] ?? '—') : `${items.slice(0, -1).join(', ')} y ${items.at(-1)}`)
+const ordenCurso = (a: { grado_anio: string; division: string }, b: { grado_anio: string; division: string }) =>
+  a.grado_anio.localeCompare(b.grado_anio, 'es', { numeric: true }) || a.division.localeCompare(b.division, 'es')
+
+/**
+ * Listado de docentes por nivel educativo (Parte 2): nivel, profesor, materias a cargo y
+ * cursos, a partir de las asignaciones activas. Un docente que da clases en dos niveles
+ * aparece en los dos. Filtro opcional `?nivel=`.
+ */
+reportesRouter.get('/docentes-por-nivel', async (req, res) => {
+  const nivel = filtroNivel(req)
+  const asignaciones = await prisma.asignacion.findMany({
+    where: { activo: true, docentes: { activo: true }, cursos: nivel ? { nivel } : undefined },
+    select: {
+      id_docente: true,
+      docentes: { select: { usuarios: { select: { nombre: true, apellido: true } } } },
+      materias: { select: { nombre: true } },
+      cursos: { select: { nivel: true, grado_anio: true, division: true } },
+    },
+  })
+
+  const grupos = new Map<string, { nivel: string; profesor: string; legajo: number; materias: Set<string>; cursos: Map<string, { nivel: string; grado_anio: string; division: string }> }>()
+  for (const a of asignaciones) {
+    const clave = `${a.cursos.nivel}|${a.id_docente}`
+    const grupo = grupos.get(clave) ?? {
+      nivel: a.cursos.nivel,
+      profesor: a.docentes.usuarios ? nombreCompleto(a.docentes.usuarios) : `Docente ${a.id_docente}`,
+      legajo: a.id_docente,
+      materias: new Set<string>(),
+      cursos: new Map(),
+    }
+    grupo.materias.add(a.materias.nombre)
+    grupo.cursos.set(nombreCurso(a.cursos), a.cursos)
+    grupos.set(clave, grupo)
+  }
+  const filas = [...grupos.values()]
+    .sort(
+      (a, b) =>
+        (ORDEN_NIVEL.indexOf(a.nivel) + 1 || 99) - (ORDEN_NIVEL.indexOf(b.nivel) + 1 || 99) ||
+        a.nivel.localeCompare(b.nivel, 'es') ||
+        a.profesor.localeCompare(b.profesor, 'es'),
+    )
+    .map((g) => ({
+      nivel: g.nivel,
+      profesor: g.profesor,
+      legajo: g.legajo,
+      materias: unir([...g.materias].sort((a, b) => a.localeCompare(b, 'es'))),
+      cursos: unir([...g.cursos.values()].sort(ordenCurso).map((c) => nombreCurso(c))),
+    }))
+
+  responder(res, {
+    titulo: 'Listado de docentes por nivel educativo',
+    filtros: [`Nivel educativo: ${nivel ?? 'Todos'}`],
+    archivo: 'docentes-por-nivel',
+    orientacion: 'landscape',
+    bloques: [
+      {
+        tipo: 'tabla',
+        columnas: [
+          { key: 'nivel', label: 'Nivel', ancho: 0.9 },
+          { key: 'profesor', label: 'Profesor', ancho: 1.5 },
+          { key: 'legajo', label: 'Legajo', ancho: 0.6 },
+          { key: 'materias', label: 'Materias a cargo', ancho: 2.4 },
+          { key: 'cursos', label: 'Cursos', ancho: 1.6 },
+        ],
+        filas,
+      },
+    ],
+  }, req.query.formato)
+})
+
 // ── Alumnos por recorrido de transporte ────────────────────────
 
 reportesRouter.get('/alumnos-por-transporte', async (req, res) => {
@@ -450,6 +537,112 @@ reportesRouter.get('/alumno/:id', async (req, res) => {
           ['Observaciones transporte', alumno.transporte?.observaciones ?? '—'],
           ['Observaciones comedor', alumno.comedor?.observaciones ?? '—'],
         ],
+      },
+    ],
+  }, req.query.formato)
+})
+
+// ── Ficha del docente ─────────────────────────────────────────
+
+/**
+ * Reporte por docente (Parte 2): sus datos, los cursos a cargo por nivel y los horarios
+ * de cada curso, más los deportes de los que es responsable.
+ */
+reportesRouter.get('/docente/:id', async (req, res) => {
+  const idDocente = id(req.params.id)
+  const docente = await prisma.docente.findUnique({
+    where: { id_docente: idDocente },
+    select: {
+      id_docente: true,
+      dni: true,
+      especialidad: true,
+      titulo: true,
+      fecha_ingreso: true,
+      activo: true,
+      usuarios: { select: { nombre: true, apellido: true, email: true, telefono: true } },
+      asignaciones: {
+        where: { activo: true },
+        select: {
+          materias: { select: { nombre: true } },
+          cursos: { select: { nivel: true, grado_anio: true, division: true } },
+          horarios: { select: { dia_semana: true, hora_inicio: true, hora_fin: true, aula: true } },
+        },
+      },
+      actividades: { where: { activo: true }, select: { nombre: true, tipo: true, ...profesorYHorarios }, orderBy: { nombre: 'asc' } },
+    },
+  })
+  if (!docente) throw new HttpError(404, 'Docente no encontrado')
+
+  const nombre = docente.usuarios ? nombreCompleto(docente.usuarios) : `Docente ${docente.id_docente}`
+  const porNivel = (a: { nivel: string }, b: { nivel: string }) =>
+    (ORDEN_NIVEL.indexOf(a.nivel) + 1 || 99) - (ORDEN_NIVEL.indexOf(b.nivel) + 1 || 99)
+  const cursos = [...docente.asignaciones].sort(
+    (a, b) => porNivel(a.cursos, b.cursos) || ordenCurso(a.cursos, b.cursos) || a.materias.nombre.localeCompare(b.materias.nombre, 'es'),
+  )
+  const clases = docente.asignaciones
+    .flatMap((a) => a.horarios.map((h) => ({ ...h, curso: a.cursos, materia: a.materias.nombre })))
+    .sort(
+      (a, b) =>
+        DIAS_SEMANA.indexOf(a.dia_semana) - DIAS_SEMANA.indexOf(b.dia_semana) ||
+        a.hora_inicio.getTime() - b.hora_inicio.getTime(),
+    )
+
+  responder(res, {
+    titulo: 'Ficha del docente',
+    subtitulo: `${nombre} · Legajo ${docente.id_docente}`,
+    filtros: [],
+    archivo: `ficha-docente-${docente.id_docente}`,
+    bloques: [
+      {
+        tipo: 'datos',
+        titulo: 'Datos del docente',
+        items: [
+          ['Apellido y nombre', nombre],
+          ['Legajo', String(docente.id_docente)],
+          ['DNI', docente.dni ?? '—'],
+          ['Especialidad', docente.especialidad ?? '—'],
+          ['Título', docente.titulo ?? '—'],
+          ['Correo', docente.usuarios?.email ?? '—'],
+          ['Teléfono', docente.usuarios?.telefono ?? '—'],
+          ['Fecha de ingreso', docente.fecha_ingreso ? fechaTexto(docente.fecha_ingreso) : '—'],
+          ['Estado', docente.activo ? 'Activo' : 'Inactivo'],
+        ],
+      },
+      {
+        tipo: 'tabla',
+        titulo: 'Cursos a cargo por nivel',
+        columnas: [
+          { key: 'nivel', label: 'Nivel', ancho: 1 },
+          { key: 'curso', label: 'Curso', ancho: 0.7 },
+          { key: 'materia', label: 'Materia', ancho: 1.8 },
+        ],
+        filas: cursos.map((a) => ({ nivel: nivelDe(a.cursos), curso: nombreCurso(a.cursos), materia: a.materias.nombre })),
+      },
+      {
+        tipo: 'tabla',
+        titulo: 'Horarios de cada curso',
+        columnas: [
+          { key: 'horario', label: 'Día y horario', ancho: 1.6 },
+          { key: 'curso', label: 'Curso', ancho: 1.2 },
+          { key: 'materia', label: 'Materia', ancho: 1.6 },
+          { key: 'aula', label: 'Aula', ancho: 0.7 },
+        ],
+        filas: clases.map((c) => ({
+          horario: franjaTexto(c),
+          curso: `${nombreCurso(c.curso)} (${nivelDe(c.curso)})`,
+          materia: c.materia,
+          aula: c.aula ?? '—',
+        })),
+      },
+      {
+        tipo: 'tabla',
+        titulo: 'Actividades extracurriculares a cargo',
+        columnas: [
+          { key: 'actividad', label: 'Actividad', ancho: 1.2 },
+          { key: 'tipo', label: 'Tipo', ancho: 0.7 },
+          { key: 'horario', label: 'Horario', ancho: 2 },
+        ],
+        filas: docente.actividades.map((a) => ({ actividad: a.nombre, tipo: a.tipo, horario: horariosTexto(a.horarios) })),
       },
     ],
   }, req.query.formato)

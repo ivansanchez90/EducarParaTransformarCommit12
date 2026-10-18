@@ -553,7 +553,7 @@ export function GestionActividades() {
                   <option value=''>Sin asignar</option>
                   {docentes.map((d) => (
                     <option key={d.id_docente} value={d.id_docente}>
-                      {d.usuarios ? `${d.usuarios.apellido}, ${d.usuarios.nombre}` : `Docente ${d.dni}`}
+                      {d.usuarios ? `${d.usuarios.apellido}, ${d.usuarios.nombre}` : `Docente ${d.id_docente}`}
                     </option>
                   ))}
                 </select>

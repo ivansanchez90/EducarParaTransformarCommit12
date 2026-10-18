@@ -3,10 +3,11 @@
  */
 import { Router } from 'express'
 import { Prisma } from '../generated/prisma/client.js'
-import { HttpError, bool, id, numOrNull, textOrNull } from '../lib/http.js'
+import { HttpError, bool, fecha, id, numOrNull, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { cursoResumen, materiaNombre, nombreApellido } from '../lib/selects.js'
 import { ROLES_ADMIN, ROLES_STAFF, idDocenteDe, requireAuth, requireRole } from '../middleware/auth.js'
+import { crearUsuario, emailOpcional } from '../services/usuarios.js'
 
 async function idPeriodoActivo(): Promise<number | null> {
   const periodo = await prisma.periodoAcademico.findFirst({
@@ -239,17 +240,146 @@ materiasRouter.patch('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
 })
 
 // ── Docentes ───────────────────────────────────────────────────
+// Módulo de profesores (HU 4 de la Parte 2): legajo (id_docente), DNI, nombre,
+// apellido, especialidad, correo, teléfono y estado. Nombre, correo y teléfono
+// viven en el usuario con el que el docente entra al sistema.
 
 export const docentesRouter = Router()
 docentesRouter.use(requireAuth, requireRole(...ROLES_ADMIN))
 
+const datosDelDocente = {
+  usuarios: { select: { id_usuario: true, nombre: true, apellido: true, email: true, telefono: true, activo: true } },
+  asignaciones: {
+    where: { activo: true },
+    select: {
+      id_asignacion: true,
+      id_materia: true,
+      id_curso: true,
+      materias: materiaNombre,
+      cursos: { select: { id_curso: true, nivel: true, grado_anio: true, division: true } },
+    },
+    orderBy: [{ cursos: { nivel: 'asc' } }, { id_curso: 'asc' }, { id_materia: 'asc' }],
+  },
+} satisfies Prisma.DocenteInclude
+
 docentesRouter.get('/', async (req, res) => {
   const docentes = await prisma.docente.findMany({
     where: { activo: bool(req.query.activo) },
-    include: { usuarios: { select: { nombre: true, apellido: true, email: true } } },
-    orderBy: { id_docente: 'asc' },
+    include: datosDelDocente,
+    orderBy: [{ usuarios: { apellido: 'asc' } }, { usuarios: { nombre: 'asc' } }],
   })
   res.json(docentes)
+})
+
+const DNI_DUPLICADO = 'Ya existe un profesor registrado con ese DNI'
+
+/** Los datos del formulario del docente, validados. La contraseña solo se pide en el alta. */
+function datosDocente(body: Record<string, unknown>) {
+  const nombre = textOrNull(body.nombre)
+  const apellido = textOrNull(body.apellido)
+  if (!nombre || !apellido) throw new HttpError(400, 'Nombre y apellido son obligatorios')
+  const email = emailOpcional(body.email)
+  if (!email) throw new HttpError(400, 'El correo es obligatorio: es con el que el docente entra al sistema')
+  const dni = String(body.dni ?? '').replace(/\./g, '').trim()
+  if (!/^\d{7,8}$/.test(dni)) throw new HttpError(400, 'El DNI tiene que tener 7 u 8 números')
+  return {
+    usuario: { nombre, apellido, email, telefono: textOrNull(body.telefono) },
+    docente: {
+      dni,
+      especialidad: textOrNull(body.especialidad),
+      titulo: textOrNull(body.titulo),
+      fecha_ingreso: fecha(body.fecha_ingreso),
+    },
+  }
+}
+
+async function assertDniLibre(dni: string, idDocente?: number) {
+  const otro = await prisma.docente.findUnique({ where: { dni }, select: { id_docente: true } })
+  if (otro && otro.id_docente !== idDocente) throw new HttpError(409, DNI_DUPLICADO, 'DNI_DUPLICADO')
+}
+
+async function assertEmailLibre(email: string, idUsuario: string) {
+  const otro = await prisma.usuario.findUnique({ where: { email }, select: { id_usuario: true } })
+  if (otro && otro.id_usuario !== idUsuario) throw new HttpError(409, `Ya existe un usuario con el email ${email}`, '23505')
+}
+
+/** Dos altas simultáneas con el mismo DNI: la base rechaza la segunda. */
+function dniRepetido(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002' && String(err.meta?.target ?? '').includes('dni')
+}
+
+/** Alta: crea el usuario con rol Docente (con su contraseña inicial) y completa su legajo. */
+docentesRouter.post('/', async (req, res) => {
+  const body = req.body ?? {}
+  const { usuario, docente } = datosDocente(body)
+  const password = String(body.password ?? '')
+  if (password.length < 6) throw new HttpError(400, 'La contraseña inicial debe tener al menos 6 caracteres')
+  await assertDniLibre(docente.dni)
+
+  try {
+    const creado = await prisma.$transaction(async (tx) => {
+      const u = await crearUsuario(tx, { ...usuario, password, rol: 'Docente' })
+      await tx.usuario.update({ where: { id_usuario: u.id_usuario }, data: { telefono: usuario.telefono } })
+      return tx.docente.update({ where: { id_usuario: u.id_usuario }, data: docente, include: datosDelDocente })
+    })
+    res.status(201).json(creado)
+  } catch (err) {
+    if (dniRepetido(err)) throw new HttpError(409, DNI_DUPLICADO, 'DNI_DUPLICADO')
+    throw err
+  }
+})
+
+docentesRouter.put('/:id', async (req, res) => {
+  const idDocente = id(req.params.id)
+  const actual = await prisma.docente.findUnique({ where: { id_docente: idDocente }, select: { id_usuario: true } })
+  if (!actual) throw new HttpError(404, 'Docente no encontrado')
+  if (!actual.id_usuario) throw new HttpError(400, 'El docente no tiene usuario: crealo desde Usuarios')
+  const { usuario, docente } = datosDocente(req.body ?? {})
+  await assertDniLibre(docente.dni, idDocente)
+  await assertEmailLibre(usuario.email, actual.id_usuario)
+
+  try {
+    const editado = await prisma.$transaction(async (tx) => {
+      await tx.usuario.update({ where: { id_usuario: actual.id_usuario! }, data: usuario })
+      return tx.docente.update({ where: { id_docente: idDocente }, data: docente, include: datosDelDocente })
+    })
+    res.json(editado)
+  } catch (err) {
+    if (dniRepetido(err)) throw new HttpError(409, DNI_DUPLICADO, 'DNI_DUPLICADO')
+    throw err
+  }
+})
+
+/**
+ * Activa o da de baja al docente (y a su usuario: un docente inactivo no entra al sistema).
+ * Si tiene materias a cargo, la baja pide `confirmar: true`: esas asignaciones no cambian solas.
+ */
+docentesRouter.patch('/:id', async (req, res) => {
+  const idDocente = id(req.params.id)
+  const activo = req.body?.activo
+  if (typeof activo !== 'boolean') throw new HttpError(400, 'El campo activo debe ser true o false')
+  const actual = await prisma.docente.findUnique({
+    where: { id_docente: idDocente },
+    select: { activo: true, id_usuario: true, usuarios: nombreApellido, asignaciones: { where: { activo: true }, select: { id_asignacion: true } } },
+  })
+  if (!actual) throw new HttpError(404, 'Docente no encontrado')
+  if (actual.id_usuario === req.user!.id_usuario && !activo) throw new HttpError(400, 'No podés desactivar tu propio usuario')
+
+  const cantidad = actual.asignaciones.length
+  if (!activo && actual.activo && cantidad > 0 && req.body?.confirmar !== true) {
+    const nombre = actual.usuarios ? `${actual.usuarios.nombre} ${actual.usuarios.apellido}` : 'El docente'
+    throw new HttpError(
+      409,
+      `${nombre} tiene ${cantidad} ${cantidad === 1 ? 'materia a cargo' : 'materias a cargo'}. ` +
+        'Con la baja, esas materias siguen a su nombre hasta que las reasignes desde su ficha. Confirmá para continuar.',
+      'DOCENTE_CON_ASIGNACIONES',
+    )
+  }
+  const docente = await prisma.$transaction(async (tx) => {
+    if (actual.id_usuario) await tx.usuario.update({ where: { id_usuario: actual.id_usuario }, data: { activo } })
+    return tx.docente.update({ where: { id_docente: idDocente }, data: { activo }, include: datosDelDocente })
+  })
+  res.json(docente)
 })
 
 // ── Asignaciones (docente + materia + curso) ───────────────────
@@ -299,17 +429,67 @@ asignacionesRouter.get('/:id/alumnos', async (req, res) => {
   res.json(alumnos)
 })
 
+const nombreCursoCorto = (c: { grado_anio: string; division: string }) => `${c.grado_anio}° ${c.division}`
+
+/**
+ * Asigna una materia de un curso a un docente. Cada materia tiene un solo profesor por
+ * curso (puede tener otro en otro curso): si ya lo tiene, responde 409 y con
+ * `reemplazar: true` lo reemplaza. Los horarios pasan a la asignación nueva; las notas y la
+ * asistencia ya cargadas quedan con la anterior, que se cierra (no se borra).
+ */
 asignacionesRouter.post('/', requireRole(...ROLES_ADMIN), async (req, res) => {
-  const { id_docente, id_materia, id_curso } = req.body ?? {}
-  const asignacion = await prisma.asignacion.create({
-    data: {
-      id_docente: id(id_docente),
-      id_materia: id(id_materia),
-      id_curso: id(id_curso),
-      id_periodo: await idPeriodoActivo(),
-    },
+  const idDocente = id(req.body?.id_docente)
+  const idMateria = id(req.body?.id_materia)
+  const idCurso = id(req.body?.id_curso)
+  const [docente, materia, curso] = await Promise.all([
+    prisma.docente.findUnique({ where: { id_docente: idDocente }, select: { activo: true, usuarios: nombreApellido } }),
+    prisma.materia.findUnique({ where: { id_materia: idMateria }, select: { nombre: true, activo: true } }),
+    prisma.curso.findUnique({ where: { id_curso: idCurso }, select: { grado_anio: true, division: true, nivel: true, activo: true } }),
+  ])
+  if (!docente?.activo) throw new HttpError(400, 'El docente no existe o está de baja')
+  if (!materia?.activo) throw new HttpError(400, 'La materia no existe o está dada de baja')
+  if (!curso?.activo) throw new HttpError(400, 'El curso no existe o está dado de baja')
+  const idPeriodo = await idPeriodoActivo()
+
+  const asignacion = await prisma.$transaction(async (tx) => {
+    // Bloquea el curso: dos asignaciones simultáneas de la misma materia no pasan las dos.
+    await tx.$queryRaw`SELECT 1 FROM cursos WHERE id_curso = ${idCurso} FOR UPDATE`
+    const vigente = await tx.asignacion.findFirst({
+      where: { id_materia: idMateria, id_curso: idCurso, activo: true },
+      select: { id_asignacion: true, id_docente: true, docentes: { select: { usuarios: nombreApellido } } },
+    })
+    const enCurso = `${materia.nombre} de ${nombreCursoCorto(curso)} (${curso.nivel})`
+    if (vigente?.id_docente === idDocente) throw new HttpError(409, `${enCurso} ya está asignada a este docente`, '23505')
+    if (vigente && req.body?.reemplazar !== true) {
+      const actual = vigente.docentes.usuarios ? `${vigente.docentes.usuarios.nombre} ${vigente.docentes.usuarios.apellido}` : 'otro docente'
+      const nuevo = docente.usuarios ? `${docente.usuarios.nombre} ${docente.usuarios.apellido}` : 'el docente elegido'
+      throw new HttpError(
+        409,
+        `${enCurso} ya la dicta ${actual}. Si seguís, pasa a dictarla ${nuevo}: los horarios pasan a ${nuevo}, ` +
+          `y las notas y la asistencia ya cargadas quedan registradas con ${actual}.`,
+        'MATERIA_CON_PROFESOR',
+      )
+    }
+    const creada = await tx.asignacion.create({
+      data: { id_docente: idDocente, id_materia: idMateria, id_curso: idCurso, id_periodo: idPeriodo },
+    })
+    if (vigente) {
+      await tx.asignacion.update({ where: { id_asignacion: vigente.id_asignacion }, data: { activo: false } })
+      await tx.horario.updateMany({ where: { id_asignacion: vigente.id_asignacion }, data: { id_asignacion: creada.id_asignacion } })
+    }
+    return creada
   })
   res.status(201).json(asignacion)
+})
+
+/** Quita la materia al docente: la asignación se cierra (con sus notas y asistencia) y deja de verse. */
+asignacionesRouter.patch('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
+  if (req.body?.activo !== false) throw new HttpError(400, 'Solo se puede cerrar una asignación (activo: false)')
+  const idAsignacion = id(req.params.id)
+  const actual = await prisma.asignacion.findUnique({ where: { id_asignacion: idAsignacion }, select: { activo: true } })
+  if (!actual) throw new HttpError(404, 'Asignación no encontrada')
+  const asignacion = await prisma.asignacion.update({ where: { id_asignacion: idAsignacion }, data: { activo: false } })
+  res.json(asignacion)
 })
 
 // ── Horarios ───────────────────────────────────────────────────
@@ -324,7 +504,8 @@ horariosRouter.get('/', async (req, res) => {
   const horarios = await prisma.horario.findMany({
     where: {
       dia_semana: typeof req.query.dia === 'string' ? req.query.dia : undefined,
-      asignaciones: { id_curso: idCurso },
+      // Una asignación cerrada (materia quitada o profesor reemplazado) no se muestra.
+      asignaciones: { id_curso: idCurso, activo: true },
     },
     include: {
       asignaciones: {
