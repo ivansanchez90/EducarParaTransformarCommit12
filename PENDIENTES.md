@@ -7,16 +7,23 @@ describen en el `README.md`.
 ## HU 2 — Inscripción a deportes con control de conflictos horarios
 **Responsable:** Juan Manuel Cantero · **Prioridad:** alta
 
-Hoy existe el módulo de actividades extracurriculares con control de cupo y
-sin inscripciones duplicadas, pero falta:
+El módulo de actividades extracurriculares tiene control de cupo y no acepta
+inscripciones duplicadas. Ya están hechos:
 
-- Horario (día y franja horaria) y profesor responsable por cada deporte.
+- Horario (día y franja horaria) y profesor responsable por cada deporte (T06 de la Parte 3).
 - Máximo de 2 deportes simultáneos por alumno, con mensaje descriptivo al
   intentar un tercero.
 - Rechazo de la inscripción cuando los horarios se superponen, indicando con
-  qué deporte choca y en qué franja.
-- El reporte "alumnos por deporte" debería mostrar también esos horarios, y la
-  ficha individual del alumno, sus horarios deportivos.
+  qué deporte choca y en qué franja (`services/choqueHorarios.ts`). También se
+  rechaza cambiar el horario de un deporte si deja a un inscripto con dos clases a
+  la vez. Solo se comparan deportes entre sí: los idiomas no entran en el control.
+
+Falta:
+
+- El reporte "alumnos por deporte" debería mostrar también los horarios y el
+  profesor, y filtrar por ellos ("Listado de alumnos por deporte, nivel, horario y
+  profesor a cargo" de la consigna de la Parte 2), y la ficha individual del alumno,
+  sus horarios deportivos.
 
 ## HU 4 — Gestión de profesores
 **Responsable:** Iván Sánchez · **Prioridad:** alta

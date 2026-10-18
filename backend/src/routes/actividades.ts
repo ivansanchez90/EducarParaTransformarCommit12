@@ -8,6 +8,7 @@ import { HttpError, bool, hora, id, numOrNull, textOrNull } from '../lib/http.js
 import { prisma } from '../lib/prisma.js'
 import { cursoResumen, nombreApellido } from '../lib/selects.js'
 import { ROLES_ADMIN, assertAccesoAlumno, esStaff, requireAuth, requireRole } from '../middleware/auth.js'
+import { buscarChoque, hhmm, textoFranja, type Franja } from '../services/choqueHorarios.js'
 import { preciosVigentes } from '../services/precios.js'
 import { abrirVigencia, cerrarVigencia } from '../services/vigencias.js'
 
@@ -63,8 +64,6 @@ actividadesRouter.get('/', async (req, res) => {
     })),
   )
 })
-
-const hhmm = (d: Date) => d.toISOString().slice(11, 16)
 
 /**
  * Días y franjas de la actividad: `[{ dia_semana, hora_inicio, hora_fin }]`.
@@ -128,10 +127,45 @@ actividadesRouter.post('/', requireRole(...ROLES_ADMIN), async (req, res) => {
 })
 
 /** Edita la actividad y, si llegan horarios, reemplaza los que tenía. */
+/**
+ * Los horarios nuevos de un deporte no pueden pisarse con otro deporte de alguno de
+ * sus inscriptos: si no, esos alumnos quedarían con dos clases a la vez (HU 2).
+ */
+async function assertHorariosSinChoques(idActividad: number, nombre: string, horarios: Franja[]) {
+  const otrosDeportes = await prisma.inscripcionActividad.findMany({
+    where: {
+      id_actividad: { not: idActividad },
+      actividades_extracurriculares: { tipo: TIPO_DEPORTE },
+      alumnos: { inscripciones_actividades: { some: { id_actividad: idActividad } } },
+    },
+    select: {
+      alumnos: { select: { nombre: true, apellido: true } },
+      actividades_extracurriculares: { select: { nombre: true, horarios: true } },
+    },
+    orderBy: [{ alumnos: { apellido: 'asc' } }, { alumnos: { nombre: 'asc' } }],
+  })
+  const afectados = otrosDeportes.flatMap(({ alumnos, actividades_extracurriculares: otro }) => {
+    const choque = buscarChoque(horarios, [otro])
+    return choque ? [`${alumnos.apellido}, ${alumnos.nombre} (${choque.deporte}, ${textoFranja(choque.existente)})`] : []
+  })
+  if (afectados.length === 0) return
+  const primeros = afectados.slice(0, 3).join('; ')
+  const resto = afectados.length > 3 ? ` y ${afectados.length - 3} más` : ''
+  const uno = afectados.length === 1
+  throw new HttpError(
+    409,
+    `Con esos horarios, ${nombre} se superpondría con otro deporte de ${uno ? 'un alumno inscripto' : `${afectados.length} alumnos inscriptos`}: ` +
+      `${primeros}${resto}. Elegí otro horario o cambiá antes ${uno ? 'a ese alumno' : 'a esos alumnos'} de deporte.`,
+    'CHOQUE_HORARIO',
+  )
+}
+
 actividadesRouter.put('/:id', requireRole(...ROLES_ADMIN), async (req, res) => {
+  const idActividad = id(req.params.id)
   const { datos, horarios } = await datosActividad(req.body ?? {})
+  if (horarios && datos.tipo === TIPO_DEPORTE) await assertHorariosSinChoques(idActividad, datos.nombre, horarios)
   const actividad = await prisma.actividadExtracurricular.update({
-    where: { id_actividad: id(req.params.id) },
+    where: { id_actividad: idActividad },
     data: { ...datos, horarios: horarios ? { deleteMany: {}, create: horarios } : undefined },
     include: includeProfesorYHorarios,
   })
@@ -196,6 +230,26 @@ async function assertTopeDeportes(tx: Prisma.TransactionClient, idAlumno: number
   throw new HttpError(409, mensaje, 'TOPE_DEPORTES')
 }
 
+/**
+ * El deporte nuevo no puede tener clase a la misma hora que otro deporte del alumno
+ * (HU 2). Cuentan también los deportes desactivados, como en el tope.
+ */
+async function assertSinChoqueHorario(tx: Prisma.TransactionClient, idAlumno: number, deporte: { nombre: string; horarios: Franja[] }) {
+  const inscriptos = await tx.inscripcionActividad.findMany({
+    where: { id_alumno: idAlumno, actividades_extracurriculares: { tipo: TIPO_DEPORTE } },
+    select: { actividades_extracurriculares: { select: { nombre: true, horarios: true } } },
+    orderBy: { actividades_extracurriculares: { nombre: 'asc' } },
+  })
+  const choque = buscarChoque(deporte.horarios, inscriptos.map((i) => i.actividades_extracurriculares))
+  if (!choque) return
+  throw new HttpError(
+    409,
+    `${deporte.nombre} se superpone con ${choque.deporte}, en el que el alumno ya está inscripto: ` +
+      `${textoFranja(choque.nueva)} y ${textoFranja(choque.existente)}. Elegí un deporte en otro horario o dalo de baja de ${choque.deporte}.`,
+    'CHOQUE_HORARIO',
+  )
+}
+
 actividadesRouter.post('/:id/inscripciones', async (req, res) => {
   const idActividad = id(req.params.id)
   const idAlumno = id(req.body?.id_alumno)
@@ -213,7 +267,14 @@ actividadesRouter.post('/:id/inscripciones', async (req, res) => {
     await tx.$queryRaw`SELECT 1 FROM actividades_extracurriculares WHERE id_actividad = ${idActividad} FOR UPDATE`
     const actividad = await tx.actividadExtracurricular.findUnique({
       where: { id_actividad: idActividad },
-      select: { tipo: true, cupo_maximo: true, activo: true, _count: { select: { inscripciones_actividades: true } } },
+      select: {
+        nombre: true,
+        tipo: true,
+        cupo_maximo: true,
+        activo: true,
+        horarios: true,
+        _count: { select: { inscripciones_actividades: true } },
+      },
     })
     if (!actividad) throw new HttpError(404, 'Actividad no encontrada')
     if (!actividad.activo) throw new HttpError(400, 'La actividad no está activa')
@@ -229,7 +290,10 @@ actividadesRouter.post('/:id/inscripciones', async (req, res) => {
       throw new HttpError(409, 'Cupo completo para esta actividad')
     }
 
-    if (actividad.tipo === TIPO_DEPORTE) await assertTopeDeportes(tx, idAlumno)
+    if (actividad.tipo === TIPO_DEPORTE) {
+      await assertTopeDeportes(tx, idAlumno)
+      await assertSinChoqueHorario(tx, idAlumno, actividad)
+    }
 
     const creada = await tx.inscripcionActividad.create({ data: { id_actividad: idActividad, id_alumno: idAlumno } })
     // Solo los deportes se facturan; el resto de las actividades no lleva vigencia.
