@@ -52,6 +52,7 @@ Variables a cargar para probar todo: `BANCO_ALIAS` (si falta, la orden de pago d
 | Admin | ABM de tarifas con vigencia, más horario y profesor de cada deporte | HU04–07 | T06 | Cargar una tarifa programada y ver que las facturas ya emitidas no cambian | |
 | Familia | No se puede inscribir a dos deportes que se superponen; el mensaje dice con cuál choca y en qué franja | HU 2 (Parte 2) | — | Con un hijo en Atletismo (lunes 17:00–18:00), anotarlo en un deporte de los lunes 17:30; después probar uno que empiece a las 18:00 (se acepta) | |
 | Admin | No se puede cambiar el horario de un deporte si deja a un inscripto con dos clases a la vez | HU 2 (Parte 2) | — | En *Extracurriculares*, mover Fútbol a los lunes 17:00: avisa qué alumnos chocarían y no guarda | |
+| Admin | Reporte "Alumnos por deporte" con profesor y horario, y filtros por día, horario y profesor | HU 2 (Parte 2) | — | Filtrar lunes 18:30 y un profesor; mirar la ficha de un alumno con deportes; bajar PDF y CSV | |
 | Admin | Inscripciones con vigencia (transporte, comedor y deportes por mes) | HU08 | T07 | Dar de baja el transporte y mirar la factura del mes siguiente | |
 | Admin | Botón "Generar facturas": una por alumno, un ítem por concepto, becas y PDF; generar dos veces no duplica | HU09 | T08 | Generar un mes nuevo, repetirlo y bajar un PDF | |
 | Admin | Bandeja de comprobantes: aprobar con el importe acreditado, rechazar con motivo | HU14 | T14 | Aprobar uno y revisar saldo y estado; rechazar otro y ver el aviso a la familia | |
