@@ -90,7 +90,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T22. Reportes: pagos por deporte/nivel/horario/profesor y por recorrido | HU22, HU23 | 4 | Iván | T06, T21 | 1,5 días | Hecho |
 | T23. Pruebas integrales con `seed:demo` ampliado (tarifas, facturas, pagos) y en teléfonos reales | — | 4 | Los dos | T01–T22 | 1,5 días | En curso |
 | T24. Testing del 11/11 y corrección de defectos | — | 5 | Los dos | T23 | 3 días | Pendiente |
-| T25. Informe de uso de IA: apartados 1 y 4 (Iván), 3 y 5 (Juan Manuel), 2 bitácora (los dos) | — | 5 | Los dos | T05 | 2 días | Pendiente |
+| T25. Informe de uso de IA: apartados 1 y 4 (Iván), 3 y 5 (Juan Manuel), 2 bitácora (los dos) | — | 5 | Los dos | T05 | 2 días | En curso |
 
 **Sprints:** 0 = 29/09–02/10 · 1 = 05/10–14/10 (12/10 feriado) · 2 = 15/10–23/10 ·
 3 = 26/10–03/11 · 4 = 04/11–10/11 · 5 = 11/11–17/11.
@@ -287,6 +287,15 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Archivos de Juan Manuel que toqué** (cambios chicos): `routes/actividades.ts` (profesor y horarios en el GET, POST y PUT) y `ui/components.tsx`: en `ResponsiveTable`, si la columna `pie` devuelve `null`, la tarjeta del celular no muestra el pie vacío. El rechazo de una **inscripción** cuyos horarios chocan con otro deporte del alumno (HU 2 de `PENDIENTES.md`) sigue pendiente, ahora que los horarios existen.
 - **Verificado:** sobre una base con `seed:demo`, la API responde 401 sin sesión y 403 a una familia; cubre altas, todas las validaciones, el estado de cada tarifa, la edición y el borrado solo de las programadas, y el profesor y los horarios (también los ve el portal). En el navegador, a 1366 px y a 375 px (sin scroll horizontal ni errores de consola): carga de una tarifa, edición de una actividad con profesor y horarios, y el mensaje de horarios superpuestos. `typecheck` y `build` sin errores; el lint del frontend sigue en los 46 errores que ya había en `main`, ninguno nuevo.
 - **Falta:** cargar las tarifas reales antes de facturar (T08).
+
+### T25 — Informe de uso de IA (los dos): en curso, faltan los apartados 3 y 5
+
+- **Qué quedó (Iván):** `INFORME-IA.md`, el borrador del informe con la estructura de la consigna (página 7 de `TP-Metodologia-3.pdf`). Se escribe en el repo y se pasa al documento de entrega cuando esté completo.
+  - **Apartado 1, relación entre la web y la app móvil:** qué existía en la web (Partes 1 y 2) y qué se sumó al portal en la Parte 3, por HU y tarea. También qué comparten (una sola base y una sola API), cómo se comunican, los cambios al backend por tarea, qué se reutiliza y cómo se mantienen sincronizadas: sin caché de `/api`, estado calculado al leer, `aplicarPago()` con bloqueo, tarifas con vigencia y envíos sin repetir.
+  - **Apartado 4, tabla "Sin IA / Con IA":** los diez aspectos de la consigna. La columna "Con IA" se apoya en hechos del repo, citando las filas de la bitácora: la estimación de 35,5 días-persona contra las fechas reales de merge, los errores que la IA detectó y los que dejó, y los avisos de Codacy corregidos después.
+  - **Apartado 2:** remite a `BITACORA-IA.md`.
+- **Para revisar:** el informe declara **Claude Code** como herramienta, porque es la que figura en las 25 filas de la bitácora, y aclara que el plan había declarado Gemini. La columna "Sin IA" del apartado 4 describe cómo se habría trabajado sin el asistente: conviene ajustarla con la experiencia de cada uno.
+- **Falta:** los apartados 3 y 5 (Juan Manuel), pasar el informe y la bitácora al documento de entrega, y actualizar los números del apartado 4 después del testing del 11/11.
 
 ### T23 — Pruebas integrales con `seed:demo` ampliado (los dos): en curso, falta en teléfonos reales
 
