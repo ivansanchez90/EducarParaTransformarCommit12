@@ -61,7 +61,7 @@ financiero carga las tarifas (con un aumento en agosto y uno programado para el
 mes que viene), las facturas de marzo al mes actual, órdenes de pago y
 comprobantes de transferencia aprobados, rechazados y en revisión, con sus pagos.
 Necesita `JWT_SECRET` en el `.env`, porque factura con los mismos servicios que
-la API.
+la API. La tabla para recorrer la app con estos datos está en `PRUEBAS-P3.md`.
 
 Todos los usuarios que crea entran con la contraseña `demo1234`
 (configurable con `SEED_DEMO_PASSWORD`); el admin conserva la suya. Al

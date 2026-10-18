@@ -1,6 +1,7 @@
 import request from 'supertest'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Prisma } from '../src/generated/prisma/client.js'
+import { calcularImputacion } from '../src/services/saldos.js'
 import { ID_USUARIO, iniciarSesionComo, prismaFalso } from './ayudas.js'
 
 vi.mock('../src/lib/prisma.js', async () => ({ prisma: (await import('./ayudas.js')).prismaFalso }))
@@ -136,7 +137,9 @@ describe('POST /api/facturas/:id/ordenes-pago', () => {
     const token = iniciarSesionComo('Admin')
     await emitir(token, { items: [1, 1, 2] })
     const { where } = prismaFalso.itemFactura.findMany.mock.calls[0][0]
-    expect(where).toEqual({ id_factura: 3, id_item: { in: [1, 2] } })
+    expect(where).toEqual({ id_factura: 3 })
+    const { data } = prismaFalso.ordenPago.create.mock.calls[0][0]
+    expect(data.items.create.map((i: { id_item: number }) => i.id_item)).toEqual([1, 2])
   })
 
   it.each(['Admin', 'Directivo'])('%s también puede emitirla', async (rol) => {
@@ -186,5 +189,75 @@ describe('GET /api/ordenes-pago/:id/pdf', () => {
 
   it('el Admin también lo baja', async () => {
     expect((await pedir(iniciarSesionComo('Admin'))).status).toBe(200)
+  })
+})
+
+describe('facturas con beca', () => {
+  // Cuota 50.000, deporte 12.500 y una beca de 10.000 sobre la cuota: la factura vale 52.500.
+  const CUOTA_B = { id_item: 1, concepto: 'Cuota', descripcion: 'Cuota Primaria', saldo: dinero(50000) }
+  const DEPORTE_B = { id_item: 2, concepto: 'Deporte', descripcion: 'Natación', saldo: dinero(12500) }
+  const BECA = { id_item: 3, concepto: 'Beca', descripcion: 'Beca 20% sobre la cuota', saldo: dinero(-10000) }
+
+  const emitirConBeca = (items: number[], todos = [CUOTA_B, DEPORTE_B, BECA]) => {
+    prismaFalso.itemFactura.findMany.mockResolvedValue(todos)
+    prismaFalso.ordenPago.create.mockImplementation(async ({ data }: { data: { total: Prisma.Decimal; items: { create: { id_item: number; importe: Prisma.Decimal }[] } } }) => ({
+      ...ordenCreada,
+      total: data.total,
+      items: data.items.create.map((i) => ({
+        ...i,
+        items: { concepto: todos.find((t) => t.id_item === i.id_item)?.concepto ?? '', descripcion: todos.find((t) => t.id_item === i.id_item)?.descripcion ?? '' },
+      })),
+    }))
+    return emitir(iniciarSesionComo('Admin'), { items })
+  }
+
+  const totalDe = () => (prismaFalso.ordenPago.create.mock.calls[0][0].data.total as Prisma.Decimal).toNumber()
+  const idsDeLaOrden = () => prismaFalso.ordenPago.create.mock.calls[0][0].data.items.create.map((i: { id_item: number }) => i.id_item)
+
+  it('pagando la cuota y el deporte, la orden descuenta la beca y suma lo que realmente debe', async () => {
+    const res = await emitirConBeca([1, 2])
+    expect(res.status).toBe(201)
+    expect(totalDe()).toBe(52500)
+    expect(idsDeLaOrden()).toEqual([1, 2, 3])
+    expect(res.body.items.find((i: { concepto: string }) => i.concepto === 'Beca').importe).toBe(-10000)
+  })
+
+  it('pagando solo la cuota, también descuenta la beca', async () => {
+    await emitirConBeca([1])
+    expect(totalDe()).toBe(40000)
+    expect(idsDeLaOrden()).toEqual([1, 3])
+  })
+
+  it('pagando solo el deporte, la beca no entra: es de la cuota', async () => {
+    await emitirConBeca([2])
+    expect(totalDe()).toBe(12500)
+    expect(idsDeLaOrden()).toEqual([2])
+  })
+
+  it('sin cuota con saldo, la beca va con el primer ítem que tenga saldo', async () => {
+    await emitirConBeca([2], [{ ...CUOTA_B, saldo: dinero(0) }, DEPORTE_B, BECA])
+    expect(totalDe()).toBe(2500)
+    expect(idsDeLaOrden()).toEqual([2, 3])
+  })
+
+  it('una beca que cubre todo lo elegido devuelve 400: no hay nada para transferir', async () => {
+    const res = await emitirConBeca([1], [{ ...CUOTA_B, saldo: dinero(10000) }, BECA])
+    expect(res.status).toBe(400)
+    expect(res.body.error).toContain('beca')
+    expect(prismaFalso.ordenPago.create).not.toHaveBeenCalled()
+  })
+
+  it('una beca ya saldada (saldo cero) no se suma a la orden', async () => {
+    await emitirConBeca([1, 2], [CUOTA_B, DEPORTE_B, { ...BECA, saldo: dinero(0) }])
+    expect(totalDe()).toBe(62500)
+    expect(idsDeLaOrden()).toEqual([1, 2])
+  })
+
+  it.each([[[1, 2]], [[1]], [[2]]])('el total de la orden de %j lo acepta el motor de pagos de la bandeja (no supera el saldo)', async (items) => {
+    await emitirConBeca(items)
+    const centavos = (i: { id_item: number; concepto: string; saldo: Prisma.Decimal }) => ({ ...i, saldo: Math.round(i.saldo.toNumber() * 100) })
+    const imputacion = calcularImputacion([CUOTA_B, DEPORTE_B, BECA].map(centavos), Math.round(totalDe() * 100), items)
+    // Se aplica exactamente lo transferido (la beca entra con signo negativo y la cuota la absorbe).
+    expect([...imputacion.values()].reduce((suma, c) => suma + c, 0)).toBe(Math.round(totalDe() * 100))
   })
 })

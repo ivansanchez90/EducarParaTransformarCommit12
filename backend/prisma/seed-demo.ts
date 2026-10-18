@@ -717,13 +717,15 @@ async function main() {
       await transferencia(f, mitad, cuando)
       await transferencia(f, saldo - mitad, masDias(cuando, entre(5, 15)))
     } else if (r < (delMesActual ? 0.46 : 0.9)) {
-      // La familia eligió solo la cuota en la orden de pago (si hay otros ítems y no hay beca).
+      // La familia eligió solo la cuota en la orden de pago (si la factura tiene servicios). La orden
+      // descuenta la beca, así que si la beca cubre toda la cuota no hay nada que transferir.
       const cuota = f.items.find((i) => i.concepto === 'Cuota')
-      const sinBeca = !f.items.some((i) => i.concepto === 'Beca')
-      if (cuota && sinBeca && f.items.length > 1) {
+      const beca = f.items.filter((i) => i.concepto === 'Beca').reduce((s, i) => s + i.saldo.toNumber(), 0)
+      const conServicios = f.items.some((i) => i.concepto !== 'Cuota' && i.concepto !== 'Beca')
+      if (cuota && conServicios && cuota.saldo.toNumber() + beca > 0) {
         const orden = await crearOrdenPago(f.id_factura, [cuota.id_item], padreDe.get(f.id_alumno)!)
         await prismaApp.ordenPago.update({ where: { id_orden: orden.id_orden }, data: { fecha: masDias(cuando, -1) } })
-        await transferencia(f, cuota.saldo.toNumber(), cuando, { id_orden: orden.id_orden })
+        await transferencia(f, Number(orden.total), cuando, { id_orden: orden.id_orden })
       } else {
         await transferencia(f, mitad, cuando)
       }

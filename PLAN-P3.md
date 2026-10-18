@@ -87,7 +87,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T19. Portal: precio de cada servicio en "Transporte y comedor" y "Extracurriculares" | HU24 | 3 | Juan Manuel | T06 | 0,5 días | Hecho |
 | T20. Recuperar la contraseña por email | HU03 | 4 | Iván | T02 | 1,5 días | Hecho |
 | T21. Reportes: ingresos por período, pagos completos e incompletos por año y alumno (PDF y CSV) | HU19–HU21 | 4 | Juan Manuel | T14 | 2 días | Hecho |
-| T22. Reportes: pagos por deporte/nivel/horario/profesor y por recorrido | HU22, HU23 | 4 | Iván | T06, T21 | 1,5 días | En revisión |
+| T22. Reportes: pagos por deporte/nivel/horario/profesor y por recorrido | HU22, HU23 | 4 | Iván | T06, T21 | 1,5 días | Hecho |
 | T23. Pruebas integrales con `seed:demo` ampliado (tarifas, facturas, pagos) y en teléfonos reales | — | 4 | Los dos | T01–T22 | 1,5 días | En curso |
 | T24. Testing del 11/11 y corrección de defectos | — | 5 | Los dos | T23 | 3 días | Pendiente |
 | T25. Informe de uso de IA: apartados 1 y 4 (Iván), 3 y 5 (Juan Manuel), 2 bitácora (los dos) | — | 5 | Los dos | T05 | 2 días | Pendiente |
@@ -241,6 +241,7 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 - **Qué quedó:** cada factura con saldo del portal tiene un botón *Pagar por transferencia*. Abre un diálogo donde la familia elige qué ítems paga (todos tildados al empezar), ve el total y emite la orden de pago; después puede bajar su PDF y ve cómo pagar: el alias, qué escribir en el motivo de la transferencia y que luego sube el comprobante. Backend, en `routes/portalFinanzas.ts`: `POST /api/facturas/:id/ordenes-pago` con `{ items: number[] }` (201 con la orden y el `alias` de `BANCO_ALIAS`) y `GET /api/ordenes-pago/:id/pdf`. La orden se crea dentro de una transacción (`services/ordenPago.ts`) por el saldo que tiene cada ítem en ese momento (`OrdenPago` y `OrdenPagoItem` de T01); responde 400 si no se elige ningún ítem, si alguno no es de esa factura o si ya no tiene saldo (y dice cuál). El PDF tiene el estilo del de la factura y muestra datos del alumno, la factura, los ítems, el total a transferir y los datos bancarios. Los puede emitir y ver la administración o la familia del alumno; los docentes y otras familias reciben 403. Frontend, en `features/finanzas/`: `OrdenPagoDialog` y `useOrdenPago`.
 - **Pruebas:** 20 nuevas en `test/ordenPago.test.ts` (174 en total): 401, 403 a docentes y a familias ajenas, 404 de factura y de orden, los 400 (lista ausente, vacía o inválida, ítem ajeno o sin saldo), la orden por el saldo de los ítems con el usuario que la emitió, que no se repitan ids ni se busquen ítems de otra factura, y el PDF con su nombre y su cabecera `%PDF-`.
 - **Verificado:** `typecheck` y `build` del backend, y `tsc -b` y `build` del frontend, sin errores; el lint del frontend sigue en los 46 errores de `main`, ninguno nuevo. Quitando la validación de ítems sin saldo, el filtro por factura o la suma del total, las pruebas fallan. Con la API real sobre `seed:demo`, con tarifas y las facturas de octubre generadas con el motor de T08: la familia emite una orden de dos ítems por 62.500, queda guardada con sus ítems y el usuario, el PDF baja con el contenido correcto (alumno, factura, ítems, total y alias), y el docente recibe 403, sin sesión 401 y una orden inexistente 404.
+- **Corrección en T23:** una familia con beca recibía una orden por el valor completo de la cuota (la pantalla solo listaba los ítems con saldo positivo) y la bandeja no podía aprobar ese importe. Ahora, si se paga la cuota, la orden incluye la beca pendiente con su signo negativo y el total sale neto, igual que el saldo de la factura (`becasDeLaOrden()` en `services/ordenPago.ts`, con la misma regla que `saldos.ts`); si lo elegido queda cubierto por la beca, devuelve 400. El diálogo muestra el descuento y calcula el mismo total.
 - **Falta:** no se pudo mirar la pantalla en un teléfono ni a 375 px (la extensión del navegador no estaba conectada); queda para la prueba integral (T23). Subir el comprobante de la transferencia es T13. Hasta que Iván cargue `BANCO_ALIAS`, la orden y el PDF dicen que consulten el alias en la administración. Una factura puede tener varias órdenes: no se anulan ni se vencen.
 
 ### T13 — Portal: subir comprobantes de transferencia (Juan Manuel): hecho, mergeado en el PR #40
@@ -289,14 +290,20 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 
 ### T23 — Pruebas integrales con `seed:demo` ampliado (los dos): en curso, falta en teléfonos reales
 
+_El seed se mergeó en el PR #48; la tabla de pruebas y la corrección de la orden con beca, en el PR #46._
+
 - **Qué quedó (Iván):** `backend/prisma/seed-demo.ts` ahora carga todo lo financiero, así ya no hay que preparar la base a mano para probar:
   - **Deportes:** profesor a cargo (el docente de Educación Física y dos más) y días y horarios. Los horarios no se superponen entre deportes, así un alumno puede hacer dos.
   - **Tarifas:** cuota por nivel, cada deporte, cada recorrido y el comedor desde enero; un aumento del 12 % en agosto (cuota, transporte y comedor) y otro del comedor programado para el mes que viene, que aparece como *Programada*.
   - **Altas y bajas:** el 70 % de las inscripciones es del 1/3 y el resto durante el año, así las primeras facturas no traen todos los servicios. Cinco familias dejaron el comedor durante el año (vigencia cerrada e inscripción borrada, como una baja real).
   - **Facturas de marzo al mes actual**, generadas con `generarFacturas()`, el mismo servicio del botón *Generar facturas*, con la emisión el último día del mes anterior (como el email de T17).
-  - **Comprobantes y pagos:** cerca de la mitad de las familias paga todo a tiempo y el resto paga, paga en dos transferencias, paga solo la cuota con una orden de pago (`crearOrdenPago()`) o no paga. Los pagos se aprueban con `aplicarPago()`, igual que la bandeja. Hay comprobantes rechazados con su motivo y algunos del mes actual en revisión. Todos apuntan a un PDF de ejemplo que el seed deja en la carpeta privada de comprobantes, así se pueden abrir desde la bandeja y el portal.
+  - **Comprobantes y pagos:** cerca de la mitad de las familias paga todo a tiempo y el resto paga, paga en dos transferencias, paga solo la cuota con una orden de pago (`crearOrdenPago()`, que descuenta la beca) o no paga. Los pagos se aprueban con `aplicarPago()`, igual que la bandeja. Hay comprobantes rechazados con su motivo y algunos del mes actual en revisión. Todos apuntan a un PDF de ejemplo que el seed deja en la carpeta privada de comprobantes, así se pueden abrir desde la bandeja y el portal.
   - **Se sacaron** las cuotas y los pagos viejos (tabla `cuotas`), que ya no muestra ninguna pantalla desde T14 y duplicaban lo que ahora cobran las facturas.
-- **Verificado sobre una base descartable con la API real** (con el seed corrido el 18/10: 944 facturas, ninguna con error, 939 pagos, 25 órdenes, 7 comprobantes en revisión y 27 rechazados; 62 alumnos con el año pagado y 56 con saldo):
+- **Qué quedó (Juan Manuel):**
+  - **`PRUEBAS-P3.md`:** la tabla para recorrer la app antes del 11/11, una fila por HU con cómo probarla y su casillero de resultado, y la tabla de defectos que se corrigen en T24.
+  - **Corrección de la orden de pago con beca (T12):** a una familia con beca la orden le pedía la cuota completa y la bandeja no podía aprobar ese importe. Ver la nota en la entrada de T12.
+  - Había armado en paralelo otra versión del seed (`seed-finanzas.ts`, con las facturas del mes anterior y del actual y las cuotas viejas como historial). Al integrar el PR #46 con `main` quedó la del PR #48, que factura todo el año con los mismos servicios, para no tener dos seeds. Con la corrección de la beca, el seed ahora también emite órdenes de pago a familias becadas.
+- **Verificado sobre una base descartable con la API real** (con el seed corrido el 18/10: 944 facturas, ninguna con error, 939 pagos, 28 órdenes (3 con beca), 7 comprobantes en revisión y 27 rechazados; 62 alumnos con el año pagado y 56 con saldo):
   - **Invariantes:** se cumplen en las 944 facturas (`total = Σ ítems`, `factura.saldo = Σ saldos`, `ítem.saldo = importe − imputaciones` y `pago = Σ imputaciones`). Ninguna factura queda con saldo negativo y ningún pago tiene fecha futura.
   - Pasaron **28 comprobaciones de punta a punta**, hechas con la API y SQL:
     - **Facturación:** noviembre da una factura por alumno activo (118) sin errores, y generarlo otra vez omite las 118. Ningún servicio se repite en una factura, y los deportes facturados son las inscripciones vigentes (88).
@@ -310,13 +317,14 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
     - **Aviso del día 20** (con el email apagado): avisa a 56 familias, las mismas que tienen saldo hasta octubre según SQL.
     - **Roles:** dan 403 la factura del hijo de otra familia, las facturas y la bandeja del admin pedidas por una familia, y un reporte pedido por un docente. La bandeja muestra los comprobantes en revisión del seed.
   - **En Chromium a 375 y 1280 px**, con el build servido por el backend: el portal (inicio, cuotas, extracurriculares, transporte y comedor) y el admin (Tarifas, Facturación, Comprobantes y Reportes) cargan con datos y sin errores de consola, y ninguna de esas pantallas tiene scroll horizontal.
-  - `typecheck` del backend sin errores y 447 pruebas en verde.
-- **Defecto encontrado (para T24):** a 375 px el **Dashboard** del admin tiene scroll horizontal. Las cuatro tarjetas de arriba usan `gridTemplateColumns: 'repeat(4,1fr)'` en `features/dashboard/Dashboard.tsx` y no se acomodan al ancho. Viene de antes de la PWA.
+  - **Orden con beca** (al integrar el PR #46): una familia con beca 30 % emite la orden de todos los ítems por $109.000, igual al saldo de la factura. La bandeja aprueba ese importe y la factura queda *Pagada*. A 375 px, el diálogo muestra la beca en negativo y el total neto ($80.500 + $36.000 − $40.250 = $76.250).
+  - `typecheck` del backend, y `tsc -b` y `build` del frontend, sin errores; 456 pruebas en verde.
+- **Defecto encontrado (para T24, anotado como el n.º 2 en `PRUEBAS-P3.md`):** a 375 px el **Dashboard** del admin tiene scroll horizontal. Las cuatro tarjetas de arriba usan `gridTemplateColumns: 'repeat(4,1fr)'` en `features/dashboard/Dashboard.tsx` y no se acomodan al ancho. Viene de antes de la PWA.
 - **Falta:**
-  - Las pruebas en un Android con Chrome y en un iPhone con Safari (la lista de [Pruebas](#pruebas)), con el seed nuevo. Lo de arriba se probó con la API y en Chromium, no en teléfonos.
+  - Recorrer `PRUEBAS-P3.md` en un Android con Chrome y en un iPhone con Safari, con el seed nuevo. Lo de arriba se probó con la API y en Chromium, no en teléfonos.
   - El email del último día hábil y la recuperación de contraseña necesitan la cuenta de Gmail real. Sin SMTP, la API responde que el email está apagado.
 
-### T22 — Reportes: pagos de deportes y de transporte (Iván): en revisión
+### T22 — Reportes: pagos de deportes y de transporte (Iván): hecho, mergeado en el PR #47
 
 - **Qué quedó:**
   - **Backend:** dos reportes nuevos en `routes/reportesFinancieros.ts` (el router de T21, con su guarda de Admin y Directivo), con los cálculos en `services/reportesCobranza.ts`. Salen de los **ítems de factura** de cada servicio (`concepto` + `id_referencia`): lo facturado es el importe del ítem, lo pagado es lo que se le imputó (importe − saldo) y el estado se calcula como el de una factura, con el vencimiento de la suya.
@@ -461,7 +469,8 @@ _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA
 ## Pruebas
 
 Con los usuarios de `npm run seed:demo` (ampliado en T23 con tarifas, facturas y
-pagos), en un Android con Chrome y un iPhone con Safari:
+pagos), en un Android con Chrome y un iPhone con Safari. La tabla completa para recorrer
+cada pantalla, con su casillero de resultado y los defectos encontrados, está en `PRUEBAS-P3.md`:
 
 - [ ] **Facturación:** generar el mes → una factura por alumno con un ítem por concepto; generarlo otra vez no duplica.
 - [ ] **Precios:** cambiar el precio de un recorrido → las facturas ya emitidas no cambian.
