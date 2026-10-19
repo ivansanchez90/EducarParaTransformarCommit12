@@ -4,7 +4,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { api } from '../../lib/api'
+import { abrirConSesion, api } from '../../lib/api'
 import type { AlumnoLegajo, Calificacion, DocumentoAlumno, UsuarioAlumno } from '../../types'
 import { TIPOS_DOC } from '../../constants'
 import {
@@ -258,6 +258,13 @@ export function LegajoAlumno({
     } finally {
       setSubiendo(false)
     }
+  }
+
+  // El archivo es privado: se baja con la sesión (un enlace común no manda el token).
+  const verDocumento = async (d: DocumentoAlumno) => {
+    setMsg('')
+    const error = await abrirConSesion(`/alumnos/documentos/${d.id_documento}/archivo`)
+    if (error) setMsg('Error: ' + error.message)
   }
 
   const eliminarDocumento = async (d: DocumentoAlumno) => {
@@ -523,6 +530,7 @@ export function LegajoAlumno({
             <span className={fieldLabel}>Archivo</span>
             <input
               type='file'
+              accept='image/*,application/pdf'
               className={`${inputField} !p-[7px]`}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
@@ -571,14 +579,26 @@ export function LegajoAlumno({
                   </td>
                   <td className={tdCell}>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <a
-                        href={d.url_archivo}
-                        target='_blank'
-                        rel='noreferrer'
-                        className='bg-purpleLight text-purple-700 border-0 rounded-btn py-[6px] px-[12px] text-xs font-extrabold cursor-pointer no-underline'
-                      >
-                        Ver
-                      </a>
+                      {d.enlace_externo ? (
+                        <a
+                          href={d.enlace_externo}
+                          target='_blank'
+                          rel='noreferrer'
+                          className='bg-purpleLight text-purple-700 border-0 rounded-btn py-[6px] px-[12px] text-xs font-extrabold cursor-pointer no-underline'
+                        >
+                          Ver
+                        </a>
+                      ) : (
+                        <button
+                          type='button'
+                          onClick={() => {
+                            void verDocumento(d)
+                          }}
+                          className='bg-purpleLight text-purple-700 border-0 rounded-btn py-[6px] px-[12px] text-xs font-extrabold cursor-pointer font-[inherit]'
+                        >
+                          Ver
+                        </button>
+                      )}
                       <button className={btnDanger} onClick={() => eliminarDocumento(d)}>
                         Eliminar
                       </button>

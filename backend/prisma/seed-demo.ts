@@ -172,6 +172,7 @@ const MOTIVOS_RECHAZO = [
   'No encontramos la transferencia en el banco',
 ]
 const ARCHIVO_COMPROBANTE = 'demo-transferencia.pdf'
+const ARCHIVO_DOCUMENTO = 'demo-documento.pdf'
 
 // ── Seguridad: por defecto, solo contra una base local ──────────
 
@@ -198,24 +199,34 @@ async function vaciarBase() {
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${lista} RESTART IDENTITY CASCADE`)
 }
 
+/** Un PDF de ejemplo de una página, con un título y unas líneas. */
+function pdfDemo(titulo: string, lineas: string[]): Promise<Buffer> {
+  const pdf = new PDFDocument({ size: 'A5', margin: 40 })
+  const partes: Buffer[] = []
+  pdf.on('data', (c: Buffer) => partes.push(c))
+  const listo = new Promise<Buffer>((resolve) => pdf.on('end', () => resolve(Buffer.concat(partes))))
+  pdf.fontSize(16).text(titulo, { align: 'center' }).moveDown()
+  pdf.fontSize(11).text('Archivo de demostración cargado por seed:demo.').moveDown()
+  for (const linea of lineas) pdf.text(linea)
+  pdf.end()
+  return listo
+}
+
+/** Guarda un archivo de ejemplo en la carpeta privada del bucket. */
+async function guardarDemo(bucket: 'comprobantes' | 'documentos-alumnos', nombre: string, contenido: Buffer) {
+  const carpeta = path.join(UPLOADS_DIR, bucket)
+  await fs.promises.mkdir(carpeta, { recursive: true })
+  // La carpeta y el nombre son fijos.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  await fs.promises.writeFile(path.join(carpeta, nombre), contenido)
+}
+
 /**
  * Un PDF de ejemplo en la carpeta privada de comprobantes. Todos los comprobantes
  * del seed apuntan a él, así la bandeja y el portal tienen algo para mostrar.
  */
 async function guardarComprobanteDemo() {
-  const pdf = new PDFDocument({ size: 'A5', margin: 40 })
-  const partes: Buffer[] = []
-  pdf.on('data', (c: Buffer) => partes.push(c))
-  const listo = new Promise<Buffer>((resolve) => pdf.on('end', () => resolve(Buffer.concat(partes))))
-  pdf.fontSize(16).text('Comprobante de transferencia', { align: 'center' }).moveDown()
-  pdf.fontSize(11).text('Archivo de demostración cargado por seed:demo.').moveDown()
-  pdf.text('Destino: alias sanchezoliva').text('Concepto: pago de factura')
-  pdf.end()
-  const carpeta = path.join(UPLOADS_DIR, 'comprobantes')
-  await fs.promises.mkdir(carpeta, { recursive: true })
-  // La carpeta y el nombre son fijos.
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  await fs.promises.writeFile(path.join(carpeta, ARCHIVO_COMPROBANTE), await listo)
+  await guardarDemo('comprobantes', ARCHIVO_COMPROBANTE, await pdfDemo('Comprobante de transferencia', ['Destino: alias sanchezoliva', 'Concepto: pago de factura']))
 }
 
 // ── Carga ───────────────────────────────────────────────────────
@@ -880,14 +891,15 @@ async function main() {
 
   // ── Documentación del legajo ──
   const DOCS = ['DNI', 'Partida de nacimiento', 'Certificado médico', 'Boletín / certificado de estudios']
+  await guardarDemo('documentos-alumnos', ARCHIVO_DOCUMENTO, await pdfDemo('Documento del legajo', ['Ejemplo de DNI, partida o certificado escaneado.']))
   await prisma.documentoAlumno.createMany({
     data: varios(alumnos, Math.round(alumnos.length * 0.35)).flatMap((a) =>
       varios(DOCS, entre(1, 2)).map((tipo) => ({
         id_alumno: a.id_alumno,
         nombre: `${tipo} - ${a.apellido}`,
         tipo,
-        // Archivo de ejemplo: los documentos reales se suben desde el legajo.
-        url_archivo: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+        // Archivo de ejemplo en la carpeta privada: los documentos reales se suben desde el legajo.
+        url_archivo: ARCHIVO_DOCUMENTO,
       })),
     ),
   })

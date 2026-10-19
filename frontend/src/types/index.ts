@@ -374,7 +374,8 @@ export interface DocumentoAlumno {
   id_alumno: number
   nombre: string
   tipo: string | null
-  url_archivo: string
+  /** Solo en documentos viejos que apuntan a otro sitio; los demás se abren con `abrirConSesion`. */
+  enlace_externo: string | null
   fecha_carga: string
 }
 

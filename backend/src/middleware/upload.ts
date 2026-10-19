@@ -3,10 +3,10 @@
  *
  * Cada "bucket" es una carpeta dentro de `uploads/`. Los públicos se sirven
  * estáticamente en `/uploads` y se guarda en la base la URL completa, igual que
- * antes. Los privados (los comprobantes de transferencia) viven en la misma
- * carpeta, para que los alcance el volumen persistente, pero no se sirven: se
- * guarda solo el nombre del archivo y se descargan con sesión (ver
- * `routes/portalFinanzas.ts`).
+ * antes. Los privados (los comprobantes de transferencia y la documentación del
+ * legajo de cada alumno) viven en la misma carpeta, para que los alcance el
+ * volumen persistente, pero no se sirven: se guarda solo el nombre del archivo y
+ * se descargan con sesión (ver `routes/portalFinanzas.ts` y `routes/alumnos.ts`).
  */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -20,11 +20,11 @@ import { tipoDeArchivo } from '../lib/tipoArchivo.js'
 
 export const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads')
 
-export type BucketPublico = 'galeria' | 'noticias' | 'documentos-alumnos'
-export type BucketPrivado = 'comprobantes'
+export type BucketPublico = 'galeria' | 'noticias'
+export type BucketPrivado = 'comprobantes' | 'documentos-alumnos'
 export type Bucket = BucketPublico | BucketPrivado
 
-const BUCKETS_PUBLICOS: BucketPublico[] = ['galeria', 'noticias', 'documentos-alumnos']
+const BUCKETS_PUBLICOS: BucketPublico[] = ['galeria', 'noticias']
 
 /**
  * Sirve en `/uploads` solo los buckets públicos. Es una lista de permitidos y no
@@ -86,10 +86,10 @@ export function rutaArchivoPrivado(bucket: BucketPrivado, nombre: string): strin
   return absoluto.startsWith(carpeta + path.sep) ? absoluto : null
 }
 
-// ── Comprobantes de transferencia (bucket privado) ──────────────
+// ── Archivos privados: comprobantes y documentos del legajo ─────
 
 export const LIMITE_COMPROBANTE_MB = 10
-const TIPOS_DE_FOTO = 'JPG, PNG, WebP, AVIF o HEIC'
+export const TIPOS_DE_FOTO = 'JPG, PNG, WebP, AVIF o HEIC'
 
 const recibirEnMemoria = multer({
   storage: multer.memoryStorage(),
@@ -101,7 +101,7 @@ const recibirEnMemoria = multer({
  * disco: así un archivo inválido no deja basura. Si pesa de más, responde 400 con un
  * mensaje que dice qué hacer.
  */
-export function recibirArchivoComprobante(req: Request, res: Response): Promise<void> {
+export function recibirArchivoPrivado(req: Request, res: Response): Promise<void> {
   return new Promise((resolve, reject) => {
     recibirEnMemoria(req, res, (err: unknown) => {
       if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
@@ -115,16 +115,24 @@ export function recibirArchivoComprobante(req: Request, res: Response): Promise<
   })
 }
 
+/** El comprobante de una transferencia (lo sube la familia desde el portal). */
+export const recibirArchivoComprobante = recibirArchivoPrivado
+
 /**
- * Guarda el comprobante en la carpeta privada y devuelve el nombre del archivo. El tipo
- * se decide por el contenido y la extensión sale de ahí, no del nombre que mandó el cliente.
+ * Guarda el archivo en la carpeta privada del bucket y devuelve su nombre. El tipo se
+ * decide por el contenido (fotos o PDF) y la extensión sale de ahí, no del nombre que
+ * mandó el cliente: así nunca se guarda un HTML o un script que el navegador pueda ejecutar.
  */
-export async function guardarComprobante(archivo: Express.Multer.File | undefined): Promise<string> {
-  if (!archivo) throw new HttpError(400, 'Adjuntá el comprobante de la transferencia (foto o PDF)')
+export async function guardarArchivoPrivado(
+  bucket: BucketPrivado,
+  archivo: Express.Multer.File | undefined,
+  siFalta: string,
+): Promise<string> {
+  if (!archivo) throw new HttpError(400, siFalta)
   const tipo = tipoDeArchivo(archivo.buffer)
   if (!tipo) throw new HttpError(400, `El archivo no es válido: tiene que ser una foto (${TIPOS_DE_FOTO}) o un PDF`)
 
-  const carpeta = path.join(UPLOADS_DIR, 'comprobantes')
+  const carpeta = path.join(UPLOADS_DIR, bucket)
   await fs.promises.mkdir(carpeta, { recursive: true })
   const nombre = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${tipo.ext}`
   // La carpeta es fija y el nombre se genera acá (fecha, bytes al azar y una extensión que sale del contenido).
@@ -133,15 +141,25 @@ export async function guardarComprobante(archivo: Express.Multer.File | undefine
   return nombre
 }
 
-/** Borra un comprobante de la carpeta privada (si falló el alta en la base). */
-export async function borrarComprobante(nombre: string) {
-  const ruta = rutaArchivoPrivado('comprobantes', nombre)
+/** Guarda el comprobante de una transferencia en su carpeta privada. */
+export function guardarComprobante(archivo: Express.Multer.File | undefined): Promise<string> {
+  return guardarArchivoPrivado('comprobantes', archivo, 'Adjuntá el comprobante de la transferencia (foto o PDF)')
+}
+
+/** Borra un archivo de la carpeta privada del bucket (si falló el alta en la base, o al borrar el registro). */
+export async function borrarArchivoPrivado(bucket: BucketPrivado, nombre: string) {
+  const ruta = rutaArchivoPrivado(bucket, nombre)
   if (!ruta) return
   try {
-    // `rutaArchivoPrivado` ya comprobó que la ruta queda dentro de la carpeta de comprobantes.
+    // `rutaArchivoPrivado` ya comprobó que la ruta queda dentro de la carpeta del bucket.
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     await fs.promises.unlink(ruta)
   } catch {
     // Si el archivo ya no estaba, no hay nada que borrar.
   }
+}
+
+/** Borra un comprobante de la carpeta privada (si falló el alta en la base). */
+export function borrarComprobante(nombre: string) {
+  return borrarArchivoPrivado('comprobantes', nombre)
 }
