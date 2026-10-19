@@ -27,6 +27,8 @@ type ClaveReporte =
   | 'alumnos-por-deporte'
   | 'alumnos-por-transporte'
   | 'ficha-alumno'
+  | 'docentes-por-nivel'
+  | 'ficha-docente'
   | 'ingresos'
   | 'pagos-completos'
   | 'pagos-incompletos'
@@ -63,6 +65,18 @@ const REPORTES: { key: ClaveReporte; icono: string; label: string; descripcion: 
     icono: '🧑‍🎓',
     label: 'Ficha individual del alumno',
     descripcion: 'Curso, materias, profesores, actividades y servicios.',
+  },
+  {
+    key: 'docentes-por-nivel',
+    icono: '👨‍🏫',
+    label: 'Docentes por nivel',
+    descripcion: 'Nivel educativo, profesor, materias a cargo y cursos.',
+  },
+  {
+    key: 'ficha-docente',
+    icono: '🗂️',
+    label: 'Ficha del docente',
+    descripcion: 'Datos, cursos a cargo por nivel y horarios de cada curso.',
   },
   {
     key: 'ingresos',
@@ -114,6 +128,7 @@ export function GestionReportes() {
   const [idActividad, setIdActividad] = useState('')
   const [idRecorrido, setIdRecorrido] = useState('')
   const [idAlumno, setIdAlumno] = useState('')
+  const [idDocenteFicha, setIdDocenteFicha] = useState('')
   // Reportes financieros
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
@@ -139,6 +154,7 @@ export function GestionReportes() {
       if (reporte === 'ficha-alumno') {
         return `/reportes/alumno/${idAlumno}${qs({ formato })}`
       }
+      if (reporte === 'ficha-docente') return `/reportes/docente/${idDocenteFicha}${qs({ formato })}`
       if (reporte === 'ingresos') return `/reportes/ingresos${qs({ desde, hasta, agrupar, formato })}`
       if (esReportePagos(reporte)) return `/reportes/${reporte}${qs({ anio, nivel, id_alumno: idAlumno, formato })}`
       if (reporte === 'pagos-deportes') {
@@ -152,15 +168,17 @@ export function GestionReportes() {
       if (reporte === 'alumnos-por-transporte') filtros.id_recorrido = idRecorrido
       return `/reportes/${reporte}${qs(filtros)}`
     },
-    [reporte, nivel, idCurso, idMateria, idActividad, idRecorrido, idAlumno, desde, hasta, agrupar, anio, mes, dia, hora, idDocente],
+    [reporte, nivel, idCurso, idMateria, idActividad, idRecorrido, idAlumno, idDocenteFicha, desde, hasta, agrupar, anio, mes, dia, hora, idDocente],
   )
 
   const faltaAlumno = reporte === 'ficha-alumno' && !idAlumno
+  const faltaDocente = reporte === 'ficha-docente' && !idDocenteFicha
+  const faltaDato = faltaAlumno ? 'Elegí un alumno para generar su ficha.' : faltaDocente ? 'Elegí un docente para generar su ficha.' : ''
 
   const generar = async () => {
     setMsg('')
-    if (faltaAlumno) {
-      setMsg('Elegí un alumno para generar su ficha.')
+    if (faltaDato) {
+      setMsg(faltaDato)
       return
     }
     setLoading(true)
@@ -172,8 +190,8 @@ export function GestionReportes() {
 
   const exportar = async (formato: 'pdf' | 'csv') => {
     setMsg('')
-    if (faltaAlumno) {
-      setMsg('Elegí un alumno para generar su ficha.')
+    if (faltaDato) {
+      setMsg(faltaDato)
       return
     }
     setLoading(true)
@@ -235,7 +253,7 @@ export function GestionReportes() {
       <div className={`${card} mb-6`}>
         <div className='text-[15px] font-extrabold text-text mb-5'>Filtros</div>
         <div className='flex flex-wrap gap-4 items-end'>
-          {reporte !== 'ficha-alumno' && reporte !== 'ingresos' && (
+          {reporte !== 'ficha-alumno' && reporte !== 'ficha-docente' && reporte !== 'ingresos' && (
             <div>
               <span className={fieldLabel}>Nivel educativo</span>
               <select
@@ -456,6 +474,21 @@ export function GestionReportes() {
                 {alumnos.map((a) => (
                   <option key={a.id_alumno} value={a.id_alumno}>
                     {a.apellido}, {a.nombre} — DNI {a.dni}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {reporte === 'ficha-docente' && (
+            <div className='flex-1' style={{ minWidth: 260 }}>
+              <span className={fieldLabel}>Docente *</span>
+              <select className={selectField} value={idDocenteFicha} onChange={(e) => setIdDocenteFicha(e.target.value)}>
+                <option value=''>Seleccionar docente...</option>
+                {(opciones?.docentes ?? []).map((d) => (
+                  <option key={d.id_docente} value={d.id_docente}>
+                    {d.nombre}
+                    {d.activo ? '' : ' (de baja)'}
                   </option>
                 ))}
               </select>

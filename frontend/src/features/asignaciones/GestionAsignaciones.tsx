@@ -1,6 +1,7 @@
 /**
  * Gestión de asignaciones (panel admin): vincula docente + materia + curso.
- * Extraído verbatim desde AdminPanel.tsx.
+ * Cada materia tiene un solo profesor por curso; si ya lo tiene, se ofrece
+ * reemplazarlo (también se puede hacer desde la ficha del docente).
  */
 import type { FormEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
@@ -51,11 +52,19 @@ export function GestionAsignaciones() {
     e.preventDefault()
     setMsg('')
     // El backend asigna el período académico activo.
-    const { error } = await api.post('/asignaciones', {
-      id_docente: Number(form.id_docente),
-      id_materia: Number(form.id_materia),
-      id_curso: Number(form.id_curso),
-    })
+    const enviar = (reemplazar?: boolean) =>
+      api.post('/asignaciones', {
+        id_docente: Number(form.id_docente),
+        id_materia: Number(form.id_materia),
+        id_curso: Number(form.id_curso),
+        reemplazar,
+      })
+    let error = (await enviar()).error
+    // La materia ya tiene profesor en ese curso: se ofrece reemplazarlo.
+    if (error?.code === 'MATERIA_CON_PROFESOR') {
+      if (!confirm(error.message)) return
+      error = (await enviar(true)).error
+    }
     if (error) setMsg('Error: ' + error.message)
     else {
       setMsg('✅ Asignación creada.')

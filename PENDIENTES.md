@@ -27,14 +27,21 @@ HU 2 queda completa.
 ## HU 4 — Gestión de profesores
 **Responsable:** Iván Sánchez · **Prioridad:** alta
 
-El módulo de docentes es hoy solo de lectura. Falta:
+Hecha. La pantalla *Docentes* del admin tiene:
 
-- Alta y edición de profesores con legajo, DNI, especialidad, título, correo,
-  teléfono y estado (las columnas ya existen en la tabla `docentes`).
+- Alta y edición de profesores con legajo (`id_docente`), DNI, especialidad,
+  título, fecha de ingreso, correo, teléfono y estado. El alta crea el usuario con
+  rol Docente y una contraseña inicial; la baja también desactiva el usuario y, si
+  tiene materias a cargo, pide confirmar.
 - DNI único, con el mensaje "Ya existe un profesor registrado con ese DNI".
-- Asignación de materias por curso y nivel desde la misma pantalla, avisando
-  cuando la materia ya tiene profesor en ese curso y permitiendo reemplazarlo.
-- Listado de docentes por nivel educativo con sus materias y cursos.
+- Asignación de materias por curso desde la misma pantalla (botón *Materias*),
+  avisando cuando la materia ya tiene profesor en ese curso y permitiendo
+  reemplazarlo: los horarios pasan al nuevo profesor y las notas y la asistencia
+  quedan con el anterior. También se puede quitar una materia. *Asignaciones* hace
+  el mismo aviso.
+- Reportes *Docentes por nivel* (nivel, profesor, materias a cargo y cursos) y
+  *Ficha del docente* (datos, cursos a cargo por nivel, horarios de cada curso y
+  actividades a cargo), en pantalla, PDF y CSV.
 
 ## Desafío — Módulo de Salud y Enfermería
 **Prioridad:** media

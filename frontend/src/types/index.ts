@@ -41,12 +41,26 @@ export interface UsuarioAlumno {
   activo: boolean
 }
 
+/** Docente con su legajo (`id_docente`) y el usuario con el que entra al sistema. */
 export interface Docente {
   id_docente: number
-  dni: string
+  dni: string | null
   especialidad: string | null
+  titulo: string | null
+  /** 'YYYY-MM-DD…' */
+  fecha_ingreso: string | null
   activo: boolean
-  usuarios: { nombre: string; apellido: string; email: string } | null
+  usuarios: { id_usuario: string; nombre: string; apellido: string; email: string; telefono: string | null; activo: boolean } | null
+  /** Materias a cargo (asignaciones activas), por nivel y curso. */
+  asignaciones: AsignacionDocente[]
+}
+
+export interface AsignacionDocente {
+  id_asignacion: number
+  id_materia: number
+  id_curso: number
+  materias: { nombre: string }
+  cursos: { id_curso: number; nivel: string; grado_anio: string; division: string }
 }
 
 export interface Curso {
@@ -186,6 +200,8 @@ export interface OpcionesReportes {
   profesores: { id_docente: number; nombre: string }[]
   /** Franjas de los deportes, sin repetir (hora en `HH:MM`). */
   horariosDeportes: { dia_semana: string; hora_inicio: string }[]
+  /** Todos los docentes, para la ficha del docente. */
+  docentes: { id_docente: number; nombre: string; activo: boolean }[]
 }
 
 /** Movimiento del historial de pagos de cuotas. */
