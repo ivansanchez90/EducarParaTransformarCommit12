@@ -59,8 +59,13 @@ Funcionalidad propuesta como desafío, no contemplada en el enunciado original:
 
 ## Mejoras técnicas detectadas
 
-- **Documentos del legajo:** se sirven de forma pública para quien tenga el
-  enlace, igual que hacía el bucket de Supabase. Convendría exigir sesión.
+- **Documentos del legajo:** hecho. Ya no se sirven en `/uploads`: viven en la
+  carpeta privada `documentos-alumnos` y se bajan con sesión por la API, con los
+  mismos roles que ven el legajo (Admin, Directivo y Docente). La subida acepta solo
+  fotos y PDF, por su contenido (un HTML subido podía ejecutarse en el dominio de la
+  app). Una migración de datos dejó solo el nombre del archivo en los registros que
+  apuntaban a esa carpeta; los enlaces a otros sitios (por ejemplo, de Supabase)
+  quedan como estaban y se siguen abriendo con su enlace.
 - **Historial de pagos:** la API acepta número de comprobante y observaciones,
   y la pantalla ya los carga, pero no hay forma de editar un pago registrado.
 - **Vulnerabilidades reportadas por `npm audit`:** provienen del CLI de Prisma

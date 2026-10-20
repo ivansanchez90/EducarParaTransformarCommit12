@@ -102,12 +102,8 @@ export function qs(params: Record<string, string | number | boolean | null | und
   return s ? `?${s}` : ''
 }
 
-/**
- * Descarga un archivo generado por la API (PDF/CSV) respetando la sesión:
- * un enlace normal no puede mandar el token, así que se baja con fetch y se
- * entrega al navegador desde memoria.
- */
-export async function descargar(path: string): Promise<ApiError | null> {
+/** Pide un archivo a la API con la sesión: un enlace normal no puede mandar el token. */
+async function pedirArchivo(path: string): Promise<{ res: Response } | { error: ApiError }> {
   const headers: Record<string, string> = {}
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
@@ -116,18 +112,18 @@ export async function descargar(path: string): Promise<ApiError | null> {
   try {
     res = await fetch(`${API_URL}/api${path}`, { headers })
   } catch {
-    return { message: 'No se pudo conectar con el servidor', status: 0 }
+    return { error: { message: 'No se pudo conectar con el servidor', status: 0 } }
   }
   if (!res.ok) {
     const json = await res.json().catch(() => null)
     if (token && res.status === 401) onUnauthorized?.()
-    return { message: json?.error ?? `Error ${res.status}`, code: json?.code, status: res.status }
+    return { error: { message: json?.error ?? `Error ${res.status}`, code: json?.code, status: res.status } }
   }
+  return { res }
+}
 
-  // El nombre sugerido por el backend viene en la cabecera Content-Disposition.
-  const nombre =
-    /filename="?([^";]+)"?/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'reporte'
-  const blob = await res.blob()
+/** Entrega al navegador un archivo que está en memoria, como descarga. */
+function guardarEnElEquipo(blob: Blob, nombre: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -136,6 +132,48 @@ export async function descargar(path: string): Promise<ApiError | null> {
   a.click()
   a.remove()
   URL.revokeObjectURL(url)
+}
+
+/** El nombre sugerido por el backend, que viene en la cabecera Content-Disposition. */
+const nombreSugerido = (res: Response, defecto: string) =>
+  /filename="?([^";]+)"?/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? defecto
+
+/**
+ * Descarga un archivo generado por la API (PDF/CSV) respetando la sesión:
+ * se baja con fetch y se entrega al navegador desde memoria.
+ */
+export async function descargar(path: string): Promise<ApiError | null> {
+  const r = await pedirArchivo(path)
+  if ('error' in r) return r.error
+  guardarEnElEquipo(await r.res.blob(), nombreSugerido(r.res, 'reporte'))
+  return null
+}
+
+/** Lo que se muestra en una pestaña: fotos y PDF. Cualquier otro tipo se descarga. */
+const SE_VE_EN_PESTANA = /^(image\/|application\/pdf$)/
+
+/**
+ * Abre en otra pestaña un archivo privado de la API (un documento del legajo) con la
+ * sesión. Se llama directo desde el clic: la pestaña se abre antes de pedir el archivo,
+ * porque si se abriera después de esperar la descarga el navegador la bloquearía.
+ */
+export async function abrirConSesion(path: string): Promise<ApiError | null> {
+  const pestana = window.open('', '_blank')
+  const r = await pedirArchivo(path)
+  if ('error' in r) {
+    pestana?.close()
+    return r.error
+  }
+  const blob = await r.res.blob()
+  if (!pestana || !SE_VE_EN_PESTANA.test(blob.type)) {
+    pestana?.close()
+    guardarEnElEquipo(blob, nombreSugerido(r.res, 'documento'))
+    return null
+  }
+  const url = URL.createObjectURL(blob)
+  pestana.location.href = url
+  // La pestaña ya cargó el archivo: después de un rato se libera la memoria.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
   return null
 }
 

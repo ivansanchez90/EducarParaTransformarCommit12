@@ -12,7 +12,7 @@ import {
   requireAuth,
   requireRole,
 } from '../middleware/auth.js'
-import { borrarArchivo, uploader, urlPublica } from '../middleware/upload.js'
+import { borrarArchivoPrivado, guardarArchivoPrivado, recibirArchivoPrivado, rutaArchivoPrivado } from '../middleware/upload.js'
 import { crearUsuario, emailInstitucionalAlumno, emailOpcional } from '../services/usuarios.js'
 
 export const alumnosRouter = Router()
@@ -342,43 +342,84 @@ alumnosRouter.get('/:id/amonestaciones', requireRole(...ROLES_STAFF), async (req
 })
 
 // ── Legajo digital: documentación del alumno ───────────────────
+// DNI, partidas, certificados médicos: datos personales. Los archivos viven en la
+// carpeta privada `documentos-alumnos` y se bajan con sesión, como los comprobantes.
+// `url_archivo` guarda el nombre del archivo en esa carpeta; los registros viejos que
+// apuntan a otro sitio (http…) conservan su enlace.
+
+const esEnlaceExterno = (valor: string) => /^https?:\/\//i.test(valor)
+
+/** Extensiones que el navegador puede mostrar sin riesgo (lo que acepta la subida). */
+const MIME_VISIBLE = new Map([
+  ['pdf', 'application/pdf'],
+  ['jpg', 'image/jpeg'],
+  ['jpeg', 'image/jpeg'],
+  ['png', 'image/png'],
+  ['webp', 'image/webp'],
+  ['avif', 'image/avif'],
+  ['heic', 'image/heic'],
+])
 
 alumnosRouter.get('/:id/documentos', requireRole(...ROLES_STAFF), async (req, res) => {
   const documentos = await prisma.documentoAlumno.findMany({
     where: { id_alumno: id(req.params.id) },
     orderBy: { fecha_carga: 'desc' },
   })
-  res.json(documentos)
+  // El nombre del archivo en disco no sale de la API; solo el enlace de los documentos externos.
+  res.json(
+    documentos.map(({ url_archivo, ...d }) => ({ ...d, enlace_externo: esEnlaceExterno(url_archivo) ? url_archivo : null })),
+  )
 })
 
-alumnosRouter.post(
-  '/:id/documentos',
-  requireRole(...ROLES_STAFF),
-  uploader('documentos-alumnos').single('archivo'),
-  async (req, res) => {
-    if (!req.file) throw new HttpError(400, 'Seleccioná un archivo')
-    const url = urlPublica('documentos-alumnos', req.file.filename)
-    try {
-      const documento = await prisma.documentoAlumno.create({
-        data: {
-          id_alumno: id(req.params.id),
-          nombre: textOrNull(req.body?.nombre) ?? req.file.originalname,
-          tipo: textOrNull(req.body?.tipo),
-          url_archivo: url,
-        },
-      })
-      res.status(201).json(documento)
-    } catch (err) {
-      await borrarArchivo(url)
-      throw err
-    }
-  },
-)
+alumnosRouter.post('/:id/documentos', requireRole(...ROLES_STAFF), async (req, res) => {
+  const idAlumno = id(req.params.id)
+  await recibirArchivoPrivado(req, res)
+  // Solo fotos o PDF, por su contenido: un HTML subido no puede terminar abierto en la app.
+  const archivo = await guardarArchivoPrivado('documentos-alumnos', req.file, 'Seleccioná un archivo (foto o PDF)')
+  try {
+    const documento = await prisma.documentoAlumno.create({
+      data: {
+        id_alumno: idAlumno,
+        nombre: textOrNull(req.body?.nombre) ?? req.file!.originalname,
+        tipo: textOrNull(req.body?.tipo),
+        url_archivo: archivo,
+      },
+    })
+    const { url_archivo: _archivo, ...datos } = documento
+    res.status(201).json({ ...datos, enlace_externo: null })
+  } catch (err) {
+    await borrarArchivoPrivado('documentos-alumnos', archivo)
+    throw err
+  }
+})
+
+/** Descarga el archivo de un documento con sesión (los mismos roles que ven el legajo). */
+alumnosRouter.get('/documentos/:idDocumento/archivo', requireRole(...ROLES_STAFF), async (req, res, next) => {
+  const documento = await prisma.documentoAlumno.findUnique({
+    where: { id_documento: id(req.params.idDocumento) },
+    select: { url_archivo: true },
+  })
+  if (!documento) throw new HttpError(404, 'Documento no encontrado')
+  if (esEnlaceExterno(documento.url_archivo)) throw new HttpError(404, 'Este documento es un enlace a otro sitio')
+  const ruta = rutaArchivoPrivado('documentos-alumnos', documento.url_archivo)
+  if (!ruta) throw new HttpError(404, 'El archivo del documento no está disponible')
+
+  res.setHeader('Cache-Control', 'private, no-store')
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  // Un archivo viejo de otro tipo (subido antes de este control) se baja, nunca se abre en el navegador.
+  const ext = documento.url_archivo.split('.').pop()?.toLowerCase() ?? ''
+  const mime = MIME_VISIBLE.get(ext)
+  if (mime) res.type(mime)
+  else res.type('application/octet-stream').attachment()
+  res.sendFile(ruta, (err: Error | undefined) => {
+    if (err) next(new HttpError(404, 'El archivo del documento no está disponible'))
+  })
+})
 
 alumnosRouter.delete('/documentos/:idDocumento', requireRole(...ROLES_STAFF), async (req, res) => {
   const documento = await prisma.documentoAlumno.delete({
     where: { id_documento: id(req.params.idDocumento) },
   })
-  await borrarArchivo(documento.url_archivo)
+  if (!esEnlaceExterno(documento.url_archivo)) await borrarArchivoPrivado('documentos-alumnos', documento.url_archivo)
   res.status(204).end()
 })
