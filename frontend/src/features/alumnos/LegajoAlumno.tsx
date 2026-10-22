@@ -22,6 +22,7 @@ import {
   thCell,
 } from '../../ui/styles'
 import { PasswordInput, TablaScroll } from '../../ui/components'
+import { ResumenSalud } from '../salud/ResumenSalud'
 
 /**
  * Usuario con el que el alumno entra a la plataforma: muestra el email y deja
@@ -322,6 +323,9 @@ export function LegajoAlumno({
           ← Volver a la lista
         </button>
       </div>
+
+      {/* Salud: solo el resumen (alergias críticas y contacto de emergencia) */}
+      <ResumenSalud idAlumno={idAlumno} />
 
       {/* Datos personales */}
       <div className={`${card} mb-5`}>

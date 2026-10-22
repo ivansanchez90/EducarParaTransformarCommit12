@@ -13,6 +13,8 @@ import { prisma } from '../lib/prisma.js'
 
 export const ROLES_ADMIN = ['Admin', 'Directivo']
 export const ROLES_STAFF = ['Admin', 'Directivo', 'Docente']
+/** Ven la ficha médica y las atenciones completas (salud y enfermería). */
+export const ROLES_SALUD = ['Admin', 'Directivo', 'Enfermero']
 
 export interface UsuarioAuth {
   id_usuario: string

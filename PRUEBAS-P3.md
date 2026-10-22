@@ -69,6 +69,24 @@ Variables a cargar para probar todo: `BANCO_ALIAS` (si falta, la orden de pago d
 | Seguridad | El archivo de un comprobante no se abre sin sesión ni con otra familia | — | T04 | Abrir la URL del archivo sin iniciar sesión | |
 | Celular | Todas las pantallas nuevas a 375 px, sin scroll horizontal ni errores | — | T23 | Android con Chrome y iPhone con Safari | |
 
+## Salud y enfermería (desafío)
+
+Con `npm run seed:demo` hay un usuario de enfermería (`enfermeria@educar.local`, clave `demo1234`), unas 90 fichas
+médicas (algunas con alergias críticas) y unas 57 atenciones, todas con su auditoría.
+
+| Quién | Qué probar | Cómo probarlo | Resultado |
+| --- | --- | --- | --- |
+| Enfermería | Entra al panel y ve solo *Salud y enfermería* | Iniciar sesión como enfermería; el menú tiene una sola opción | |
+| Enfermería | Buscar un alumno por nombre, apellido o DNI y abrir su ficha | Buscar, ver las marcas "Con ficha" y "Alergias críticas" y abrir una | |
+| Enfermería | Crear o editar la ficha; un grupo sanguíneo inválido o un texto larguísimo se rechazan | Guardar con cambios, sin cambios y con datos inválidos | |
+| Enfermería | Registrar y corregir una atención; no se puede cargar sin motivo ni con fecha futura | Pestaña *Atenciones* | |
+| Enfermería | Cada alta y cada cambio quedan en *Historial de cambios*, con quién y qué cambió; guardar sin cambios no deja nada | Editar una ficha y mirar el historial | |
+| Docente | En el legajo del alumno ve solo el resumen (alergias críticas y contacto), nunca la ficha completa | Abrir un legajo con y sin alergias críticas | |
+| Familia | En el portal, pestaña *Salud*: ve la ficha y las atenciones de su hijo, solo para leer | Entrar como familia y mirar *Salud* | |
+| Familia | No ve la ficha de otro alumno | Con la sesión de otra familia, pedir la ficha de un alumno ajeno: error | |
+| Alumno | El propio alumno no tiene la pestaña *Salud* | Entrar como alumno | |
+| Admin | Ve y carga todo desde *Salud y enfermería* | Entrar como Admin o Directivo | |
+
 ## Defectos encontrados
 
 Anotar acá lo que falle, con la pantalla, el mensaje y la tarea; se corrige en T24.

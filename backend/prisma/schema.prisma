@@ -49,6 +49,8 @@ model Usuario {
   comprobantes_revisados ComprobanteTransferencia[] @relation("ComprobanteRevision")
   envios_email           EnvioEmail[]
   tokens_recuperacion    TokenRecuperacion[]
+  atenciones_registradas AtencionEnfermeria[]
+  auditoria_salud        AuditoriaSalud[]
 
   @@map("usuarios")
 }
@@ -189,6 +191,9 @@ model Alumno {
   transporte                InscripcionTransporte?
   comedor                   InscripcionComedor?
   vigencias_servicio        VigenciaServicio[]
+  ficha_medica              FichaMedica?
+  atenciones_enfermeria     AtencionEnfermeria[]
+  auditoria_salud           AuditoriaSalud[]
 
   @@index([id_curso])
   @@index([id_usuario])
@@ -746,6 +751,70 @@ model VigenciaServicio {
 
   @@index([id_alumno, concepto])
   @@map("vigencias_servicio")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Salud y enfermería: ficha médica, atenciones y auditoría
+// ─────────────────────────────────────────────────────────────
+
+/// Ficha médica única de un alumno. La ve completa enfermería y la administración; la familia, solo la de sus
+/// hijos; el docente, un resumen (alergias críticas y contacto de emergencia).
+model FichaMedica {
+  id_ficha          Int      @id @default(autoincrement())
+  id_alumno         Int      @unique
+  /// A+ | A- | B+ | B- | AB+ | AB- | 0+ | 0-
+  grupo_sanguineo   String?
+  alergias          String?
+  /// Lo que tiene que saber cualquier docente: es lo único de la ficha que ve en el resumen
+  alergias_criticas String?
+  medicacion        String?
+  condiciones       String?
+  observaciones     String?
+  updated_at        DateTime @updatedAt @db.Timestamptz(6)
+
+  alumnos Alumno @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+
+  @@map("fichas_medicas")
+}
+
+/// Cada vez que enfermería atiende a un alumno. No se borran: se corrigen, y cada corrección queda auditada.
+model AtencionEnfermeria {
+  id_atencion         Int      @id @default(autoincrement())
+  id_alumno           Int
+  fecha_hora          DateTime @default(now()) @db.Timestamptz(6)
+  motivo              String
+  descripcion         String?
+  tratamiento         String?
+  id_usuario_registra String?  @db.Uuid
+  /// Se marca cuando el aviso a los tutores salió (in-app o push)
+  familia_avisada     Boolean  @default(false)
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  alumnos  Alumno   @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  registra Usuario? @relation(fields: [id_usuario_registra], references: [id_usuario], onDelete: SetNull)
+
+  @@index([id_alumno, fecha_hora])
+  @@map("atenciones_enfermeria")
+}
+
+/// Quién cambió qué en la ficha o en una atención, y cuándo. `cambios` guarda `{ campo: { antes, despues } }`.
+model AuditoriaSalud {
+  id_auditoria Int      @id @default(autoincrement())
+  id_alumno    Int
+  /// Ficha médica | Atención
+  entidad      String
+  id_registro  Int?
+  /// Alta | Modificación
+  accion       String
+  cambios      Json?
+  id_usuario   String?  @db.Uuid
+  fecha_hora   DateTime @default(now()) @db.Timestamptz(6)
+
+  alumnos  Alumno   @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  usuarios Usuario? @relation(fields: [id_usuario], references: [id_usuario], onDelete: SetNull)
+
+  @@index([id_alumno, fecha_hora])
+  @@map("auditoria_salud")
 }
 
 // ─────────────────────────────────────────────────────────────

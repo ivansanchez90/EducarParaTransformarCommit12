@@ -7,7 +7,7 @@ Aplicación web de campus virtual para la institución educativa "Educar para
 Transformar" (nivel Inicial/Primario/Secundario). Permite gestionar alumnos,
 docentes, cursos, materias, asistencia, calificaciones, cuotas, comunicados,
 mensajería interna y demás procesos administrativos y académicos del centro,
-con un panel diferenciado según el rol del usuario (Admin, Docente, Alumno,
+con un panel diferenciado según el rol del usuario (Admin, Docente, Enfermería, Alumno,
 Familia).
 
 Frontend en React + TypeScript + Tailwind. Backend en Node.js + Express +

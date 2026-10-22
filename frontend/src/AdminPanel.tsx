@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getSession, logout, onAuthChange } from './lib/auth'
 import type { UsuarioPanel } from './types'
-import { NAV_ADMIN, NAV_DOCENTE } from './constants'
+import { NAV_ADMIN, NAV_DOCENTE, NAV_ENFERMERIA } from './constants'
 import { AvatarMenu, BottomNav, type NavItem } from './ui/components'
 import { conBottomNav, conPaddingX, safeAreaBottom, touchTarget } from './ui/styles'
 
@@ -48,6 +48,7 @@ import { TomarAsistencia } from './features/asistencia/TomarAsistencia'
 import { CargarCalificaciones } from './features/calificaciones/CargarCalificaciones'
 import { GestionAmonestaciones } from './features/amonestaciones/GestionAmonestaciones'
 import { LegajosDocente } from './features/legajos-docente/LegajosDocente'
+import { GestionSalud } from './features/salud/GestionSalud'
 
 /** Ítem del menú lateral, en escritorio o en el panel deslizable del celular. */
 function ItemMenu({
@@ -113,7 +114,7 @@ export default function AdminPanel() {
 
   if (!authChecked || !perfil) return null
 
-  if (!['Admin', 'Directivo', 'Docente'].includes(perfil.rol)) {
+  if (!['Admin', 'Directivo', 'Docente', 'Enfermero'].includes(perfil.rol)) {
     return (
       <div className='flex items-center justify-center min-h-screen font-sans'>
         <div className='text-center'>
@@ -129,7 +130,10 @@ export default function AdminPanel() {
   }
 
   const esAdmin = ['Admin', 'Directivo'].includes(perfil.rol)
-  const navItems = esAdmin ? NAV_ADMIN : NAV_DOCENTE
+  // Enfermería entra al panel con una sola sección: su Dashboard es la ficha de salud.
+  const esEnfermero = perfil.rol === 'Enfermero'
+  const navItems = esAdmin ? NAV_ADMIN : esEnfermero ? NAV_ENFERMERIA : NAV_DOCENTE
+  const navActivo = esEnfermero ? 'salud' : activeNav
   const initials = `${perfil.nombre[0]}${perfil.apellido[0]}`
 
   const elegirNav = (key: string) => {
@@ -209,7 +213,7 @@ export default function AdminPanel() {
             <ItemMenu
               key={item.key}
               item={item}
-              activo={activeNav === item.key}
+              activo={navActivo === item.key}
               onClick={() => {
                 setActiveNav(item.key)
               }}
@@ -249,7 +253,7 @@ export default function AdminPanel() {
                 <ItemMenu
                   key={item.key}
                   item={item}
-                  activo={activeNav === item.key}
+                  activo={navActivo === item.key}
                   onClick={() => {
                     elegirNav(item.key)
                   }}
@@ -261,7 +265,7 @@ export default function AdminPanel() {
 
         {/* ── CONTENIDO ── */}
         <main className={`flex-1 min-w-0 py-4 md:p-7 overflow-y-auto ${conPaddingX} ${esAdmin ? '' : conBottomNav}`}>
-          {activeNav === 'dashboard' && (
+          {activeNav === 'dashboard' && !esEnfermero && (
             <Dashboard
               esAdmin={esAdmin}
               perfil={perfil}
@@ -285,7 +289,8 @@ export default function AdminPanel() {
           {activeNav === 'inscripciones' && esAdmin && <GestionInscripciones />}
           {activeNav === 'mensajes' && esAdmin && <GestionMensajes />}
           {activeNav === 'actividades' && esAdmin && <GestionActividades />}
-          {activeNav === 'reservas' && <GestionReservas />}
+          {activeNav === 'reservas' && !esEnfermero && <GestionReservas />}
+          {navActivo === 'salud' && (esAdmin || esEnfermero) && <GestionSalud />}
           {activeNav === 'servicios' && esAdmin && <GestionServicios />}
           {activeNav === 'reportes' && esAdmin && <GestionReportes />}
           {activeNav === 'noticias' && esAdmin && (
@@ -312,7 +317,7 @@ export default function AdminPanel() {
       </div>
 
       {/* ── NAVEGACIÓN INFERIOR (celular, solo Docente: 6 módulos entran en la barra) ── */}
-      {!esAdmin && <BottomNav items={NAV_DOCENTE} activo={activeNav} onSelect={setActiveNav} />}
+      {!esAdmin && <BottomNav items={navItems} activo={navActivo} onSelect={setActiveNav} />}
 
       {cambiandoPassword && (
         <CambiarPassword
