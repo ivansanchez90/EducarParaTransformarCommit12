@@ -30,7 +30,7 @@ export function HistorialCambios({ idAlumno, version }: { idAlumno: number; vers
           <ul className='list-none m-0 p-0 flex flex-col gap-1'>
             {Object.entries(r.cambios ?? {}).map(([campo, { antes, despues }]) => (
               <li key={campo} className='text-[13px]'>
-                <strong>{ETIQUETAS_FICHA[campo] ?? campo}:</strong> {valorAuditado(antes)} → {valorAuditado(despues)}
+                <strong>{ETIQUETAS_FICHA.get(campo) ?? campo}:</strong> {valorAuditado(antes)} → {valorAuditado(despues)}
               </li>
             ))}
           </ul>

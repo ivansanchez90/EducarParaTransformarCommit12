@@ -93,15 +93,15 @@ export interface ResumenDeSalud {
 export const GRUPOS_SANGUINEOS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', '0+', '0-'] as const
 
 /** Nombre en pantalla de cada campo de la ficha (se usa también para mostrar la auditoría). */
-export const ETIQUETAS_FICHA: Record<string, string> = {
-  grupo_sanguineo: 'Grupo sanguíneo',
-  alergias: 'Alergias',
-  alergias_criticas: 'Alergias críticas',
-  medicacion: 'Medicación',
-  condiciones: 'Condiciones',
-  observaciones: 'Observaciones',
-  motivo: 'Motivo',
-  descripcion: 'Descripción',
-  tratamiento: 'Tratamiento',
-  fecha_hora: 'Fecha y hora',
-}
+export const ETIQUETAS_FICHA = new Map([
+  ['grupo_sanguineo', 'Grupo sanguíneo'],
+  ['alergias', 'Alergias'],
+  ['alergias_criticas', 'Alergias críticas'],
+  ['medicacion', 'Medicación'],
+  ['condiciones', 'Condiciones'],
+  ['observaciones', 'Observaciones'],
+  ['motivo', 'Motivo'],
+  ['descripcion', 'Descripción'],
+  ['tratamiento', 'Tratamiento'],
+  ['fecha_hora', 'Fecha y hora'],
+])

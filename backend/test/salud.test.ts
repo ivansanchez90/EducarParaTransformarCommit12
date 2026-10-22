@@ -57,7 +57,7 @@ const familiaDe7 = () => {
 
 type Metodo = 'get' | 'put' | 'post'
 const pedir = (metodo: Metodo, ruta: string, token?: string, cuerpo?: object) => {
-  const pedido = request(app)[metodo](ruta)
+  const pedido = metodo === 'get' ? request(app).get(ruta) : metodo === 'put' ? request(app).put(ruta) : request(app).post(ruta)
   return (token ? pedido.set('Authorization', token) : pedido).send(cuerpo ?? {})
 }
 

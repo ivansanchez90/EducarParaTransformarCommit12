@@ -90,14 +90,13 @@ export type Cambios = Record<string, { antes: unknown; despues: unknown }>
 
 /** Campos que cambiaron entre dos versiones, con su valor de antes y de después. Vacío si no cambió nada. */
 export function diferencias(antes: Record<string, unknown>, despues: Record<string, unknown>): Cambios {
-  const cambios: Cambios = {}
-  for (const campo of Object.keys(despues)) {
+  const cambios = Object.keys(despues).flatMap((campo): [string, { antes: unknown; despues: unknown }][] => {
     const valorAntes = Object.getOwnPropertyDescriptor(antes, campo)?.value ?? null
     const valorDespues = Object.getOwnPropertyDescriptor(despues, campo)?.value ?? null
     const igual = valorAntes instanceof Date && valorDespues instanceof Date ? valorAntes.getTime() === valorDespues.getTime() : valorAntes === valorDespues
-    if (!igual) cambios[campo] = { antes: valorAntes, despues: valorDespues }
-  }
-  return cambios
+    return igual ? [] : [[campo, { antes: valorAntes, despues: valorDespues }]]
+  })
+  return Object.fromEntries(cambios)
 }
 
 /** Deja asentado un alta o una modificación, dentro de la misma transacción que la produjo. */

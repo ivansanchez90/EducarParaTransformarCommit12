@@ -5,13 +5,25 @@ import { btnPrimary, fieldLabel, inputField, msgError, selectField } from '../..
 import { GRUPOS_SANGUINEOS } from './types'
 import type { DatosFicha, FichaMedica } from './types'
 
-const CAMPOS_DE_TEXTO: { campo: Exclude<keyof DatosFicha, 'grupo_sanguineo'>; etiqueta: string; ayuda?: string }[] = [
-  { campo: 'alergias_criticas', etiqueta: 'Alergias críticas', ayuda: 'Es lo único que ven los docentes. Solo lo que pone en riesgo la salud (por ejemplo, maní o picaduras).' },
-  { campo: 'alergias', etiqueta: 'Otras alergias' },
-  { campo: 'medicacion', etiqueta: 'Medicación' },
-  { campo: 'condiciones', etiqueta: 'Condiciones o enfermedades' },
-  { campo: 'observaciones', etiqueta: 'Observaciones' },
-]
+const AYUDA_ALERGIAS_CRITICAS = 'Es lo único que ven los docentes. Solo lo que pone en riesgo la salud (por ejemplo, maní o picaduras).'
+
+/** Un campo de texto de la ficha. */
+function CampoTexto({ etiqueta, ayuda, valor, onCambiar }: { etiqueta: string; ayuda?: string; valor: string; onCambiar: (valor: string) => void }) {
+  return (
+    <div>
+      <span className={fieldLabel}>{etiqueta}</span>
+      <textarea
+        className={`${inputField} min-h-[72px]`}
+        maxLength={1000}
+        value={valor}
+        onChange={(e) => {
+          onCambiar(e.target.value)
+        }}
+      />
+      {ayuda && <div className='text-[11px] text-textMuted mt-1'>{ayuda}</div>}
+    </div>
+  )
+}
 
 const desdeFicha = (ficha: FichaMedica | null): DatosFicha => ({
   grupo_sanguineo: ficha?.grupo_sanguineo ?? '',
@@ -68,20 +80,42 @@ export function FormularioFicha({ ficha, guardando, error, onGuardar }: Props) {
         </select>
       </div>
 
-      {CAMPOS_DE_TEXTO.map(({ campo, etiqueta, ayuda }) => (
-        <div key={campo}>
-          <span className={fieldLabel}>{etiqueta}</span>
-          <textarea
-            className={`${inputField} min-h-[72px]`}
-            maxLength={1000}
-            value={datos[campo]}
-            onChange={(e) => {
-              cambiar(campo, e.target.value)
-            }}
-          />
-          {ayuda && <div className='text-[11px] text-textMuted mt-1'>{ayuda}</div>}
-        </div>
-      ))}
+      <CampoTexto
+        etiqueta='Alergias críticas'
+        ayuda={AYUDA_ALERGIAS_CRITICAS}
+        valor={datos.alergias_criticas}
+        onCambiar={(valor) => {
+          cambiar('alergias_criticas', valor)
+        }}
+      />
+      <CampoTexto
+        etiqueta='Otras alergias'
+        valor={datos.alergias}
+        onCambiar={(valor) => {
+          cambiar('alergias', valor)
+        }}
+      />
+      <CampoTexto
+        etiqueta='Medicación'
+        valor={datos.medicacion}
+        onCambiar={(valor) => {
+          cambiar('medicacion', valor)
+        }}
+      />
+      <CampoTexto
+        etiqueta='Condiciones o enfermedades'
+        valor={datos.condiciones}
+        onCambiar={(valor) => {
+          cambiar('condiciones', valor)
+        }}
+      />
+      <CampoTexto
+        etiqueta='Observaciones'
+        valor={datos.observaciones}
+        onCambiar={(valor) => {
+          cambiar('observaciones', valor)
+        }}
+      />
 
       {error && <div className={msgError}>{error}</div>}
       {guardada && !error && <div className='text-[13px] font-bold text-green'>✅ Ficha guardada.</div>}

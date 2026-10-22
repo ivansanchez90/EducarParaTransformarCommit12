@@ -1306,7 +1306,7 @@ export default function StudentPortal() {
           )}
 
           {/* ━━━━━ SALUD: la ficha y las atenciones del hijo (solo el tutor) ━━━━━ */}
-          {activeNav === 'salud' && esTutor && alumno && <SaludHijo idAlumno={alumno.id_alumno} />}
+          {activeNav === 'salud' && esTutor && <SaludHijo idAlumno={alumno.id_alumno} />}
 
           {activeNav === 'notificaciones' && (
             <div className='bg-white rounded-card p-6 shadow-card border border-border'>

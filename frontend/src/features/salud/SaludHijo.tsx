@@ -3,10 +3,17 @@ import { useConsulta } from '../../lib/useConsulta'
 import { msgError } from '../../ui/styles'
 import { TarjetaAtencion } from './AtencionesSalud'
 import { fechaHora } from './formato'
-import { ETIQUETAS_FICHA } from './types'
-import type { Atencion, FichaDelAlumno } from './types'
+import type { Atencion, FichaDelAlumno, FichaMedica } from './types'
 
-const CAMPOS = ['grupo_sanguineo', 'alergias_criticas', 'alergias', 'medicacion', 'condiciones', 'observaciones'] as const
+/** Lo que se muestra de la ficha, en este orden. */
+const filasDeLaFicha = (f: FichaMedica): [string, string | null][] => [
+  ['Grupo sanguíneo', f.grupo_sanguineo],
+  ['Alergias críticas', f.alergias_criticas],
+  ['Otras alergias', f.alergias],
+  ['Medicación', f.medicacion],
+  ['Condiciones', f.condiciones],
+  ['Observaciones', f.observaciones],
+]
 
 export function SaludHijo({ idAlumno }: { idAlumno: number }) {
   const ficha = useConsulta<FichaDelAlumno>(`/salud/alumnos/${idAlumno}/ficha`)
@@ -26,10 +33,10 @@ export function SaludHijo({ idAlumno }: { idAlumno: number }) {
             {ficha.datos?.ficha ? (
               <>
                 <dl className='m-0 grid grid-cols-1 sm:grid-cols-2 gap-3'>
-                  {CAMPOS.map((campo) => (
-                    <div key={campo}>
-                      <dt className='text-[11px] font-bold text-textMuted uppercase tracking-[0.04em]'>{ETIQUETAS_FICHA[campo]}</dt>
-                      <dd className='m-0 text-[14px] text-text'>{ficha.datos?.ficha?.[campo] ?? '—'}</dd>
+                  {filasDeLaFicha(ficha.datos.ficha).map(([etiqueta, valor]) => (
+                    <div key={etiqueta}>
+                      <dt className='text-[11px] font-bold text-textMuted uppercase tracking-[0.04em]'>{etiqueta}</dt>
+                      <dd className='m-0 text-[14px] text-text'>{valor ?? '—'}</dd>
                     </div>
                   ))}
                 </dl>
