@@ -17,6 +17,7 @@ import { notificacionesRouter } from './routes/notificaciones.js'
 import { portalFinanzasRouter } from './routes/portalFinanzas.js'
 import { pushRouter } from './routes/push.js'
 import { reportesRouter } from './routes/reportes.js'
+import { saludRouter } from './routes/salud.js'
 import { reportesFinancierosRouter } from './routes/reportesFinancieros.js'
 import { tarifasRouter } from './routes/tarifas.js'
 import { facturasRouter } from './routes/facturas.js'
@@ -79,6 +80,7 @@ app.use('/api/servicios', serviciosRouter)
 app.use('/api/reportes', reportesFinancierosRouter)
 app.use('/api/reportes', reportesRouter)
 app.use('/api/tarifas', tarifasRouter)
+app.use('/api/salud', saludRouter)
 app.use('/api/facturas', facturasRouter)
 // Después de `portalFinanzasRouter`: la descarga del archivo (familias y admin) se resuelve ahí.
 app.use('/api/comprobantes', comprobantesRouter)

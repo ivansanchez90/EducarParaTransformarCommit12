@@ -5,7 +5,7 @@
  * es `null`. Mientras llegan los datos de la ruta nueva no se muestran los de la anterior.
  */
 import { useEffect, useState } from 'react'
-import { api } from '../../lib/api'
+import { api } from './api'
 
 interface Resultado<T> {
   ruta: string

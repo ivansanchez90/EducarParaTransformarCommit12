@@ -235,6 +235,7 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
                 }
               >
                 <option value='Docente'>Docente</option>
+                <option value='Enfermero'>Enfermería</option>
                 <option value='Directivo'>Directivo</option>
                 <option value='Admin'>Admin</option>
                 <option value='Alumno'>Alumno</option>

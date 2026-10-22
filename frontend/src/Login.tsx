@@ -25,7 +25,7 @@ export default function Login() {
   }, [])
 
   const redirectByRole = (rol: string) => {
-    if (rol === 'Admin' || rol === 'Directivo' || rol === 'Docente') {
+    if (rol === 'Admin' || rol === 'Directivo' || rol === 'Docente' || rol === 'Enfermero') {
       navigate('/admin', { replace: true })
     } else {
       navigate('/portal', { replace: true })

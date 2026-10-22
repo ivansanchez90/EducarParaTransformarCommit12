@@ -44,18 +44,29 @@ Hecha. La pantalla *Docentes* del admin tiene:
   actividades a cargo), en pantalla, PDF y CSV.
 
 ## Desafío — Módulo de Salud y Enfermería
-**Prioridad:** media
+**Prioridad:** media · **Estado:** en curso, en tres PR
 
-Funcionalidad propuesta como desafío, no contemplada en el enunciado original:
+Funcionalidad propuesta como desafío, no contemplada en el enunciado original.
 
-- Ficha médica única por alumno y registro de cada atención de enfermería.
-- Notificación automática a los tutores ante cada atención registrada.
-- Certificado de aptitud física con vencimiento anual, obligatorio para
-  inscribirse a un deporte.
-- Acceso por rol: enfermería y administración ven la ficha completa, las
-  familias solo la de sus hijos, y los docentes una ficha resumida (alergias
-  críticas, aptitud física y contacto de emergencia).
-- Auditoría de cada modificación con usuario, fecha y hora.
+**Hecho (PR 1):**
+
+- Ficha médica única por alumno (grupo sanguíneo, alergias, alergias críticas, medicación, condiciones y
+  observaciones) y registro de cada atención de enfermería (motivo, qué pasó, tratamiento, fecha y hora, y quién
+  la cargó). Las atenciones no se borran: se corrigen.
+- Rol nuevo **Enfermero** (se da de alta desde *Usuarios*, opción *Enfermería*). Entra al panel con una sola
+  sección, *Salud y enfermería*, y no ve nada del resto del sistema.
+- Acceso por rol: enfermería, Admin y Directivo ven y cargan todo; la familia ve solo la ficha y las atenciones de
+  sus hijos, en lectura (en el portal, pestaña *Salud*; el propio alumno no la ve); los docentes ven un resumen
+  (alergias críticas y contacto de emergencia) en el legajo del alumno.
+- Auditoría de cada alta y cada modificación, con usuario, fecha y hora y el antes y el después de cada campo
+  (pestaña *Historial de cambios* de la ficha). Si un guardado no cambia nada, no deja registro.
+
+**Falta:**
+
+- Notificación automática a los tutores ante cada atención registrada (PR 2). La atención ya guarda si se avisó
+  (`familia_avisada`).
+- Certificado de aptitud física con vencimiento anual, obligatorio para inscribirse a un deporte, y su dato en el
+  resumen del docente (PR 3).
 
 ## Mejoras técnicas detectadas
 

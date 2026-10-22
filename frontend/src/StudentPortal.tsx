@@ -16,6 +16,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api, qs } from './lib/api'
 import { CambiarPassword } from './features/cuenta/CambiarPassword'
 import { FinanzasAlumno } from './features/finanzas/FinanzasAlumno'
+import { SaludHijo } from './features/salud/SaludHijo'
 import { useFinanzas } from './features/finanzas/useFinanzas'
 import type { RecorridoTransporte, ServiciosAlumno } from './types'
 import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/auth'
@@ -210,6 +211,7 @@ const NAV_ITEMS = [
   { key: 'horario', icon: '🕐', label: 'Mi Horario' },
   { key: 'actividades', icon: '🎨', label: 'Extracurriculares' },
   { key: 'servicios', icon: '🚌', label: 'Transporte y comedor' },
+  { key: 'salud', icon: '🩺', label: 'Salud' },
   { key: 'notificaciones', icon: '🔔', label: 'Notificaciones' },
 ]
 const NAV_KEYS = new Set(NAV_ITEMS.map((i) => i.key))
@@ -291,6 +293,8 @@ export default function StudentPortal() {
   // Un padre/tutor ve los datos de su hijo/a; un estudiante, los propios.
   // El backend resuelve cuáles alumnos corresponden al usuario logueado.
   const esTutor = esRolTutor(perfil?.rol)
+  // La ficha de salud es de la familia: el propio alumno no ve la pestaña.
+  const navItems = NAV_ITEMS.filter((item) => item.key !== 'salud' || esTutor)
 
   // ── Auth ────────────────────────────────────────────────────
   useEffect(() => {
@@ -653,7 +657,7 @@ export default function StudentPortal() {
           <span className='text-[10px] text-textMuted font-extrabold uppercase tracking-[0.1em] px-6 pb-4 block border-b border-border mb-2'>
             Portal Estudiantil
           </span>
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <button
               type='button'
               key={item.key}
@@ -1301,6 +1305,9 @@ export default function StudentPortal() {
             </div>
           )}
 
+          {/* ━━━━━ SALUD: la ficha y las atenciones del hijo (solo el tutor) ━━━━━ */}
+          {activeNav === 'salud' && esTutor && alumno && <SaludHijo idAlumno={alumno.id_alumno} />}
+
           {activeNav === 'notificaciones' && (
             <div className='bg-white rounded-card p-6 shadow-card border border-border'>
               <div className='flex justify-between items-center gap-2 flex-wrap mb-5'>
@@ -1405,7 +1412,7 @@ export default function StudentPortal() {
 
       {/* ── NAVEGACIÓN INFERIOR (celular): Inicio, Asistencias, Calificaciones, Cuotas y "Más" ── */}
       <BottomNav
-        items={NAV_ITEMS}
+        items={navItems}
         activo={activeNav}
         onSelect={setActiveNav}
         contadores={{ notificaciones: notifNoLeidas, cuotas: finanzas.pendientes.length }}

@@ -107,6 +107,7 @@ export const NAV_ADMIN = [
   { key: 'actividades', icon: '🎨', label: 'Extracurriculares' },
   { key: 'reservas', icon: '🏟️', label: 'Reservas' },
   { key: 'servicios', icon: '🚌', label: 'Transporte y comedor' },
+  { key: 'salud', icon: '🩺', label: 'Salud y enfermería' },
   { key: 'reportes', icon: '📄', label: 'Reportes' },
   { key: 'mensajes', icon: '✉️', label: 'Mensajes' },
   { key: 'noticias', icon: '📰', label: 'Noticias' },
@@ -114,6 +115,9 @@ export const NAV_ADMIN = [
   { key: 'postulaciones', icon: '📩', label: 'Postulaciones' },
   { key: 'galeria', icon: '🖼️', label: 'Galería' },
 ]
+
+/** Enfermería entra al mismo panel que el personal, pero solo ve su sección. */
+export const NAV_ENFERMERIA = [{ key: 'salud', icon: '🩺', label: 'Salud y enfermería' }]
 
 export const NAV_DOCENTE = [
   { key: 'dashboard', icon: '📊', label: 'Dashboard' },

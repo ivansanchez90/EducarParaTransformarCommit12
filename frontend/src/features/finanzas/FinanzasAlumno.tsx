@@ -13,7 +13,7 @@ import { FiltroFechas } from './FiltroFechas'
 import { rangoValido } from './formato'
 import { HistorialPagos } from './HistorialPagos'
 import type { ComprobanteListado, DeudaAlumno as Deuda, FacturaPortal, RangoFechas } from './types'
-import { useConsulta } from './useConsulta'
+import { useConsulta } from '../../lib/useConsulta'
 import type { Finanzas } from './useFinanzas'
 
 type Vista = 'facturas' | 'deuda' | 'comprobantes' | 'pagos'

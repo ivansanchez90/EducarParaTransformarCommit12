@@ -30,6 +30,7 @@ import { UPLOADS_DIR } from '../src/middleware/upload.js'
 import { generarFacturas } from '../src/services/facturacion/generar.js'
 import { crearOrdenPago } from '../src/services/ordenPago.js'
 import { aplicarPago } from '../src/services/saldos.js'
+import { cargarSalud } from './seed-salud.js'
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL!, options: '-c timezone=UTC' }),
@@ -904,6 +905,9 @@ async function main() {
     ),
   })
 
+  // ── Salud y enfermería: usuario de enfermería, fichas médicas y atenciones ──
+  await cargarSalud({ prisma, alumnos, hash, azar, entre, diasAtras })
+
   // ── Resumen ──
   const conteos = {
     usuarios: await prisma.usuario.count(),
@@ -935,6 +939,8 @@ async function main() {
     preinscripciones: await prisma.inscripcion.count(),
     mensajes: await prisma.mensajeContacto.count(),
     notificaciones: await prisma.notificacion.count(),
+    fichasMedicas: await prisma.fichaMedica.count(),
+    atencionesEnfermeria: await prisma.atencionEnfermeria.count(),
   }
 
   if (facturacion.errores > 0) console.warn(`\n${facturacion.errores} facturas no se emitieron (ver arriba).`)
@@ -948,6 +954,7 @@ async function main() {
   const ejemploAlumno = await prisma.usuario.findFirst({ where: { rol: 'Alumno' }, orderBy: { email: 'asc' } })
   console.log('\nAccesos de prueba (contraseña: ' + PASSWORD_DEMO + '):')
   console.log(`  Directivo  directora@educar.local`)
+  console.log(`  Enfermería enfermeria@educar.local`)
   console.log(`  Docente    ${ejemploDocente?.email}`)
   console.log(`  Familia    ${ejemploPadre?.email}`)
   console.log(`  Alumno     ${ejemploAlumno?.email}`)
