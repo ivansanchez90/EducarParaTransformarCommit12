@@ -6,10 +6,12 @@
  * deja una fila en `auditoria_salud` con el usuario, la fecha y qué cambió.
  */
 import type { Prisma } from '../generated/prisma/client.js'
+import { config } from '../lib/config.js'
 import { HttpError, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { ROLES_SALUD, ROLES_STAFF } from '../middleware/auth.js'
 import type { UsuarioAuth } from '../middleware/auth.js'
+import { notificarFamilias } from './notificaciones.js'
 
 export const GRUPOS_SANGUINEOS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', '0+', '0-']
 
@@ -131,3 +133,41 @@ export async function assertVeSaludDe(u: UsuarioAuth, idAlumno: number) {
   const hijo = await prisma.alumno.findFirst({ where: { id_alumno: idAlumno, id_usuario_padre: u.id_usuario }, select: { id_alumno: true } })
   if (!hijo) throw new HttpError(403, 'No tenés acceso a los datos de salud de este alumno')
 }
+
+/** Cuándo fue la atención, en hora de Argentina y sin año: `20 oct, 10:30`. */
+function cuando(fecha: Date): string {
+  return fecha.toLocaleString('es-AR', { timeZone: config.zonaHoraria, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+/**
+ * Avisa a los tutores del alumno que enfermería registró una atención (aviso in-app y push, el canal que ya usan los
+ * demás avisos) y deja marcado en la atención que se avisó.
+ *
+ * El aviso NO lleva el motivo ni el tratamiento: el push aparece en la pantalla de bloqueo del teléfono, y el detalle
+ * de salud de un menor se ve entrando a la sección *Salud*. Si el aviso falla, la atención ya está guardada y no se
+ * deshace: queda en el log y sin marcar. Devuelve si se avisó.
+ */
+export async function avisarAtencion(
+  atencion: { id_atencion: number; id_alumno: number; fecha_hora: Date },
+  alumno: { nombre: string; apellido: string },
+): Promise<boolean> {
+  try {
+    const avisos = await notificarFamilias(
+      [
+        {
+          id_alumno: atencion.id_alumno,
+          titulo: 'Atención en enfermería',
+          mensaje: `Se registró una atención de enfermería de ${alumno.nombre} ${alumno.apellido} (${cuando(atencion.fecha_hora)}). Para ver el detalle, entrá a la sección Salud.`,
+        },
+      ],
+      'Salud',
+    )
+    if (avisos === 0) return false
+    await prisma.atencionEnfermeria.update({ where: { id_atencion: atencion.id_atencion }, data: { familia_avisada: true } })
+    return true
+  } catch (error) {
+    console.error('No se pudo avisar a la familia de la atención de enfermería:', error)
+    return false
+  }
+}
+

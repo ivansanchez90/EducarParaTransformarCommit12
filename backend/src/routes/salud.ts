@@ -18,6 +18,7 @@ import { asincrono, conSesion } from '../middleware/envoltorios.js'
 import { aTexto, estadoAptitud, hoyComoFecha, validarCertificado } from '../services/aptitud.js'
 import {
   assertVeSaludDe,
+  avisarAtencion,
   diferencias,
   registrarAuditoria,
   validarAtencion,
@@ -145,7 +146,7 @@ async function listarAtenciones(req: Request, res: Response) {
 async function registrarAtencion(req: Request, res: Response) {
   const usuario = usuarioDe(req)
   const idAlumno = id(req.params.id)
-  await alumnoDe(idAlumno)
+  const alumno = await alumnoDe(idAlumno)
   const { fecha_hora, ...resto } = validarAtencion(req.body)
 
   const atencion = await prisma.$transaction(async (tx) => {
@@ -162,7 +163,9 @@ async function registrarAtencion(req: Request, res: Response) {
     })
     return creada
   })
-  res.status(201).json(atencion)
+  // La atención ya está guardada: el aviso a la familia va aparte y, si falla, no la deshace.
+  const familiaAvisada = await avisarAtencion(atencion, alumno)
+  res.status(201).json({ ...atencion, familia_avisada: familiaAvisada })
 }
 
 /** Corrige motivo, descripción, tratamiento o fecha de una atención. Sin cambios, no deja auditoría. */

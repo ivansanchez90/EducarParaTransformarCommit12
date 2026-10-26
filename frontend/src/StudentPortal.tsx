@@ -140,6 +140,7 @@ const NOTIF_COLOR: Record<string, string> = {
   Novedad: '#2980B9',
   Urgente: '#C0392B',
   Amonestación: '#D35400',
+  Salud: '#16A085',
 }
 
 /** Círculo con la nota, coloreado según `notaColor`. */
