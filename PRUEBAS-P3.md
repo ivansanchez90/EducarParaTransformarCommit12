@@ -80,6 +80,8 @@ médicas (algunas con alergias críticas) y unas 57 atenciones, todas con su aud
 | Enfermería | Buscar un alumno por nombre, apellido o DNI y abrir su ficha | Buscar, ver las marcas "Con ficha" y "Alergias críticas" y abrir una | |
 | Enfermería | Crear o editar la ficha; un grupo sanguíneo inválido o un texto larguísimo se rechazan | Guardar con cambios, sin cambios y con datos inválidos | |
 | Enfermería | Registrar y corregir una atención; no se puede cargar sin motivo ni con fecha futura | Pestaña *Atenciones* | |
+| Enfermería → Familia | Al registrar una atención, la familia recibe el aviso (en la app y por push) **sin el motivo ni el tratamiento**; en la atención figura "Familia avisada" | Registrar una atención y entrar como la familia: *Notificaciones* y pestaña *Salud*; con el celular bloqueado, mirar el push | |
+| Enfermería | Corregir una atención o guardar la ficha no vuelve a avisar a la familia | Corregir una atención y mirar *Notificaciones* de la familia | |
 | Enfermería | Cada alta y cada cambio quedan en *Historial de cambios*, con quién y qué cambió; guardar sin cambios no deja nada | Editar una ficha y mirar el historial | |
 | Docente | En el legajo del alumno ve solo el resumen (alergias críticas y contacto), nunca la ficha completa | Abrir un legajo con y sin alergias críticas | |
 | Familia | En el portal, pestaña *Salud*: ve la ficha y las atenciones de su hijo, solo para leer | Entrar como familia y mirar *Salud* | |

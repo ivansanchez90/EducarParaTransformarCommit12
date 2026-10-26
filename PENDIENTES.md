@@ -44,7 +44,7 @@ Hecha. La pantalla *Docentes* del admin tiene:
   actividades a cargo), en pantalla, PDF y CSV.
 
 ## Desafío — Módulo de Salud y Enfermería
-**Prioridad:** media · **Estado:** en curso, en tres PR
+**Prioridad:** media · **Estado:** en curso, en tres PR (hechos el 1 y el 2)
 
 Funcionalidad propuesta como desafío, no contemplada en el enunciado original.
 
@@ -61,10 +61,16 @@ Funcionalidad propuesta como desafío, no contemplada en el enunciado original.
 - Auditoría de cada alta y cada modificación, con usuario, fecha y hora y el antes y el después de cada campo
   (pestaña *Historial de cambios* de la ficha). Si un guardado no cambia nada, no deja registro.
 
+**Hecho (PR 2):**
+
+- Aviso automático a los tutores al registrar una atención: notificación en la app y push, con el canal que ya
+  usan los demás avisos (`notificarFamilias`). El aviso dice que hubo una atención y cuándo, **sin el motivo ni el
+  tratamiento** (el push se ve en la pantalla de bloqueo); el detalle se ve en la pestaña *Salud*. La atención
+  guarda si se avisó (`familia_avisada`). Si el aviso falla, la atención queda guardada igual. Corregir una
+  atención o guardar la ficha no vuelve a avisar.
+
 **Falta:**
 
-- Notificación automática a los tutores ante cada atención registrada (PR 2). La atención ya guarda si se avisó
-  (`familia_avisada`).
 - Certificado de aptitud física con vencimiento anual, obligatorio para inscribirse a un deporte, y su dato en el
   resumen del docente (PR 3).
 

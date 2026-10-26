@@ -2,7 +2,11 @@ import request from 'supertest'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ID_USUARIO, iniciarSesionComo, prismaFalso } from './ayudas.js'
 
+const notificar = vi.hoisted(() => vi.fn())
+
 vi.mock('../src/lib/prisma.js', async () => ({ prisma: (await import('./ayudas.js')).prismaFalso }))
+// El aviso a la familia es un servicio aparte: acá se prueba cuándo se pide y qué dice, no cómo se entrega.
+vi.mock('../src/services/notificaciones.js', () => ({ notificarFamilias: notificar }))
 
 const { app } = await import('../src/app.js')
 
@@ -42,9 +46,12 @@ beforeEach(() => {
   prismaFalso.fichaMedica.create.mockImplementation(async ({ data }: { data: object }) => ({ id_ficha: 1, ...data }))
   prismaFalso.fichaMedica.update.mockImplementation(async ({ data }: { data: object }) => ({ ...FICHA, ...data }))
   prismaFalso.atencionEnfermeria.findMany.mockResolvedValue([])
-  prismaFalso.atencionEnfermeria.create.mockImplementation(async ({ data }: { data: object }) => ({ id_atencion: 9, familia_avisada: false, ...data }))
+  // Como la base: sin fecha pedida, la atención nace con la de ahora.
+  prismaFalso.atencionEnfermeria.create.mockImplementation(async ({ data }: { data: object }) => ({ id_atencion: 9, familia_avisada: false, fecha_hora: new Date(), ...data }))
   prismaFalso.auditoriaSalud.create.mockResolvedValue({})
   prismaFalso.auditoriaSalud.findMany.mockResolvedValue([])
+  prismaFalso.atencionEnfermeria.update.mockResolvedValue({})
+  notificar.mockResolvedValue(1)
 })
 
 const como = (rol: string) => iniciarSesionComo(rol)
@@ -388,3 +395,96 @@ describe('búsqueda de alumnos y auditoría', () => {
     expect(res.body[0]).toMatchObject({ usuario: 'Gómez, Ana', rol: 'Enfermero', accion: 'Modificación', cambios: { alergias: { antes: 'Polen', despues: 'Polen y maní' } } })
   })
 })
+
+describe('aviso a la familia al registrar una atención', () => {
+  const registrar = (cuerpo: object = { motivo: 'Dolor de cabeza', descripcion: 'Desde la mañana', tratamiento: 'Reposo' }) =>
+    pedir('post', '/api/salud/alumnos/7/atenciones', como('Enfermero'), cuerpo)
+
+  it('avisa a la familia del alumno una vez, con el tipo Salud', async () => {
+    const res = await registrar()
+    expect(res.status).toBe(201)
+    expect(notificar).toHaveBeenCalledTimes(1)
+    const [items, tipo] = notificar.mock.calls[0]
+    expect(tipo).toBe('Salud')
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({ id_alumno: 7, titulo: 'Atención en enfermería' })
+    expect(items[0].mensaje).toContain('Lucía Acosta')
+  })
+
+  it('el aviso no lleva el motivo, la descripción ni el tratamiento (el push se ve en la pantalla de bloqueo)', async () => {
+    await registrar({ motivo: 'Crisis asmática', descripcion: 'Falta de aire en educación física', tratamiento: 'Salbutamol' })
+    const texto = JSON.stringify(notificar.mock.calls[0])
+    for (const dato of ['asmática', 'Falta de aire', 'Salbutamol']) expect(texto).not.toContain(dato)
+    expect(notificar.mock.calls[0][0][0].mensaje).toContain('sección Salud')
+  })
+
+  it('el aviso dice cuándo fue la atención, en hora de Argentina', async () => {
+    await registrar({ motivo: 'Caída', fecha_hora: '2026-10-20T13:30:00Z' })
+    expect(notificar.mock.calls[0][0][0].mensaje).toMatch(/20 oct.*10:30/)
+  })
+
+  it('si se avisó, marca la atención y responde familia_avisada en true', async () => {
+    const res = await registrar()
+    expect(prismaFalso.atencionEnfermeria.update).toHaveBeenCalledTimes(1)
+    expect(consultaDe(prismaFalso.atencionEnfermeria.update)).toEqual({ where: { id_atencion: 9 }, data: { familia_avisada: true } })
+    expect(res.body.familia_avisada).toBe(true)
+  })
+
+  it('si no hay a quién avisar (0 avisos), la atención queda sin marcar y se guarda igual', async () => {
+    notificar.mockResolvedValue(0)
+    const res = await registrar()
+    expect(res.status).toBe(201)
+    expect(res.body.familia_avisada).toBe(false)
+    expect(prismaFalso.atencionEnfermeria.update).not.toHaveBeenCalled()
+  })
+
+  it('si el aviso falla, la atención y su auditoría quedan guardadas y se responde 201', async () => {
+    const consola = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    notificar.mockRejectedValue(new Error('push caído'))
+    const res = await registrar()
+    expect(res.status).toBe(201)
+    expect(res.body.familia_avisada).toBe(false)
+    expect(prismaFalso.atencionEnfermeria.create).toHaveBeenCalledTimes(1)
+    expect(prismaFalso.auditoriaSalud.create).toHaveBeenCalledTimes(1)
+    expect(prismaFalso.atencionEnfermeria.update).not.toHaveBeenCalled()
+    expect(consola).toHaveBeenCalledTimes(1)
+    consola.mockRestore()
+  })
+
+  it('el aviso se pide recién después de guardar la atención', async () => {
+    const orden: string[] = []
+    prismaFalso.atencionEnfermeria.create.mockImplementation(async ({ data }: { data: object }) => {
+      orden.push('guardar')
+      return { id_atencion: 9, familia_avisada: false, fecha_hora: new Date(), ...data }
+    })
+    notificar.mockImplementation(async () => {
+      orden.push('avisar')
+      return 1
+    })
+    await registrar()
+    expect(orden).toEqual(['guardar', 'avisar'])
+  })
+
+  it.each([
+    ['una atención sin motivo', {}],
+    ['una atención con fecha futura', { motivo: 'x', fecha_hora: '2999-01-01T10:00:00Z' }],
+  ])('%s (400) no avisa a nadie', async (_caso, cuerpo) => {
+    expect((await registrar(cuerpo)).status).toBe(400)
+    expect(notificar).not.toHaveBeenCalled()
+  })
+
+  it('un alumno que no existe (404) no avisa a nadie', async () => {
+    prismaFalso.alumno.findUnique.mockResolvedValue(null)
+    expect((await registrar()).status).toBe(404)
+    expect(notificar).not.toHaveBeenCalled()
+  })
+
+  it('solo el alta avisa: corregir una atención y guardar la ficha no mandan nada', async () => {
+    prismaFalso.atencionEnfermeria.findUnique.mockResolvedValue({ id_atencion: 9, id_alumno: 7, fecha_hora: new Date('2026-10-20T10:30:00Z'), motivo: 'Caída', descripcion: null, tratamiento: null })
+    prismaFalso.atencionEnfermeria.update.mockResolvedValue({})
+    await pedir('put', '/api/salud/atenciones/9', como('Enfermero'), { motivo: 'Caída', tratamiento: 'Hielo' })
+    await pedir('put', '/api/salud/alumnos/7/ficha', como('Enfermero'), { alergias: 'Nueces' })
+    expect(notificar).not.toHaveBeenCalled()
+  })
+})
+
