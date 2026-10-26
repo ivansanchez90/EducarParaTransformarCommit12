@@ -1,9 +1,10 @@
 /**
  * Parte de salud y enfermería del seed de demostración: un usuario de enfermería, fichas médicas para la
- * mayoría de los alumnos (con algunas alergias críticas) y atenciones de los últimos días, cada una con su
- * auditoría de alta, como la que dejan las pantallas.
+ * mayoría de los alumnos (con algunas alergias críticas), certificados de aptitud física (vigentes, por vencer y
+ * vencidos) y atenciones de los últimos días, cada uno con su auditoría de alta, como la que dejan las pantallas.
  */
 import type { PrismaClient } from '../src/generated/prisma/client.js'
+import { aTexto, vencimientoDe } from '../src/services/aptitud.js'
 
 interface Contexto {
   prisma: PrismaClient
@@ -31,7 +32,7 @@ const MOTIVOS: [string, string | null][] = [
   ['Dolor de muelas', null],
 ]
 
-export async function cargarSalud({ prisma, alumnos, hash, azar, entre, diasAtras }: Contexto): Promise<{ fichas: number; atenciones: number }> {
+export async function cargarSalud({ prisma, alumnos, hash, azar, entre, diasAtras }: Contexto): Promise<{ fichas: number; atenciones: number; certificados: number }> {
   const elegir = <T>(items: readonly T[]): T => items[entre(0, items.length - 1)]
   const quizas = (probabilidad: number) => azar() < probabilidad
 
@@ -59,6 +60,38 @@ export async function cargarSalud({ prisma, alumnos, hash, azar, entre, diasAtra
     })
   }
 
+  // ── Certificados de aptitud física: casi todos vigentes, algunos por vencer y algunos vencidos o sin cargar ──
+  // Así se puede probar el bloqueo de la inscripción a deportes y la lista de pendientes de enfermería.
+  const emisionHaceDias = (dias: number) => new Date(`${diasAtras(dias).toISOString().slice(0, 10)}T00:00:00Z`)
+  let certificados = 0
+  for (const alumno of alumnos) {
+    const suerte = azar()
+    // vigente 72 %, por vencer 8 %, vencido 10 %, sin certificado 10 %
+    const emisiones =
+      suerte < 0.72 ? [entre(5, 300)] : suerte < 0.8 ? [entre(340, 360)] : suerte < 0.9 ? [entre(380, 700)] : []
+    // Algunos vigentes tienen además el del año anterior: el historial de un alumno que renueva todos los años.
+    if (suerte < 0.2) emisiones.push(entre(400, 700))
+    for (const dias of emisiones) {
+      const emision = emisionHaceDias(dias)
+      const vencimiento = vencimientoDe(emision)
+      const certificado = await prisma.certificadoAptitud.create({
+        data: { id_alumno: alumno.id_alumno, fecha_emision: emision, fecha_vencimiento: vencimiento, observaciones: quizas(0.2) ? 'Apto para la práctica deportiva' : null, id_usuario_registra: enfermero.id_usuario },
+      })
+      await prisma.auditoriaSalud.create({
+        data: {
+          id_alumno: alumno.id_alumno,
+          entidad: 'Certificado de aptitud',
+          id_registro: certificado.id_certificado,
+          accion: 'Alta',
+          cambios: { fecha_emision: { antes: null, despues: aTexto(emision) }, fecha_vencimiento: { antes: null, despues: aTexto(vencimiento) } },
+          id_usuario: enfermero.id_usuario,
+          fecha_hora: emision,
+        },
+      })
+      certificados += 1
+    }
+  }
+
   // ── Atenciones de los últimos 30 días ──
   let atenciones = 0
   for (const alumno of alumnos.filter(() => quizas(0.3))) {
@@ -74,5 +107,5 @@ export async function cargarSalud({ prisma, alumnos, hash, azar, entre, diasAtra
       atenciones += 1
     }
   }
-  return { fichas: conFicha.length, atenciones }
+  return { fichas: conFicha.length, atenciones, certificados }
 }

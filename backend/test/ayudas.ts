@@ -12,6 +12,7 @@ export const prismaFalso = {
   fichaMedica: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   atencionEnfermeria: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   auditoriaSalud: { create: vi.fn(), findMany: vi.fn() },
+  certificadoAptitud: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   factura: { findMany: vi.fn(), findUnique: vi.fn() },
   itemFactura: { findMany: vi.fn() },
   ordenPago: { create: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },

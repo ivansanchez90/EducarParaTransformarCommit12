@@ -81,6 +81,11 @@ médicas (algunas con alergias críticas) y unas 57 atenciones, todas con su aud
 | Enfermería | Crear o editar la ficha; un grupo sanguíneo inválido o un texto larguísimo se rechazan | Guardar con cambios, sin cambios y con datos inválidos | |
 | Enfermería | Registrar y corregir una atención; no se puede cargar sin motivo ni con fecha futura | Pestaña *Atenciones* | |
 | Enfermería | Cada alta y cada cambio quedan en *Historial de cambios*, con quién y qué cambió; guardar sin cambios no deja nada | Editar una ficha y mirar el historial | |
+| Enfermería | Cargar el certificado de aptitud (vence al año); uno ya vencido, con fecha futura o repetido el mismo día se rechazan | Pestaña *Aptitud física*: cargar uno válido y probar los tres casos | |
+| Enfermería | *Certificados pendientes* lista a los alumnos ya inscriptos a un deporte sin certificado vigente | Abrir la lista (con el seed hay unos 4), cargarle el certificado a uno y ver que desaparece | |
+| Admin / Familia | Inscribir a un deporte a un alumno sin certificado vigente devuelve el mensaje que dice qué hacer; un idioma no lo pide | Intentar la inscripción desde *Extracurriculares* con un alumno sin certificado y con uno vigente | |
+| Docente | En el legajo ve la aptitud física del alumno (vigente, por vencer, vencido o sin certificado) | Abrir legajos de alumnos con distintos estados | |
+| Familia | En *Salud* ve el estado de la aptitud de su hijo y qué hacer si falta | Entrar como la familia de un alumno con y sin certificado | |
 | Docente | En el legajo del alumno ve solo el resumen (alergias críticas y contacto), nunca la ficha completa | Abrir un legajo con y sin alergias críticas | |
 | Familia | En el portal, pestaña *Salud*: ve la ficha y las atenciones de su hijo, solo para leer | Entrar como familia y mirar *Salud* | |
 | Familia | No ve la ficha de otro alumno | Con la sesión de otra familia, pedir la ficha de un alumno ajeno: error | |

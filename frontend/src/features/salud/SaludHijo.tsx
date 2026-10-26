@@ -2,8 +2,9 @@
 import { useConsulta } from '../../lib/useConsulta'
 import { msgError } from '../../ui/styles'
 import { TarjetaAtencion } from './AtencionesSalud'
+import { BadgeAptitud } from './BadgeAptitud'
 import { fechaHora } from './formato'
-import type { Atencion, FichaDelAlumno, FichaMedica } from './types'
+import type { AptitudDelAlumno, Atencion, FichaDelAlumno, FichaMedica } from './types'
 
 /** Lo que se muestra de la ficha, en este orden. */
 const filasDeLaFicha = (f: FichaMedica): [string, string | null][] => [
@@ -18,13 +19,14 @@ const filasDeLaFicha = (f: FichaMedica): [string, string | null][] => [
 export function SaludHijo({ idAlumno }: { idAlumno: number }) {
   const ficha = useConsulta<FichaDelAlumno>(`/salud/alumnos/${idAlumno}/ficha`)
   const atenciones = useConsulta<Atencion[]>(`/salud/alumnos/${idAlumno}/atenciones`)
-  const error = ficha.error || atenciones.error
+  const aptitud = useConsulta<AptitudDelAlumno>(`/salud/alumnos/${idAlumno}/aptitud`)
+  const error = ficha.error || atenciones.error || aptitud.error
 
   return (
     <div className='bg-white rounded-card p-6 shadow-card border border-border'>
       <div className='text-[15px] font-extrabold text-text mb-4 flex items-center gap-2'>🩺 Salud</div>
       {error && <div className={`${msgError} mb-4`}>⚠️ {error}</div>}
-      {ficha.cargando || atenciones.cargando ? (
+      {ficha.cargando || atenciones.cargando || aptitud.cargando ? (
         <p className='text-[13px] text-textMuted m-0'>Cargando…</p>
       ) : (
         <div className='flex flex-col gap-6'>
@@ -44,6 +46,22 @@ export function SaludHijo({ idAlumno }: { idAlumno: number }) {
               </>
             ) : (
               <p className='text-[13px] text-textMuted m-0'>Todavía no hay una ficha médica cargada. Enfermería la completa con tus datos.</p>
+            )}
+          </section>
+
+          <section>
+            <div className='text-xs font-black text-purple-700 uppercase tracking-[0.08em] mb-3'>Aptitud física</div>
+            {aptitud.datos && (
+              <div className='flex flex-col gap-2'>
+                <div>
+                  <BadgeAptitud aptitud={aptitud.datos.aptitud} />
+                </div>
+                <p className='text-[13px] text-textMuted m-0'>
+                  {aptitud.datos.aptitud.estado === 'Vigente'
+                    ? 'Puede inscribirse a deportes. Cuando falte poco para que venza, te avisamos desde acá: pedí uno nuevo en tu consultorio y presentalo en enfermería.'
+                    : 'Para inscribirse a un deporte hace falta el certificado de aptitud física vigente. Presentalo en enfermería.'}
+                </p>
+              </div>
             )}
           </section>
 
