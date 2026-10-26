@@ -44,7 +44,7 @@ Hecha. La pantalla *Docentes* del admin tiene:
   actividades a cargo), en pantalla, PDF y CSV.
 
 ## Desafío — Módulo de Salud y Enfermería
-**Prioridad:** media · **Estado:** en curso, en tres PR
+**Prioridad:** media · **Estado:** hechos los tres PR (ficha y atenciones, aviso a los tutores y certificado de aptitud)
 
 Funcionalidad propuesta como desafío, no contemplada en el enunciado original.
 
@@ -61,12 +61,25 @@ Funcionalidad propuesta como desafío, no contemplada en el enunciado original.
 - Auditoría de cada alta y cada modificación, con usuario, fecha y hora y el antes y el después de cada campo
   (pestaña *Historial de cambios* de la ficha). Si un guardado no cambia nada, no deja registro.
 
+**Hecho (PR 3):**
+
+- Certificado de aptitud física con vencimiento anual: enfermería lo carga con la fecha de emisión (pestaña *Aptitud
+  física* de la ficha) y vence al año, el mismo día (el 29/2 pasa al 28/2). Un alumno puede tener varios, uno por año:
+  rige el que vence más tarde. No se borran, se corrigen, y cada alta y cada corrección quedan en el historial.
+- **Para inscribirse a un deporte hace falta el certificado vigente**: sin él, la inscripción devuelve 409 con el
+  código `APTITUD_FISICA` y un mensaje que dice si no tiene ninguno o cuándo venció el último. Vale para todos los
+  roles (igual que el tope de dos deportes) y se controla antes que el tope y los horarios. Los idiomas no lo piden.
+- Los alumnos que ya estaban inscriptos **siguen inscriptos**: aparecen en *Certificados pendientes* (en *Salud y
+  enfermería*) con su estado (sin certificado o vencido) y sus deportes, para que enfermería los regularice.
+- El estado de la aptitud se ve en la ficha de enfermería (con aviso cuando faltan 30 días o menos), en la pestaña
+  *Salud* de la familia y en el resumen del docente, junto con las alergias críticas y el contacto de emergencia.
+- No se adjunta el archivo del certificado: se registra la fecha de emisión y las observaciones.
+
 **Falta:**
 
-- Notificación automática a los tutores ante cada atención registrada (PR 2). La atención ya guarda si se avisó
-  (`familia_avisada`).
-- Certificado de aptitud física con vencimiento anual, obligatorio para inscribirse a un deporte, y su dato en el
-  resumen del docente (PR 3).
+- Notificación automática a los tutores ante cada atención registrada (PR 2, en revisión).
+- Adjuntar el archivo (foto o PDF) del certificado, con descarga con sesión como los comprobantes.
+- Avisar a la familia cuando el certificado está por vencer.
 
 ## Mejoras técnicas detectadas
 

@@ -85,6 +85,7 @@ export interface RegistroAuditoria {
 export interface ResumenDeSalud {
   id_alumno: number
   alergias_criticas: string | null
+  aptitud_fisica: Pick<Aptitud, 'estado' | 'vigente_hasta'>
   nombre_contacto_emergencia: string | null
   telefono_emergencia: string | null
   ficha_cargada: boolean
@@ -104,4 +105,47 @@ export const ETIQUETAS_FICHA = new Map([
   ['descripcion', 'Descripción'],
   ['tratamiento', 'Tratamiento'],
   ['fecha_hora', 'Fecha y hora'],
+  ['fecha_emision', 'Fecha de emisión'],
+  ['fecha_vencimiento', 'Fecha de vencimiento'],
 ])
+
+// ── Certificado de aptitud física ──
+
+export type EstadoAptitud = 'Vigente' | 'Vencido' | 'Faltante'
+
+export interface Aptitud {
+  estado: EstadoAptitud
+  /** Hasta cuándo sirve el último certificado (`AAAA-MM-DD`); vacío si no hay ninguno. */
+  vigente_hasta: string | null
+  dias_restantes: number | null
+  /** Vigente, pero le quedan 30 días o menos. */
+  por_vencer: boolean
+}
+
+export interface CertificadoDeAptitud {
+  id_certificado: number
+  fecha_emision: string
+  fecha_vencimiento: string
+  observaciones: string | null
+  registrado_por: string | null
+}
+
+export interface AptitudDelAlumno {
+  aptitud: Aptitud
+  certificados: CertificadoDeAptitud[]
+}
+
+export interface DatosCertificado {
+  fecha_emision: string
+  observaciones: string
+}
+
+/** Un alumno inscripto a un deporte que no tiene el certificado vigente. */
+export interface AlumnoPendiente extends Pick<Aptitud, 'estado' | 'vigente_hasta'> {
+  id_alumno: number
+  nombre: string
+  apellido: string
+  dni: string
+  cursos: CursoResumen | null
+  deportes: string[]
+}

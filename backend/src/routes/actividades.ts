@@ -9,6 +9,7 @@ import { prisma } from '../lib/prisma.js'
 import { cursoResumen, nombreApellido } from '../lib/selects.js'
 import { ROLES_ADMIN, assertAccesoAlumno, esStaff, requireAuth, requireRole } from '../middleware/auth.js'
 import { buscarChoque, hhmm, textoFranja, type Franja } from '../services/choqueHorarios.js'
+import { assertAptitudVigente } from '../services/aptitud.js'
 import { preciosVigentes } from '../services/precios.js'
 import { abrirVigencia, cerrarVigencia } from '../services/vigencias.js'
 
@@ -291,6 +292,8 @@ actividadesRouter.post('/:id/inscripciones', async (req, res) => {
     }
 
     if (actividad.tipo === TIPO_DEPORTE) {
+      // Primero lo que se necesita para anotarse (el certificado) y después los límites (tope y horarios).
+      await assertAptitudVigente(tx, idAlumno)
       await assertTopeDeportes(tx, idAlumno)
       await assertSinChoqueHorario(tx, idAlumno, actividad)
     }

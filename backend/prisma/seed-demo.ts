@@ -941,6 +941,7 @@ async function main() {
     notificaciones: await prisma.notificacion.count(),
     fichasMedicas: await prisma.fichaMedica.count(),
     atencionesEnfermeria: await prisma.atencionEnfermeria.count(),
+    certificadosAptitud: await prisma.certificadoAptitud.count(),
   }
 
   if (facturacion.errores > 0) console.warn(`\n${facturacion.errores} facturas no se emitieron (ver arriba).`)
