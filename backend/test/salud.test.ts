@@ -52,6 +52,7 @@ beforeEach(() => {
   prismaFalso.auditoriaSalud.findMany.mockResolvedValue([])
   prismaFalso.atencionEnfermeria.update.mockResolvedValue({})
   notificar.mockResolvedValue(1)
+  prismaFalso.certificadoAptitud.findMany.mockResolvedValue([])
 })
 
 const como = (rol: string) => iniciarSesionComo(rol)
@@ -160,11 +161,12 @@ describe('resumen para docentes', () => {
     expect((await pedir('get', '/api/salud/alumnos/7/resumen', como(rol))).status).toBe(200)
   })
 
-  it('el resumen trae solo las alergias críticas y el contacto de emergencia, nada más', async () => {
+  it('el resumen trae solo las alergias críticas, la aptitud física y el contacto de emergencia, nada más', async () => {
     const res = await pedir('get', '/api/salud/alumnos/7/resumen', como('Docente'))
     expect(res.body).toEqual({
       id_alumno: 7,
       alergias_criticas: 'Maní',
+      aptitud_fisica: { estado: 'Faltante', vigente_hasta: null },
       nombre_contacto_emergencia: 'Marta Acosta',
       telefono_emergencia: '3794-111222',
       ficha_cargada: true,

@@ -47,6 +47,7 @@ const tx = {
   actividadExtracurricular: { findUnique: vi.fn() },
   inscripcionActividad: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
   vigenciaServicio: { findFirst: vi.fn(), create: vi.fn() },
+  certificadoAptitud: { findFirst: vi.fn() },
 }
 
 const FUTBOL = {
@@ -71,6 +72,8 @@ describe('POST /api/actividades/:id/inscripciones', () => {
     tx.inscripcionActividad.findUnique.mockResolvedValue(null)
     tx.inscripcionActividad.create.mockResolvedValue({ id_inscripcion_act: 9, id_actividad: 6, id_alumno: 4 })
     tx.vigenciaServicio.findFirst.mockResolvedValue(null)
+    // Para anotarse a un deporte hace falta el certificado de aptitud física vigente (ver aptitud.test.ts).
+    tx.certificadoAptitud.findFirst.mockResolvedValue({ fecha_vencimiento: new Date('2999-01-01') })
   })
 
   const inscribir = (token: string) => request(app).post('/api/actividades/6/inscripciones').set('Authorization', token).send({ id_alumno: 4 })

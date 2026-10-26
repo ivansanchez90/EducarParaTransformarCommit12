@@ -104,7 +104,7 @@ export function diferencias(antes: Record<string, unknown>, despues: Record<stri
 /** Deja asentado un alta o una modificación, dentro de la misma transacción que la produjo. */
 export async function registrarAuditoria(
   tx: Pick<Prisma.TransactionClient, 'auditoriaSalud'>,
-  datos: { idAlumno: number; entidad: 'Ficha médica' | 'Atención'; idRegistro: number; accion: 'Alta' | 'Modificación'; cambios: Cambios; idUsuario: string },
+  datos: { idAlumno: number; entidad: 'Ficha médica' | 'Atención' | 'Certificado de aptitud'; idRegistro: number; accion: 'Alta' | 'Modificación'; cambios: Cambios; idUsuario: string },
 ) {
   await tx.auditoriaSalud.create({
     data: {

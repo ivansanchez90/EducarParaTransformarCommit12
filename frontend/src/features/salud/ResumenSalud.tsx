@@ -1,5 +1,6 @@
 /** ResumenSalud — para docentes (y administración): alergias críticas y contacto de emergencia del alumno. */
 import { useConsulta } from '../../lib/useConsulta'
+import { BadgeAptitud } from './BadgeAptitud'
 import type { ResumenDeSalud } from './types'
 
 export function ResumenSalud({ idAlumno }: { idAlumno: number }) {
@@ -14,6 +15,9 @@ export function ResumenSalud({ idAlumno }: { idAlumno: number }) {
       <div className='text-[13px]'>
         <strong>Alergias críticas:</strong>{' '}
         {hayAlergias ? <span className='font-bold text-red'>{datos.alergias_criticas}</span> : datos.ficha_cargada ? 'Ninguna registrada' : 'Sin ficha médica cargada'}
+      </div>
+      <div className='text-[13px] mt-1 flex items-center gap-2 flex-wrap'>
+        <strong>Aptitud física:</strong> <BadgeAptitud aptitud={datos.aptitud_fisica} />
       </div>
       <div className='text-[13px] mt-1'>
         <strong>Contacto de emergencia:</strong> {datos.nombre_contacto_emergencia ?? '—'} {datos.telefono_emergencia ? `· ${datos.telefono_emergencia}` : ''}

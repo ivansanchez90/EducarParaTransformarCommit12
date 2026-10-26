@@ -51,6 +51,7 @@ model Usuario {
   tokens_recuperacion    TokenRecuperacion[]
   atenciones_registradas AtencionEnfermeria[]
   auditoria_salud        AuditoriaSalud[]
+  certificados_cargados  CertificadoAptitud[]
 
   @@map("usuarios")
 }
@@ -194,6 +195,7 @@ model Alumno {
   ficha_medica              FichaMedica?
   atenciones_enfermeria     AtencionEnfermeria[]
   auditoria_salud           AuditoriaSalud[]
+  certificados_aptitud      CertificadoAptitud[]
 
   @@index([id_curso])
   @@index([id_usuario])
@@ -795,6 +797,25 @@ model AtencionEnfermeria {
 
   @@index([id_alumno, fecha_hora])
   @@map("atenciones_enfermeria")
+}
+
+/// Certificado de aptitud física de un alumno. Vence al año de su emisión y hace falta vigente para inscribirse a
+/// un deporte. Un alumno puede tener varios (uno por año): rige el que vence más tarde. No se borran, se corrigen.
+model CertificadoAptitud {
+  id_certificado      Int      @id @default(autoincrement())
+  id_alumno           Int
+  fecha_emision       DateTime @db.Date
+  /// Un año después de la emisión; el último día en que sirve
+  fecha_vencimiento   DateTime @db.Date
+  observaciones       String?
+  id_usuario_registra String?  @db.Uuid
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  alumnos  Alumno   @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  registra Usuario? @relation(fields: [id_usuario_registra], references: [id_usuario], onDelete: SetNull)
+
+  @@index([id_alumno, fecha_vencimiento])
+  @@map("certificados_aptitud")
 }
 
 /// Quién cambió qué en la ficha o en una atención, y cuándo. `cambios` guarda `{ campo: { antes, despues } }`.

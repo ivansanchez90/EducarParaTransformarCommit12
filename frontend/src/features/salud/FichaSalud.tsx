@@ -1,17 +1,19 @@
 /** FichaSalud — ficha de un alumno para enfermería y administración: ficha médica, atenciones y cambios. */
 import { useState } from 'react'
 import { btnSecondarySm, msgError } from '../../ui/styles'
+import { AptitudFisica } from './AptitudFisica'
 import { AtencionesSalud } from './AtencionesSalud'
 import { FormularioFicha } from './FormularioFicha'
 import { HistorialCambios } from './HistorialCambios'
 import { fechaCorta, nombreCurso } from './formato'
 import { useSalud } from './useSalud'
 
-type Pestana = 'ficha' | 'atenciones' | 'cambios'
+type Pestana = 'ficha' | 'atenciones' | 'aptitud' | 'cambios'
 
 const PESTANAS: { clave: Pestana; texto: string }[] = [
   { clave: 'ficha', texto: 'Ficha médica' },
   { clave: 'atenciones', texto: 'Atenciones' },
+  { clave: 'aptitud', texto: 'Aptitud física' },
   { clave: 'cambios', texto: 'Historial de cambios' },
 ]
 
@@ -69,6 +71,8 @@ export function FichaSalud({ idAlumno, onVolver }: { idAlumno: number; onVolver:
         <FormularioFicha key={ficha.ficha?.updated_at ?? 'nueva'} ficha={ficha.ficha} guardando={guardando} error={error} onGuardar={salud.guardarFicha} />
       ) : pestana === 'atenciones' ? (
         <AtencionesSalud atenciones={atenciones} guardando={guardando} error={error} onRegistrar={salud.registrarAtencion} onCorregir={salud.corregirAtencion} />
+      ) : pestana === 'aptitud' ? (
+        <AptitudFisica idAlumno={idAlumno} />
       ) : pestana === 'cambios' ? (
         <HistorialCambios idAlumno={idAlumno} version={version} />
       ) : null}
