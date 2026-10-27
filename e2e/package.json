@@ -1,0 +1,16 @@
+{
+  "name": "educar-para-transformar-e2e",
+  "private": true,
+  "description": "Pruebas end-to-end con Cypress. Carpeta aparte para que el binario de Cypress no se baje en el install del frontend ni en el build de Docker.",
+  "scripts": {
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "cy:run:hu2": "cypress run --spec cypress/e2e/hu2-tope-deportes.cy.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "cypress": "^16.2.0",
+    "typescript": "^7.0.2"
+  }
+}

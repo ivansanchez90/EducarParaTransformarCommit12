@@ -1,0 +1,9 @@
+{
+  "eslint.validate": ["typescript", "typescriptreact"],
+  "eslint.workingDirectories": [{ "directory": "./backend" }, { "directory": "./frontend" }],
+  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" },
+  "editor.formatOnSave": false,
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true
+}

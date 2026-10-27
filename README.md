@@ -99,6 +99,26 @@ dominio.
 
 Para generar el build de producción: `npm run build`.
 
+## Calidad de código (hooks, lint, cobertura y E2E)
+
+Herramientas de la Unidad 5. Los hooks y el lint corren en tu máquina antes de que el código llegue al PR.
+
+```bash
+# Una sola vez, en la raíz del repo: instala Husky y lint-staged y activa el hook de pre-commit
+npm install
+```
+
+| Qué | Cómo |
+|---|---|
+| Pre-commit | `.husky/pre-commit` corre `lint-staged` (ESLint sobre los archivos en staging, backend y frontend) y `git diff --cached --check` (espacios sobrantes y marcas de conflicto). Si algo falla, el commit no se crea |
+| Lint | `cd backend && npm run lint` · `cd frontend && pnpm run lint` |
+| Pruebas con cobertura | `cd backend && npm run test:coverage` (reporte en `backend/coverage/`) |
+| E2E (Cypress) | Con backend y frontend levantados y `npm run seed:demo` cargado: `cd e2e && npm install && npm run cy:run`. **Borra y reinscribe alumnos: solo contra una base local** |
+| Análisis estático | SonarCloud, configurado en `sonar-project.properties` y en el job `sonarcloud` de `.github/workflows/ci.yml` |
+
+El hook del frontend baja a *warning* tres reglas nuevas de `react-hooks` que concentran los errores de lint que ya
+tenía `main`; el resto de las reglas sigue bloqueando. Ver `lint-staged.config.mjs`.
+
 ## Despliegue (Coolify)
 
 La app se despliega como **un solo contenedor** con el `Dockerfile` de la raíz:

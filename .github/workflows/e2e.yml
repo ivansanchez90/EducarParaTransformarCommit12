@@ -1,0 +1,100 @@
+name: E2E (Cypress)
+
+on:
+  pull_request:
+    branches: [main]
+    # Solo cuando cambia algo que puede romper la inscripción a deportes (HU2) o el propio E2E.
+    paths:
+      - 'backend/src/routes/actividades.ts'
+      - 'backend/src/services/choqueHorarios.ts'
+      - 'backend/src/services/aptitud.ts'
+      - 'backend/prisma/schema.prisma'
+      - 'frontend/src/features/actividades/**'
+      - 'frontend/src/Login.tsx'
+      - 'e2e/**'
+      - '.github/workflows/e2e.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: E2E HU2 (Cypress)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: educar
+          POSTGRES_PASSWORD: educar
+          POSTGRES_DB: educar_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U educar -d educar_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://educar:educar@localhost:5432/educar_db
+      JWT_SECRET: e2e-solo-para-ci
+      SEED_ADMIN_EMAIL: admin@educar.local
+      SEED_ADMIN_PASSWORD: admin1234
+      PORT: '4000'
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable && corepack prepare pnpm@10.29.3 --activate
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Backend - dependencias, migraciones y datos de demo
+        working-directory: backend
+        run: |
+          npm ci
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run seed:demo
+
+      - name: Levantar el backend
+        working-directory: backend
+        run: nohup npx tsx src/index.ts > ../backend.log 2>&1 &
+
+      - name: Levantar el frontend
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          nohup pnpm exec vite --host 127.0.0.1 --port 5173 > ../frontend.log 2>&1 &
+
+      - name: Esperar a que respondan
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4000/api/health && curl -sf http://127.0.0.1:5173 > /dev/null && exit 0
+            sleep 2
+          done
+          echo "Los servidores no levantaron"; cat backend.log frontend.log; exit 1
+
+      - name: Cypress
+        working-directory: e2e
+        env:
+          CYPRESS_BASE_URL: http://127.0.0.1:5173
+        run: |
+          npm ci
+          npx cypress run
+
+      - name: Capturas de los fallos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-capturas-${{ github.run_number }}
+          path: |
+            e2e/cypress/screenshots
+            backend.log
+          if-no-files-found: ignore
+          retention-days: 7
