@@ -116,6 +116,22 @@ npm install
 | E2E (Cypress) | Con backend y frontend levantados y `npm run seed:demo` cargado: `cd e2e && npm install && npm run cy:run`. **Borra y reinscribe alumnos: solo contra una base local** |
 | Análisis estático | SonarCloud, configurado en `sonar-project.properties` y en el job `sonarcloud` de `.github/workflows/ci.yml` |
 
+### ESLint dentro de VS Code
+
+El editor marca los errores de ESLint mientras se escribe, sin esperar al commit. Está configurado en la carpeta
+`.vscode/` (se versiona, así que alcanza con abrir el repo):
+
+- `.vscode/extensions.json` recomienda la extensión **ESLint** (`dbaeumer.vscode-eslint`); VS Code la ofrece al abrir el
+  proyecto.
+- `.vscode/settings.json` hace que ESLint analice los archivos `.ts` y `.tsx`, que use la configuración de cada carpeta
+  (`backend/` y `frontend/`, cada una con su `eslint.config.js`) y que corrija solo lo que se puede arreglar
+  automáticamente al guardar (`source.fixAll.eslint`).
+
+Hace falta tener instaladas las dependencias de cada carpeta (`npm install` en `backend/` y `pnpm install` en
+`frontend/`); sin eso la extensión no encuentra los plugins de la configuración.
+
+![ESLint marcando errores dentro de VS Code: archivo con las líneas subrayadas y el panel de Problemas con el origen `eslint`](docs/calidad/eslint-vscode.png)
+
 El hook del frontend baja a *warning* tres reglas nuevas de `react-hooks` que concentran los errores de lint que ya
 tenía `main`; el resto de las reglas sigue bloqueando. Ver `lint-staged.config.mjs`.
 
