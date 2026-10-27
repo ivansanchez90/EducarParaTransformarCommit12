@@ -35,7 +35,24 @@ jobs:
       - run: npx prisma generate
       - run: npm run typecheck
       - run: npm run build
-      - run: npm test
+      - run: npm run lint
+      # Pruebas + cobertura (reporte `lcov` para SonarCloud y `html` para bajarlo como artefacto).
+      - run: npm run test:coverage
+      # El lcov que genera Vitest usa rutas relativas a backend/; SonarCloud las necesita desde la raíz del repo.
+      - run: sed -i 's#^SF:#SF:backend/#' coverage/lcov.info
+      - name: Publicar pruebas y cobertura como artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-pruebas-y-cobertura-${{ github.run_number }}
+          # Al re-ejecutar todos los jobs el nombre se repite: se reemplaza el del intento anterior.
+          overwrite: true
+          # La ruta es relativa a la raíz del repo, no al working-directory del job.
+          path: |
+            backend/coverage
+            backend/test-results
+          retention-days: 14
+          if-no-files-found: warn
 
   frontend:
     name: Frontend (typecheck, build y lint)
@@ -60,3 +77,27 @@ jobs:
       # ahora no frena el PR. Cuando se limpien, se saca `continue-on-error`.
       - run: pnpm run lint
         continue-on-error: true
+
+  sonarcloud:
+    name: Análisis SonarCloud
+    needs: backend
+    runs-on: ubuntu-latest
+    # Sin el secreto (todavía no se dio de alta, o PR de Dependabot o de un fork) el análisis se saltea
+    # en lugar de dejar el check en rojo.
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # SonarCloud necesita el historial completo para detectar código nuevo
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-pruebas-y-cobertura-${{ github.run_number }}
+          path: backend
+      - name: SonarCloud scan
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@v7
+        with:
+          # Falla el job si el Quality Gate no pasa (así el check del PR queda en rojo).
+          args: >
+            -Dsonar.qualitygate.wait=true

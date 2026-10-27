@@ -4,3 +4,5 @@ dist
 uploads/*
 !uploads/.gitkeep
 src/generated
+coverage
+test-results

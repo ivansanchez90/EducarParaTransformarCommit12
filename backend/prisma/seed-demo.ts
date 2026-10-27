@@ -553,10 +553,6 @@ async function main() {
       fecha_otorgamiento: fecha(ANIO, 3, entre(1, 28)),
     })),
   })
-  const becasActivas = new Map(
-    (await prisma.beca.findMany({ where: { activo: true } })).map((b) => [b.id_alumno, b.porcentaje.toNumber()]),
-  )
-
   // ── Sueldos y compras ──
   const personal = [directivo, ...(await prisma.usuario.findMany({ where: { rol: 'Docente' } }))]
   const sueldos = personal.flatMap((u) =>

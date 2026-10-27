@@ -1,0 +1,12 @@
+{
+  "name": "educar-para-transformar-tooling",
+  "private": true,
+  "description": "Herramientas de calidad de la raíz del repo (Husky, lint-staged, Prettier). La app vive en backend/ y frontend/.",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0"
+  }
+}

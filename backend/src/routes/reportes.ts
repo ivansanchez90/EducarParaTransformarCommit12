@@ -8,7 +8,6 @@
 import { Router } from 'express'
 import { HttpError, hora, id, numOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
-import type { Documento } from '../lib/documentos.js'
 import { responderDocumento as responder } from '../lib/documentos.js'
 import { ROLES_ADMIN, requireAuth, requireRole } from '../middleware/auth.js'
 import { DIAS_SEMANA, franjaTexto, horariosTexto } from '../services/reportesCobranza.js'
