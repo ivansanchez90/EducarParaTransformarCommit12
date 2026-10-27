@@ -11,8 +11,14 @@ describe('HU2 – Tope de 2 deportes por alumno', () => {
   let headers: { Authorization: string }
   let alumno: Alumno
   let deportes: Actividad[] // [A, B, C]: A y B no se superponen en horario (lo garantiza el seed)
+  let todosLosDeportes: Actividad[] // también los desactivados: siguen contando para el tope
 
-  const hoy = () => new Date().toISOString().slice(0, 10)
+  // Fecha de hoy en Argentina, como la valida el backend (con toISOString, después de las 21 h ya sería mañana).
+  const hoy = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
+  const darDeBajaDeTodo = () =>
+    todosLosDeportes.forEach((d) =>
+      cy.request({ method: 'DELETE', url: `${api()}/actividades/${d.id_actividad}/inscripciones/${alumno.id_alumno}`, headers, failOnStatusCode: false }),
+    )
 
   before(() => {
     cy.apiToken().then((token) => {
@@ -25,15 +31,21 @@ describe('HU2 – Tope de 2 deportes por alumno', () => {
         deportes = (body as Actividad[]).filter((a) => a.tipo === 'Deporte' && a.inscriptos < a.cupo_maximo).slice(0, 3)
         expect(deportes, 'el seed tiene al menos 3 deportes con cupo').to.have.length(3)
       })
+      cy.request({ url: `${api()}/actividades`, headers }).then(({ body }) => {
+        todosLosDeportes = (body as Actividad[]).filter((a) => a.tipo === 'Deporte')
+      })
     })
+    // Certificado de aptitud vigente (hace falta para inscribirse). Una vez por corrida: el backend rechaza con 409
+    // un segundo certificado del mismo día, que es justo lo que pasa si la prueba se repite o se reintenta.
+    cy.then(() =>
+      cy.request({ method: 'POST', url: `${api()}/salud/alumnos/${alumno.id_alumno}/aptitud`, headers, body: { fecha_emision: hoy() }, failOnStatusCode: false })
+        .its('status').should('be.oneOf', [201, 409]),
+    )
   })
 
   beforeEach(() => {
-    // Estado de partida: el alumno sin deportes y con certificado de aptitud vigente (hace falta para inscribirse).
-    deportes.forEach((d) =>
-      cy.request({ method: 'DELETE', url: `${api()}/actividades/${d.id_actividad}/inscripciones/${alumno.id_alumno}`, headers, failOnStatusCode: false }),
-    )
-    cy.request({ method: 'POST', url: `${api()}/salud/alumnos/${alumno.id_alumno}/aptitud`, headers, body: { fecha_emision: hoy() } })
+    // Estado de partida: el alumno sin ningún deporte (el seed pudo haberlo anotado en otros además de A, B y C).
+    darDeBajaDeTodo()
   })
 
   /** Abre Extracurriculares → inscriptos del deporte y elige al alumno en el selector. */
@@ -82,9 +94,7 @@ describe('HU2 – Tope de 2 deportes por alumno', () => {
   })
 
   after(() => {
-    // Deja al alumno como estaba al empezar (sin deportes) para no ensuciar la demo.
-    deportes.forEach((d) =>
-      cy.request({ method: 'DELETE', url: `${api()}/actividades/${d.id_actividad}/inscripciones/${alumno.id_alumno}`, headers, failOnStatusCode: false }),
-    )
+    // Deja al alumno sin deportes para no ensuciar la demo.
+    darDeBajaDeTodo()
   })
 })

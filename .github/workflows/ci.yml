@@ -45,6 +45,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-pruebas-y-cobertura-${{ github.run_number }}
+          # Al re-ejecutar todos los jobs el nombre se repite: se reemplaza el del intento anterior.
+          overwrite: true
           # La ruta es relativa a la raíz del repo, no al working-directory del job.
           path: |
             backend/coverage
@@ -80,6 +82,10 @@ jobs:
     name: Análisis SonarCloud
     needs: backend
     runs-on: ubuntu-latest
+    # Sin el secreto (todavía no se dio de alta, o PR de Dependabot o de un fork) el análisis se saltea
+    # en lugar de dejar el check en rojo.
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,9 +95,8 @@ jobs:
           name: backend-pruebas-y-cobertura-${{ github.run_number }}
           path: backend
       - name: SonarCloud scan
+        if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@v7
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           # Falla el job si el Quality Gate no pasa (así el check del PR queda en rojo).
           args: >
