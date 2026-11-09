@@ -4,9 +4,9 @@
  * email (T17).
  */
 import PDFDocument from 'pdfkit'
-import { config } from '../../lib/config.js'
 import { HttpError, fecha, hoyISO } from '../../lib/http.js'
 import { prisma } from '../../lib/prisma.js'
+import { lineasBancarias } from '../banco.js'
 import { estadoFactura } from './estado.js'
 import { nombrePeriodo } from './estrategias.js'
 
@@ -136,13 +136,15 @@ export async function pdfFactura(idFactura: number): Promise<{ archivo: string; 
 
   // ── Cómo pagar ──
   if (saldo > 0) {
+    const cuenta = lineasBancarias()
     const lineas = [
-      config.bancoAlias
-        ? `Transferí el saldo al alias ${config.bancoAlias} antes del vencimiento.`
+      cuenta.length > 0
+        ? `Transferí el saldo antes del vencimiento. ${cuenta.join(' · ')}.`
         : 'Transferí el saldo a la cuenta de la institución antes del vencimiento.',
       'Después subí el comprobante de la transferencia desde la app, en la sección de cuotas.',
     ]
-    pdf.rect(MARGEN, y, ancho, 58).fillAndStroke(CEBRA, BORDE)
+    pdf.font('Helvetica').fontSize(9.5)
+    pdf.rect(MARGEN, y, ancho, 36 + pdf.heightOfString(lineas.join('\n'), { width: ancho - 24 })).fillAndStroke(CEBRA, BORDE)
     pdf.fillColor(MORADO).font('Helvetica-Bold').fontSize(10).text('Cómo pagar', MARGEN + 12, y + 10)
     pdf.fillColor(TEXTO).font('Helvetica').fontSize(9.5).text(lineas.join('\n'), MARGEN + 12, y + 26, { width: ancho - 24 })
   }

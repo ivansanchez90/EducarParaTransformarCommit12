@@ -6,10 +6,33 @@
  */
 import { api, API_URL } from '../lib/api'
 
-export type EstadoPush = 'no-soportado' | 'denegado' | 'inactivo' | 'activo'
+/**
+ * - `sin-configurar`: el servidor no tiene las claves VAPID; no se ofrece el botón.
+ * - `instalar`: iPhone o iPad desde Safari; Apple solo permite avisos con la app instalada.
+ */
+export type EstadoPush = 'no-soportado' | 'instalar' | 'sin-configurar' | 'denegado' | 'inactivo' | 'activo'
 
 function soportado() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+}
+
+const esIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+const instalada = () =>
+  window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
+
+/**
+ * Clave pública VAPID del backend (`null` si no hay push en el servidor). Se pide al abrir
+ * la sección, no al tocar el botón: Safari solo muestra el pedido de permiso si se llama
+ * enseguida del toque, sin esperar antes una respuesta de la red.
+ */
+let clave: string | null | undefined
+async function clavePublica(): Promise<string | null> {
+  if (clave === undefined) {
+    const { data, error } = await api.get<{ clave: string | null }>('/push/clave-publica')
+    if (error) return null // sin señal: se vuelve a intentar la próxima vez
+    clave = data?.clave ?? null
+  }
+  return clave
 }
 
 /** La API de suscripción pide la clave VAPID como bytes, no como texto. */
@@ -31,21 +54,22 @@ async function suscripcionActual(): Promise<PushSubscription | null> {
 
 /** Estado actual, para elegir el botón sin pedir permiso todavía. */
 export async function estadoPush(): Promise<EstadoPush> {
-  if (!soportado()) return 'no-soportado'
+  if (!soportado()) return esIOS() && !instalada() ? 'instalar' : 'no-soportado'
   if (Notification.permission === 'denied') return 'denegado'
   const sub = await suscripcionActual()
-  return sub ? 'activo' : 'inactivo'
+  if (sub) return 'activo'
+  return (await clavePublica()) ? 'inactivo' : 'sin-configurar'
 }
 
 /** Pide permiso, suscribe el navegador y guarda la suscripción en el backend. Devuelve el mensaje de error, o `null` si activó bien. */
 export async function activarPush(): Promise<string | null> {
   if (!soportado()) return 'Este navegador no admite avisos push'
+  // Ya consultada por `estadoPush()`: no hay que esperar la red antes de pedir el permiso.
+  const claveVapid = clave ?? (await clavePublica())
+  if (!claveVapid) return 'Los avisos push todavía no están configurados en el servidor'
 
   const permiso = await Notification.requestPermission()
-  if (permiso !== 'granted') return 'Diste el permiso de notificaciones como denegado'
-
-  const { data } = await api.get<{ clave: string | null }>('/push/clave-publica')
-  if (!data?.clave) return 'Los avisos push no están configurados en el servidor'
+  if (permiso !== 'granted') return 'No se dio el permiso de notificaciones'
 
   try {
     const registro = await navigator.serviceWorker.ready
@@ -53,11 +77,17 @@ export async function activarPush(): Promise<string | null> {
       (await registro.pushManager.getSubscription()) ??
       (await registro.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: base64UrlAUint8Array(data.clave),
+        applicationServerKey: base64UrlAUint8Array(claveVapid),
       }))
 
     const { error } = await api.post('/push/suscribir', sub.toJSON())
-    return error ? error.message : null
+    if (error) {
+      // El servidor no la guardó: se deshace en el navegador, si no el botón diría
+      // "activo" sin que lleguen avisos.
+      await sub.unsubscribe().catch(() => undefined)
+      return error.message
+    }
+    return null
   } catch {
     // El navegador puede rechazar la suscripción (política propia, modo
     // incógnito, etc.) sin que se pueda distinguir el motivo de antemano.

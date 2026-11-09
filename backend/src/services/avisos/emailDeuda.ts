@@ -3,6 +3,7 @@
  * ítem por ítem. Función pura para poder probar el texto.
  */
 import { config } from '../../lib/config.js'
+import { destinoTransferencia } from '../banco.js'
 import { escaparHtml as e } from '../email.js'
 import type { DeudaDetectada } from './eventos.js'
 import { nombreMes, pesos } from './mensajes.js'
@@ -13,9 +14,8 @@ const fechaCorta = (d: Date) => d.toISOString().slice(0, 10).split('-').reverse(
 
 export function emailDeuda(evento: DeudaDetectada): { asunto: string; html: string; texto: string } {
   const { familia, alumnos, total } = evento
-  const comoPagar = config.bancoAlias
-    ? `Podés pagar por transferencia al alias ${config.bancoAlias} y subir el comprobante desde la app, en Cuotas.`
-    : 'Podés pagar por transferencia y subir el comprobante desde la app, en Cuotas.'
+  const destino = destinoTransferencia()
+  const comoPagar = `Podés pagar por transferencia${destino ? ' ' + destino : ''} y subir el comprobante desde la app, en Cuotas.`
   const enlace = config.publicUrl ? `${config.publicUrl}/portal` : ''
   const intro = `Te recordamos que hay facturas vencidas con saldo pendiente por un total de ${pesos(total)}.`
   const yaPagaste = 'Si ya pagaste y subiste el comprobante, no hace falta que hagas nada: lo estamos revisando.'

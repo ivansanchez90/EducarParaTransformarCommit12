@@ -12,6 +12,7 @@ import { Prisma } from '../generated/prisma/client.js'
 import { config } from '../lib/config.js'
 import { HttpError } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
+import { datosBancarios, lineasBancarias } from './banco.js'
 import { numeroFactura } from './facturacion/pdf.js'
 
 const INSTITUCION = 'Educar para Transformar'
@@ -94,6 +95,7 @@ export async function crearOrdenPago(idFactura: number, idsItems: number[], idUs
     fecha: orden.fecha,
     total: orden.total,
     alias: config.bancoAlias || null,
+    datos_bancarios: datosBancarios(),
     items: orden.items.map((i) => ({
       id_item: i.id_item,
       importe: i.importe,
@@ -205,15 +207,18 @@ export async function pdfOrdenPago(idOrden: number): Promise<{ archivo: string; 
   y += 34
 
   // ── Datos bancarios ──
-  const alias = config.bancoAlias
+  const cuenta = lineasBancarias()
   const lineas = [
-    alias
-      ? `Transferí ${pesos(total)} al alias ${alias}.`
-      : `Transferí ${pesos(total)} a la cuenta de la institución (consultá el alias en la administración).`,
+    cuenta.length > 0
+      ? `Transferí ${pesos(total)} a esta cuenta:`
+      : `Transferí ${pesos(total)} a la cuenta de la institución (consultá los datos en la administración).`,
+    ...cuenta.map((l) => `   ${l}`),
     `En el motivo de la transferencia indicá "Orden ${numero}".`,
     'Después subí la foto o el PDF del comprobante de la transferencia desde la app, en la sección de cuotas.',
   ]
-  pdf.rect(MARGEN, y, ancho, 78).fillAndStroke(CEBRA, BORDE)
+  pdf.font('Helvetica').fontSize(9.5)
+  const alto = 36 + pdf.heightOfString(lineas.join('\n'), { width: ancho - 24 })
+  pdf.rect(MARGEN, y, ancho, alto).fillAndStroke(CEBRA, BORDE)
   pdf.fillColor(MORADO).font('Helvetica-Bold').fontSize(10).text('Cómo pagar', MARGEN + 12, y + 10)
   pdf.fillColor(TEXTO).font('Helvetica').fontSize(9.5).text(lineas.join('\n'), MARGEN + 12, y + 26, { width: ancho - 24 })
 

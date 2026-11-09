@@ -11,12 +11,13 @@
  *   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, qs } from './lib/api'
 import { CambiarPassword } from './features/cuenta/CambiarPassword'
 import { FinanzasAlumno } from './features/finanzas/FinanzasAlumno'
 import { SaludHijo } from './features/salud/SaludHijo'
+import { AvisoAptitudDeportes } from './features/salud/AvisoAptitudDeportes'
 import { useFinanzas } from './features/finanzas/useFinanzas'
 import type { RecorridoTransporte, ServiciosAlumno } from './types'
 import { esTutor as esRolTutor, getSession, logout, onAuthChange } from './lib/auth'
@@ -88,6 +89,37 @@ interface ActividadEx {
   inscripto: boolean
   /** Precio mensual de los deportes; `null` si no hay tarifa cargada o no se cobra aparte. */
   precio: number | null
+  /** Días y franjas (`HH:MM:SS`), ordenados por día. */
+  horarios: { dia_semana: string; hora_inicio: string; hora_fin: string }[]
+  /** Profesor a cargo. */
+  docentes: { usuarios: { nombre: string; apellido: string } | null } | null
+}
+
+/** Máximo de deportes por alumno (lo controla el backend; acá se avisa antes de intentarlo). */
+const TOPE_DEPORTES = 2
+
+/** "Lun 17:00–18:00 · Mié 17:00–18:00" */
+const resumenHorarios = (horarios: ActividadEx['horarios']) =>
+  horarios.map((h) => `${h.dia_semana.slice(0, 3)} ${h.hora_inicio.slice(0, 5)}–${h.hora_fin.slice(0, 5)}`).join(' · ')
+
+/**
+ * Mensaje de error de una sección larga: al aparecer se desplaza hasta él. En el celular el
+ * botón tocado suele estar abajo y el mensaje arriba, fuera de la pantalla.
+ */
+function MensajeError({ texto }: { texto: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [texto])
+  return (
+    <div
+      ref={ref}
+      role='alert'
+      className='bg-[#E74C3C12] border border-red/25 rounded-[8px] px-3.5 py-2.5 text-xs text-red font-bold mb-4'
+    >
+      ⚠️ {texto}
+    </div>
+  )
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -383,12 +415,14 @@ export default function StudentPortal() {
     await loadActividades(alumno.id_alumno)
   }
 
-  async function cancelarActividad(id_actividad: number) {
+  async function cancelarActividad(id_actividad: number, nombre: string) {
     setActMsg('')
     if (!alumno) return
-    await api.delete(
+    if (!confirm(`¿Cancelar la inscripción a ${nombre}?`)) return
+    const { error } = await api.delete(
       `/actividades/${id_actividad}/inscripciones/${alumno.id_alumno}`,
     )
+    if (error) setActMsg('No se pudo cancelar la inscripción: ' + error.message)
     await loadActividades(alumno.id_alumno)
   }
 
@@ -417,7 +451,9 @@ export default function StudentPortal() {
   async function bajaTransporte() {
     if (!alumno) return
     setServMsg('')
-    await api.delete(`/servicios/${alumno.id_alumno}/transporte`)
+    if (!confirm('¿Dar de baja el transporte? Deja de cobrarse desde el mes que viene.')) return
+    const { error } = await api.delete(`/servicios/${alumno.id_alumno}/transporte`)
+    if (error) setServMsg(error.message)
     await loadServicios(alumno.id_alumno)
     await loadRecorridos()
   }
@@ -425,6 +461,7 @@ export default function StudentPortal() {
   async function alternarComedor() {
     if (!alumno) return
     setServMsg('')
+    if (servicios?.comedor && !confirm('¿Dar de baja el comedor? Deja de cobrarse desde el mes que viene.')) return
     const { error } = servicios?.comedor
       ? await api.delete(`/servicios/${alumno.id_alumno}/comedor`)
       : await api.put(`/servicios/${alumno.id_alumno}/comedor`, {})
@@ -477,14 +514,16 @@ export default function StudentPortal() {
   }
 
   async function marcarLeida(id: number) {
-    await api.patch(`/notificaciones/${id}/leida`)
+    const { error } = await api.patch(`/notificaciones/${id}/leida`)
+    if (error) return
     setNotificaciones((prev) =>
       prev.map((n) => (n.id_notificacion === id ? { ...n, leida: true } : n)),
     )
   }
 
   async function marcarTodasLeidas() {
-    await api.patch('/notificaciones/leidas')
+    const { error } = await api.patch('/notificaciones/leidas')
+    if (error) return
     setNotificaciones((prev) => prev.map((n) => ({ ...n, leida: true })))
   }
   const navigate = useNavigate()
@@ -1066,15 +1105,13 @@ export default function StudentPortal() {
                 bloqueadas.
               </p>
 
-              {actMsg && (
-                <div className='bg-[#E74C3C12] border border-red/25 rounded-[8px] px-3.5 py-2.5 text-xs text-red font-bold mb-4'>
-                  ⚠️ {actMsg}
-                </div>
-              )}
+              {actMsg && <MensajeError texto={actMsg} />}
 
               {(['Idioma', 'Deporte'] as const).map((tipo) => {
                 const items = actividades.filter((a) => a.tipo === tipo)
                 if (items.length === 0) return null
+                const deportesAnotados = actividades.filter((a) => a.tipo === 'Deporte' && a.inscripto).length
+                const enElTope = tipo === 'Deporte' && deportesAnotados >= TOPE_DEPORTES
                 return (
                   <div key={tipo} className='mb-6'>
                     <div className='text-xs font-black text-purple-700 uppercase tracking-[0.08em] mb-3'>
@@ -1082,6 +1119,15 @@ export default function StudentPortal() {
                         ? '🗣️ Idiomas'
                         : '⚽ Disciplinas deportivas'}
                     </div>
+                    {tipo === 'Deporte' && (
+                      <>
+                        <p className='text-xs text-textMuted m-0 mb-3'>
+                          Inscripto en {deportesAnotados} de {TOPE_DEPORTES} deportes posibles. Dos deportes no pueden
+                          superponerse en el horario.
+                        </p>
+                        {esTutor && alumno && <AvisoAptitudDeportes idAlumno={alumno.id_alumno} />}
+                      </>
+                    )}
                     <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                       {items.map((a) => {
                         const disponibles = a.cupo_maximo - a.inscriptos
@@ -1112,6 +1158,14 @@ export default function StudentPortal() {
                                 {a.descripcion}
                               </span>
                             )}
+                            {a.horarios.length > 0 && (
+                              <span className='text-xs text-text'>🕐 {resumenHorarios(a.horarios)}</span>
+                            )}
+                            {a.docentes?.usuarios && (
+                              <span className='text-xs text-textMuted'>
+                                Prof. {a.docentes.usuarios.nombre} {a.docentes.usuarios.apellido}
+                              </span>
+                            )}
                             {a.tipo === 'Deporte' && <PrecioMensual precio={a.precio} />}
                             <span
                               className='text-xs font-extrabold'
@@ -1125,19 +1179,19 @@ export default function StudentPortal() {
                             </span>
                             {a.inscripto ? (
                               <button
-                                className='mt-1 bg-transparent border border-red rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-red cursor-pointer font-[inherit]'
+                                className='mt-1 min-h-11 bg-transparent border border-red rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-red cursor-pointer font-[inherit]'
                                 onClick={() =>
-                                  cancelarActividad(a.id_actividad)
+                                  cancelarActividad(a.id_actividad, a.nombre)
                                 }
                               >
                                 Cancelar inscripción
                               </button>
                             ) : (
                               <button
-                                disabled={completo}
-                                className={`mt-1 border rounded-[8px] px-3.5 py-[7px] text-xs font-bold font-[inherit] transition-all
+                                disabled={completo || enElTope}
+                                className={`mt-1 min-h-11 border rounded-[8px] px-3.5 py-[7px] text-xs font-bold font-[inherit] transition-all
                                   ${
-                                    completo
+                                    completo || enElTope
                                       ? 'bg-border border-border text-textMuted cursor-not-allowed'
                                       : 'bg-purple-700 border-purple-700 text-white cursor-pointer'
                                   }`}
@@ -1145,7 +1199,7 @@ export default function StudentPortal() {
                                   inscribirseActividad(a.id_actividad)
                                 }
                               >
-                                {completo ? 'Sin cupo' : 'Inscribirme'}
+                                {completo ? 'Sin cupo' : enElTope ? `Ya tiene ${TOPE_DEPORTES} deportes` : 'Inscribirme'}
                               </button>
                             )}
                           </div>
@@ -1177,11 +1231,7 @@ export default function StudentPortal() {
                   : 'Estos son los servicios que tenés asignados. Para modificarlos, hablá con tu familia o con la administración.'}
               </p>
 
-              {servMsg && (
-                <div className='bg-[#E74C3C12] border border-red/25 rounded-[8px] px-3.5 py-2.5 text-xs text-red font-bold mb-4'>
-                  ⚠️ {servMsg}
-                </div>
-              )}
+              {servMsg && <MensajeError texto={servMsg} />}
 
               {/* Comedor */}
               <div className='border border-border rounded-[12px] p-4 mb-5 flex justify-between items-center gap-4 flex-wrap'>
@@ -1346,6 +1396,17 @@ export default function StudentPortal() {
               </div>
               {push.error && (
                 <div className='text-xs text-red mb-3'>{push.error}</div>
+              )}
+              {push.estado === 'instalar' && (
+                <div className='text-xs text-textMuted mb-3'>
+                  Para recibir avisos en el iPhone, instalá la app: en Safari tocá Compartir → Agregar a
+                  inicio, abrila desde el ícono y volvé a esta sección.
+                </div>
+              )}
+              {push.estado === 'sin-configurar' && (
+                <div className='text-xs text-textMuted mb-3'>
+                  Los avisos en el teléfono todavía no están disponibles. Las notificaciones igual aparecen acá.
+                </div>
               )}
               {push.estado === 'denegado' && (
                 <div className='text-xs text-textMuted mb-3'>

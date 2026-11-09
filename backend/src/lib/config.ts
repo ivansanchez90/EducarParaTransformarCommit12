@@ -46,4 +46,8 @@ export const config = {
   // Alias de la cuenta a la que las familias transfieren; se muestra en la
   // factura, en el comprobante de pago y en los emails. Vacío = no se muestra.
   bancoAlias: process.env.BANCO_ALIAS ?? '',
+  // El resto de los datos de la cuenta (ver `services/banco.ts`). Vacíos = no se muestran.
+  bancoCbu: (process.env.BANCO_CBU ?? '').replace(/\D/g, ''),
+  bancoTitular: process.env.BANCO_TITULAR ?? '',
+  bancoNombre: process.env.BANCO_NOMBRE ?? '',
 }

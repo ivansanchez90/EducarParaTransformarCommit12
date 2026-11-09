@@ -1,13 +1,58 @@
 /**
  * OrdenPagoDialog — la familia elige qué ítems de una factura va a pagar y el
- * sistema emite la orden de pago (PDF con el alias para transferir). Después
+ * sistema emite la orden de pago (PDF con los datos de la cuenta para transferir). Después
  * se sube el comprobante de la transferencia (T13).
  */
+import { useState } from 'react'
 import { btnPrimary, btnSecondary, msgError } from '../../ui/styles'
 import { useEnLinea } from '../../ui/useEnLinea'
 import { nombrePeriodo, numeroFactura, pesos } from './formato'
-import type { FacturaPortal, OrdenPago } from './types'
+import type { DatosBancarios, FacturaPortal, OrdenPago } from './types'
 import { useOrdenPago } from './useOrdenPago'
+
+const tieneDatos = (d: DatosBancarios) => Boolean(d.alias || d.cbu || d.titular || d.banco)
+
+/** Banco, titular, CBU y alias, con un botón para copiar el CBU y el alias (se pegan en la app del banco). */
+function DatosCuenta({ datos }: { datos: DatosBancarios }) {
+  const [copiado, setCopiado] = useState('')
+  const copiar = async (etiqueta: string, valor: string) => {
+    try {
+      await navigator.clipboard.writeText(valor)
+      setCopiado(etiqueta)
+    } catch {
+      setCopiado('')
+    }
+  }
+  const filas: [string, string | null, boolean][] = [
+    ['Banco', datos.banco, false],
+    ['Titular', datos.titular, false],
+    ['CBU', datos.cbu, true],
+    ['Alias', datos.alias, true],
+  ]
+  return (
+    <dl className='mt-2 mb-0 rounded-lg border border-border bg-[#F7F5FF] px-3 py-2 flex flex-col gap-1.5'>
+      {filas
+        .filter(([, valor]) => valor)
+        .map(([etiqueta, valor, copiable]) => (
+          <div key={etiqueta} className='flex items-center justify-between gap-2'>
+            <div className='min-w-0'>
+              <dt className='text-[11px] font-extrabold text-textMuted uppercase tracking-wide'>{etiqueta}</dt>
+              <dd className='m-0 font-bold break-all'>{valor}</dd>
+            </div>
+            {copiable && (
+              <button
+                type='button'
+                className='shrink-0 min-h-11 px-3 rounded-lg border border-border bg-white text-[12px] font-bold text-purple-700 cursor-pointer'
+                onClick={() => copiar(etiqueta, valor!)}
+              >
+                {copiado === etiqueta ? '✓ Copiado' : 'Copiar'}
+              </button>
+            )}
+          </div>
+        ))}
+    </dl>
+  )
+}
 
 interface Props {
   factura: FacturaPortal
@@ -21,9 +66,9 @@ export function OrdenPagoDialog({ factura, onClose, onSubirComprobante }: Props)
   const enLinea = useEnLinea()
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(26,26,46,0.45)]' onClick={onClose}>
+    <div role='dialog' aria-modal='true' className='fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[rgba(26,26,46,0.45)]' onClick={onClose}>
       <div
-        className='bg-white rounded-card p-6 shadow-card border border-border w-full max-w-[460px] max-h-[90vh] overflow-y-auto'
+        className='bg-white rounded-card p-6 shadow-card border border-border w-full max-w-[460px] max-h-[90dvh] overflow-y-auto'
         onClick={(e) => {
           e.stopPropagation()
         }}
@@ -40,12 +85,13 @@ export function OrdenPagoDialog({ factura, onClose, onSubirComprobante }: Props)
             </div>
             <ol className='text-[13px] text-text m-0 pl-5 flex flex-col gap-1.5'>
               <li>
-                {orden.alias ? (
+                {tieneDatos(orden.datos_bancarios) ? (
                   <>
-                    Transferí {pesos(orden.total)} al alias <strong>{orden.alias}</strong>.
+                    Transferí {pesos(orden.total)} a esta cuenta:
+                    <DatosCuenta datos={orden.datos_bancarios} />
                   </>
                 ) : (
-                  <>Transferí {pesos(orden.total)} a la cuenta de la institución (consultá el alias en la administración).</>
+                  <>Transferí {pesos(orden.total)} a la cuenta de la institución (consultá los datos en la administración).</>
                 )}
               </li>
               <li>

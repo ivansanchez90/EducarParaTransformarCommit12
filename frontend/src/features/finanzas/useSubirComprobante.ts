@@ -11,8 +11,14 @@ import type { ComprobanteFactura, FacturaPortal } from './types'
 
 export const MAX_COMPROBANTE_MB = 10
 /** Formatos que acepta la API: fotos (incluido AVIF y HEIC, el de las fotos de iPhone) y PDF. */
-export const TIPOS_COMPROBANTE = '.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.pdf'
-const EXTENSIONES = TIPOS_COMPROBANTE.split(',').map((e) => e.slice(1))
+const EXTENSIONES_ACEPTADAS = '.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.pdf'
+const EXTENSIONES = EXTENSIONES_ACEPTADAS.split(',').map((e) => e.slice(1))
+/**
+ * Para el `accept` del selector: con `image/*` el celular ofrece sacar la foto con la cámara
+ * además de elegirla de la galería (sin `capture`, que dejaría afuera los PDF). Lo que se
+ * elija igual pasa por el control de extensión de acá y por el del backend.
+ */
+export const TIPOS_COMPROBANTE = `image/*,application/pdf,${EXTENSIONES_ACEPTADAS}`
 
 interface Opciones {
   factura: FacturaPortal

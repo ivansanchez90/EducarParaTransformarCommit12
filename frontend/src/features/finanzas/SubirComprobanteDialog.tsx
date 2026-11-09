@@ -22,9 +22,9 @@ export function SubirComprobanteDialog({ factura, idOrden, importeSugerido, onCl
   const enLinea = useEnLinea()
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(26,26,46,0.45)]' onClick={onClose}>
+    <div role='dialog' aria-modal='true' className='fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[rgba(26,26,46,0.45)]' onClick={onClose}>
       <div
-        className='bg-white rounded-card p-6 shadow-card border border-border w-full max-w-[460px] max-h-[90vh] overflow-y-auto'
+        className='bg-white rounded-card p-6 shadow-card border border-border w-full max-w-[460px] max-h-[90dvh] overflow-y-auto'
         onClick={(e) => {
           e.stopPropagation()
         }}
