@@ -71,3 +71,48 @@ export function partirNombre(completo: string): { nombre: string; apellido: stri
   const partes = completo.trim().split(/\s+/)
   return { nombre: partes[0] ?? '', apellido: partes.slice(1).join(' ') }
 }
+
+/** Un dato del tutor que no coincide entre su usuario y una nueva solicitud. */
+export interface DiferenciaTutor {
+  campo: 'Nombre' | 'Teléfono' | 'Rol'
+  registrado: string
+  solicitud: string
+}
+
+/** Sin espacios de más ni diferencias de mayúsculas: "juan  PÉREZ" = "Juan Pérez". */
+const normalizar = (s: string) => s.trim().replace(/\s+/g, ' ').toLocaleLowerCase('es')
+const soloDigitos = (s: string) => s.replace(/\D/g, '')
+
+/**
+ * Compara el usuario del tutor que ya existía con los datos de una nueva
+ * solicitud (por ejemplo, la de un segundo hijo). Al aprobar no se pisa nada:
+ * esto solo arma el aviso para que la administración decida.
+ *
+ * - Nombre: se compara el nombre completo, porque la solicitud lo trae en un
+ *   solo campo y `partirNombre` no sabe dónde termina un nombre compuesto.
+ * - Teléfono: solo si el usuario tiene uno cargado (el alta desde la solicitud
+ *   no lo guarda); se comparan los dígitos.
+ * - Rol: si la cuenta no es de padre/tutor, el portal no le muestra los hijos.
+ */
+export function diferenciasTutor(
+  usuario: { nombre: string; apellido: string; telefono: string | null; rol: string },
+  solicitud: { nombre_tutor: string; telefono_tutor: string | null },
+): DiferenciaTutor[] {
+  const diferencias: DiferenciaTutor[] = []
+
+  const registrado = `${usuario.nombre} ${usuario.apellido}`.trim().replace(/\s+/g, ' ')
+  if (normalizar(registrado) !== normalizar(solicitud.nombre_tutor)) {
+    diferencias.push({ campo: 'Nombre', registrado, solicitud: solicitud.nombre_tutor.trim() })
+  }
+
+  const telefono = solicitud.telefono_tutor?.trim()
+  if (usuario.telefono && telefono && soloDigitos(usuario.telefono) !== soloDigitos(telefono)) {
+    diferencias.push({ campo: 'Teléfono', registrado: usuario.telefono, solicitud: telefono })
+  }
+
+  if (!/padre|tutor/i.test(usuario.rol)) {
+    diferencias.push({ campo: 'Rol', registrado: usuario.rol, solicitud: 'Padre' })
+  }
+
+  return diferencias
+}
