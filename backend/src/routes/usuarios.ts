@@ -3,7 +3,8 @@ import { Router } from 'express'
 import { HttpError, bool, fechaObligatoria, lista, numOrNull, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { ROLES_ADMIN, requireAuth, requireRole } from '../middleware/auth.js'
-import { crearUsuario, emailInstitucionalAlumno, validarUsuario } from '../services/usuarios.js'
+import { cursoResumen } from '../lib/selects.js'
+import { crearUsuario, emailInstitucionalAlumno, telefonoOpcional, validarUsuario } from '../services/usuarios.js'
 import { verificarCupoCurso } from './alumnos.js'
 
 export const usuariosRouter = Router()
@@ -13,6 +14,13 @@ usuariosRouter.get('/', async (req, res) => {
   const roles = lista(req.query.rol)
   const usuarios = await prisma.usuario.findMany({
     where: { rol: roles ? { in: roles } : undefined, activo: bool(req.query.activo) },
+    // Los hijos solo los tienen los padres/tutores; para el resto la lista viene vacía.
+    include: {
+      hijos: {
+        select: { id_alumno: true, nombre: true, apellido: true, activo: true, cursos: cursoResumen },
+        orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
+      },
+    },
     orderBy: { apellido: 'asc' },
   })
   res.json(usuarios)
@@ -95,8 +103,18 @@ usuariosRouter.patch('/:id/password', async (req, res) => {
   res.json({ ok: true, email: objetivo.email })
 })
 
+/**
+ * Edita nombre, apellido, teléfono, rol o estado; solo cambia lo que viene en el body.
+ * El nombre no puede quedar vacío; el teléfono vacío lo borra.
+ */
 usuariosRouter.patch('/:id', async (req, res) => {
-  const { nombre, apellido, rol, activo } = req.body ?? {}
+  const body = req.body ?? {}
+  const { rol, activo } = body
+  const texto = (campo: 'nombre' | 'apellido') => (typeof body[campo] === 'string' ? body[campo].trim() : undefined)
+  const nombre = texto('nombre')
+  const apellido = texto('apellido')
+  if (nombre === '') throw new HttpError(400, 'El nombre no puede quedar vacío')
+  const telefono = 'telefono' in body ? telefonoOpcional(body.telefono) : undefined
   if (req.params.id === req.user!.id_usuario && activo === false) {
     throw new HttpError(400, 'No podés desactivar tu propio usuario')
   }
@@ -107,8 +125,9 @@ usuariosRouter.patch('/:id', async (req, res) => {
   const usuario = await prisma.usuario.update({
     where: { id_usuario: req.params.id },
     data: {
-      nombre: nombre ?? undefined,
-      apellido: apellido ?? undefined,
+      nombre,
+      apellido,
+      telefono,
       rol: rol ?? undefined,
       activo: typeof activo === 'boolean' ? activo : undefined,
     },

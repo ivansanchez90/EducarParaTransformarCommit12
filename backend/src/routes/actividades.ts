@@ -7,7 +7,7 @@ import { Prisma } from '../generated/prisma/client.js'
 import { HttpError, bool, hora, id, numOrNull, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { cursoResumen, nombreApellido } from '../lib/selects.js'
-import { ROLES_ADMIN, assertAccesoAlumno, esStaff, requireAuth, requireRole } from '../middleware/auth.js'
+import { ROLES_ADMIN, assertAccesoAlumno, assertNoEsAlumno, esStaff, requireAuth, requireRole } from '../middleware/auth.js'
 import { buscarChoque, hhmm, textoFranja, type Franja } from '../services/choqueHorarios.js'
 import { assertAptitudVigente } from '../services/aptitud.js'
 import { preciosVigentes } from '../services/precios.js'
@@ -195,6 +195,7 @@ actividadesRouter.get('/:id/inscripciones', requireRole(...ROLES_ADMIN), async (
 /** Admin: cualquier alumno. Alumno/tutor: solo los propios. */
 async function assertPuedeInscribir(req: Request, idAlumno: number) {
   if (ROLES_ADMIN.includes(req.user!.rol)) return
+  assertNoEsAlumno(req.user!)
   await assertAccesoAlumno(req.user!, idAlumno)
 }
 

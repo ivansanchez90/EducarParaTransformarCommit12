@@ -27,7 +27,7 @@ const VISTAS: { clave: Vista; texto: string }[] = [
 
 const SIN_RANGO: RangoFechas = { desde: '', hasta: '' }
 
-export function FinanzasAlumno({ finanzas }: { finanzas: Finanzas }) {
+export function FinanzasAlumno({ finanzas, puedePagar = true }: { finanzas: Finanzas; puedePagar?: boolean }) {
   const [vista, setVista] = useState<Vista>('facturas')
   const [rango, setRango] = useState<RangoFechas>(SIN_RANGO)
   const { idAlumno, version, facturas, pagos, cargando, error, recargar } = finanzas
@@ -52,6 +52,11 @@ export function FinanzasAlumno({ finanzas }: { finanzas: Finanzas }) {
   return (
     <div className='bg-white rounded-card p-6 shadow-card border border-border'>
       <div className='text-[15px] font-extrabold text-text mb-4 flex items-center gap-2'>💳 Facturas y pagos</div>
+      {!puedePagar && (
+        <p className='text-[13px] text-textMuted m-0 mb-4'>
+          Acá podés consultar tus facturas y pagos. Los pagos los hace tu familia desde su cuenta.
+        </p>
+      )}
       <div className='flex gap-2 mb-5 flex-wrap'>
         {VISTAS.map(({ clave, texto }) => (
           <button
@@ -81,9 +86,9 @@ export function FinanzasAlumno({ finanzas }: { finanzas: Finanzas }) {
         <p className='text-[13px] text-textMuted m-0'>Cargando…</p>
       ) : vista === 'facturas' ? (
         hayRango ? (
-          <FacturasAlumno facturas={facturasDelRango.datos ?? []} onActualizar={recargar} filtrado />
+          <FacturasAlumno facturas={facturasDelRango.datos ?? []} onActualizar={recargar} filtrado puedePagar={puedePagar} />
         ) : (
-          <FacturasAlumno facturas={facturas} onActualizar={recargar} />
+          <FacturasAlumno facturas={facturas} onActualizar={recargar} puedePagar={puedePagar} />
         )
       ) : vista === 'deuda' ? (
         deuda.datos && <DeudaAlumno deuda={deuda.datos} />

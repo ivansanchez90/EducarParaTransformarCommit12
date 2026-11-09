@@ -83,7 +83,11 @@ async function crearUsuarioAlumno(
 alumnosRouter.get('/', requireRole(...ROLES_STAFF), async (req, res) => {
   const alumnos = await prisma.alumno.findMany({
     where: { activo: bool(req.query.activo), id_curso: numOrNull(req.query.id_curso) ?? undefined },
-    include: { cursos: cursoResumen, padre: { select: { email: true } }, usuarios: usuarioAlumno },
+    include: {
+      cursos: cursoResumen,
+      padre: { select: { email: true, nombre: true, apellido: true, telefono: true } },
+      usuarios: usuarioAlumno,
+    },
     orderBy: { apellido: 'asc' },
   })
   res.json(alumnos)

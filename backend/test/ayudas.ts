@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken'
 import { vi } from 'vitest'
 
 export const prismaFalso = {
-  usuario: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
+  usuario: { findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn() },
   alumno: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
   inscripcion: { findUnique: vi.fn(), update: vi.fn() },
   fichaMedica: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },

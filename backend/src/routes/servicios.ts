@@ -14,6 +14,7 @@ import {
   ROLES_ADMIN,
   ROLES_STAFF,
   assertAccesoAlumno,
+  assertNoEsAlumno,
   esStaff,
   requireAuth,
   requireRole,
@@ -97,9 +98,10 @@ recorridosRouter.delete('/:id', requireRole(...ROLES_ADMIN), async (req, res) =>
 export const serviciosRouter = Router()
 serviciosRouter.use(requireAuth)
 
-/** El personal gestiona cualquier alumno; la familia, solo los propios. */
+/** El personal gestiona cualquier alumno; el padre/tutor, solo los propios (el alumno, no). */
 async function assertPuedeGestionar(req: Request, idAlumno: number) {
   if (esStaff(req.user!)) return
+  assertNoEsAlumno(req.user!)
   await assertAccesoAlumno(req.user!, idAlumno)
 }
 

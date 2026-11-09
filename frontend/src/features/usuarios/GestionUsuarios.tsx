@@ -36,6 +36,7 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
     nombre: '',
     apellido: '',
     rol: 'Docente',
+    telefono: '',
   })
   const ALUMNO_VACIO = {
     nombre: '',
@@ -49,6 +50,9 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
   const [msg, setMsg] = useState('')
   const [passUsuario, setPassUsuario] = useState<string | null>(null)
   const [passNueva, setPassNueva] = useState('')
+  // Edición de nombre, apellido y teléfono (una fila a la vez)
+  const [editUsuario, setEditUsuario] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ nombre: '', apellido: '', telefono: '' })
 
   const load = useCallback(async () => {
     const [{ data: us }, { data: cu }] = await Promise.all([
@@ -92,6 +96,7 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
       nombre: '',
       apellido: '',
       rol: 'Docente',
+      telefono: '',
     })
     setAlumnoForm(ALUMNO_VACIO)
     setShowForm(false)
@@ -115,6 +120,29 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
       setPassUsuario(null)
       setPassNueva('')
     }
+  }
+
+  const abrirEdicion = (u: UsuarioPanel) => {
+    setMsg('')
+    setPassUsuario(null)
+    if (editUsuario === u.id_usuario) {
+      setEditUsuario(null)
+      return
+    }
+    setEditUsuario(u.id_usuario)
+    setEditForm({ nombre: u.nombre, apellido: u.apellido, telefono: u.telefono ?? '' })
+  }
+
+  const guardarEdicion = async (u: UsuarioPanel) => {
+    setMsg('')
+    const { error } = await api.patch(`/usuarios/${u.id_usuario}`, editForm)
+    if (error) {
+      setMsg('Error: ' + error.message)
+      return
+    }
+    setMsg(`✅ Datos de ${u.email} actualizados.`)
+    setEditUsuario(null)
+    load()
   }
 
   const toggleActivo = async (id: string, activo: boolean) => {
@@ -192,6 +220,21 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
                 value={form.apellido}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, apellido: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <span className={fieldLabel}>
+                Teléfono (opcional)
+              </span>
+              <input
+                className={inputField}
+                type='tel'
+                inputMode='tel'
+                placeholder='Ej: 379 455-4837'
+                value={form.telefono}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, telefono: e.target.value }))
                 }
               />
             </div>
@@ -420,11 +463,30 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
               {usuarios.map((u) => (
                 <Fragment key={u.id_usuario}>
                 <tr>
-                  <td className={`${tdCell} font-bold`}>
-                    {u.apellido}, {u.nombre}
+                  <td className={tdCell}>
+                    <div className='font-bold'>
+                      {[u.apellido, u.nombre].filter(Boolean).join(', ')}
+                    </div>
+                    {u.hijos.length > 0 && (
+                      <div className='text-[11px] text-textMuted mt-0.5'>
+                        {u.hijos.length === 1 ? 'Hijo/a: ' : 'Hijos: '}
+                        {u.hijos
+                          .map(
+                            (h) =>
+                              `${h.apellido}, ${h.nombre}` +
+                              (h.cursos ? ` (${h.cursos.nivel} ${h.cursos.grado_anio} "${h.cursos.division}")` : '') +
+                              (h.activo ? '' : ' · inactivo'),
+                          )
+                          .join(' · ')}
+                      </div>
+                    )}
+                    {/padre|tutor/i.test(u.rol) && u.hijos.length === 0 && (
+                      <div className='text-[11px] text-textMuted mt-0.5'>Sin hijos vinculados</div>
+                    )}
                   </td>
                   <td className={`${tdCell} text-textMuted`}>
-                    {u.email}
+                    <div className='break-all'>{u.email}</div>
+                    {u.telefono && <div className='text-[11px]'>{u.telefono}</div>}
                   </td>
                   <td className={tdCell}>
                     <span
@@ -457,7 +519,14 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
                         </button>
                         <button
                           className='bg-purpleLight text-purple-700 border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
+                          onClick={() => abrirEdicion(u)}
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          className='bg-purpleLight text-purple-700 border-0 rounded-lg py-[6px] px-3 text-xs font-extrabold cursor-pointer'
                           onClick={() => {
+                            setEditUsuario(null)
                             setPassUsuario(passUsuario === u.id_usuario ? null : u.id_usuario)
                             setPassNueva('')
                             setMsg('')
@@ -471,6 +540,59 @@ export function GestionUsuarios({ rolActor }: { rolActor?: string } = {}) {
                     )}
                   </td>
                 </tr>
+                {editUsuario === u.id_usuario && (
+                  <tr>
+                    <td colSpan={5} className='bg-purpleLight border-b border-border py-4 px-4'>
+                      <form
+                        className='flex items-end gap-3 flex-wrap'
+                        onSubmit={(e) => {
+                          e.preventDefault()
+                          void guardarEdicion(u)
+                        }}
+                      >
+                        <div>
+                          <span className={fieldLabel}>Nombre</span>
+                          <input
+                            className={inputField}
+                            required
+                            autoFocus
+                            value={editForm.nombre}
+                            onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <span className={fieldLabel}>Apellido</span>
+                          <input
+                            className={inputField}
+                            value={editForm.apellido}
+                            onChange={(e) => setEditForm((p) => ({ ...p, apellido: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <span className={fieldLabel}>Teléfono</span>
+                          <input
+                            className={inputField}
+                            type='tel'
+                            inputMode='tel'
+                            placeholder='Vacío para borrarlo'
+                            value={editForm.telefono}
+                            onChange={(e) => setEditForm((p) => ({ ...p, telefono: e.target.value }))}
+                          />
+                        </div>
+                        <button type='submit' className={btnPrimary}>
+                          Guardar
+                        </button>
+                        <button
+                          type='button'
+                          className='bg-transparent border border-border rounded-[8px] px-3.5 py-[9px] text-xs font-bold text-textMuted cursor-pointer font-[inherit]'
+                          onClick={() => setEditUsuario(null)}
+                        >
+                          Cancelar
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                )}
                 {passUsuario === u.id_usuario && (
                   <tr>
                     <td colSpan={5} className='bg-purpleLight border-b border-border py-4 px-4'>

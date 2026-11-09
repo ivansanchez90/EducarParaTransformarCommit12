@@ -57,7 +57,9 @@ export function GestionAlumnos() {
     return alumnos.filter(
       (a) =>
         `${a.apellido} ${a.nombre}`.toLowerCase().includes(q) ||
-        a.dni.toLowerCase().includes(q),
+        a.dni.toLowerCase().includes(q) ||
+        (a.padre != null &&
+          `${a.padre.apellido} ${a.padre.nombre} ${a.padre.email}`.toLowerCase().includes(q)),
     )
   }, [alumnos, busqueda])
 
@@ -303,7 +305,7 @@ export function GestionAlumnos() {
         <input
           type='text'
           className={inputField}
-          placeholder='Buscar por nombre o DNI...'
+          placeholder='Buscar por alumno, DNI o tutor...'
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
@@ -316,6 +318,7 @@ export function GestionAlumnos() {
               <tr>
                 <th className={thCell}>Alumno</th>
                 <th className={thCell}>DNI</th>
+                <th className={thCell}>Tutor</th>
                 <th className={thCell}>Curso</th>
                 <th className={thCell}>Estado</th>
                 <th className={thCell}>Acciones</th>
@@ -324,7 +327,7 @@ export function GestionAlumnos() {
             <tbody>
               {alumnosFiltrados.length === 0 && (
                 <tr>
-                  <td className={`${tdCell} text-textMuted`} colSpan={5}>
+                  <td className={`${tdCell} text-textMuted`} colSpan={6}>
                     No se encontraron alumnos.
                   </td>
                 </tr>
@@ -340,6 +343,21 @@ export function GestionAlumnos() {
                     </div>
                   </td>
                   <td className={`${tdCell} text-textMuted`}>{a.dni}</td>
+                  <td className={tdCell} style={{ minWidth: 180 }}>
+                    {a.padre ? (
+                      <>
+                        <div className='font-bold'>
+                          {[a.padre.apellido, a.padre.nombre].filter(Boolean).join(', ')}
+                        </div>
+                        <div className='text-[11px] text-textMuted break-all'>
+                          {a.padre.email}
+                          {a.padre.telefono ? ` · ${a.padre.telefono}` : ''}
+                        </div>
+                      </>
+                    ) : (
+                      <span className='text-[12px] text-textMuted'>Sin tutor vinculado</span>
+                    )}
+                  </td>
                   <td className={tdCell} style={{ minWidth: 260 }}>
                     {editCursoId === a.id_alumno ? (
                       <div className='flex items-center gap-2'>

@@ -1048,7 +1048,7 @@ export default function StudentPortal() {
           )}
 
           {/* ━━━━━ CUOTAS: facturas y pagos ━━━━━ */}
-          {activeNav === 'cuotas' && <FinanzasAlumno finanzas={finanzas} />}
+          {activeNav === 'cuotas' && <FinanzasAlumno finanzas={finanzas} puedePagar={esTutor} />}
 
           {/* ━━━━━ HORARIO ━━━━━ */}
           {activeNav === 'horario' && (
@@ -1100,9 +1100,9 @@ export default function StudentPortal() {
                 🎨 Servicios extracurriculares
               </div>
               <p className='text-[13px] text-textMuted m-0 mb-5 leading-relaxed'>
-                Inscribite a los talleres de idiomas y a las disciplinas
-                deportivas. Las actividades sin cupo disponible quedan
-                bloqueadas.
+                {esTutor
+                  ? 'Inscribí a tu hijo/a en los talleres de idiomas y en las disciplinas deportivas. Las actividades sin cupo disponible quedan bloqueadas.'
+                  : 'Estas son las actividades disponibles. Para inscribirte o darte de baja, hablá con tu familia o con la administración.'}
               </p>
 
               {actMsg && <MensajeError texto={actMsg} />}
@@ -1177,7 +1177,8 @@ export default function StudentPortal() {
                                 ? 'Cupo completo'
                                 : `${disponibles} de ${a.cupo_maximo} cupos disponibles`}
                             </span>
-                            {a.inscripto ? (
+                            {/* Inscribir y dar de baja lo hace el padre/tutor; el alumno solo consulta. */}
+                            {!esTutor ? null : a.inscripto ? (
                               <button
                                 className='mt-1 min-h-11 bg-transparent border border-red rounded-[8px] px-3.5 py-[7px] text-xs font-bold text-red cursor-pointer font-[inherit]'
                                 onClick={() =>
