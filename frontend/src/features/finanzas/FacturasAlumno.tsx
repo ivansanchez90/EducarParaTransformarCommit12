@@ -28,7 +28,15 @@ function Dato({ titulo, valor, destacado }: { titulo: string; valor: string; des
 
 type Dialogo = { tipo: 'pagar' } | { tipo: 'subir'; idOrden: number | null; importe: number }
 
-function TarjetaFactura({ factura, onActualizar }: { factura: FacturaPortal; onActualizar: () => void }) {
+function TarjetaFactura({
+  factura,
+  onActualizar,
+  puedePagar,
+}: {
+  factura: FacturaPortal
+  onActualizar: () => void
+  puedePagar: boolean
+}) {
   const [mensaje, setMensaje] = useState('')
   const [dialogo, setDialogo] = useState<Dialogo | null>(null)
 
@@ -83,7 +91,7 @@ function TarjetaFactura({ factura, onActualizar }: { factura: FacturaPortal; onA
       </details>
 
       <div className='flex items-center gap-3 flex-wrap'>
-        {factura.saldo > 0 && (
+        {puedePagar && factura.saldo > 0 && (
           <button
             className={btnPrimarySm}
             onClick={() => {
@@ -93,7 +101,7 @@ function TarjetaFactura({ factura, onActualizar }: { factura: FacturaPortal; onA
             Pagar por transferencia
           </button>
         )}
-        {factura.saldo > 0 && (
+        {puedePagar && factura.saldo > 0 && (
           <button
             className={btnSecondarySm}
             onClick={() => {
@@ -144,9 +152,11 @@ interface Props {
   onActualizar: () => void
   /** Son las facturas de un rango de fechas: se muestran todas, sin el resumen de deuda. */
   filtrado?: boolean
+  /** Pagar y subir comprobantes lo hace el padre/tutor; el alumno solo consulta. */
+  puedePagar?: boolean
 }
 
-export function FacturasAlumno({ facturas, onActualizar, filtrado = false }: Props) {
+export function FacturasAlumno({ facturas, onActualizar, filtrado = false, puedePagar = true }: Props) {
   const [verPagadas, setVerPagadas] = useState(false)
   const conSaldo = facturas.filter((f) => f.estado !== 'Pagada')
   const pagadas = facturas.filter((f) => f.estado === 'Pagada')
@@ -159,7 +169,7 @@ export function FacturasAlumno({ facturas, onActualizar, filtrado = false }: Pro
     ) : (
       <div className='flex flex-col gap-4'>
         {facturas.map((f) => (
-          <TarjetaFactura key={f.id_factura} factura={f} onActualizar={onActualizar} />
+          <TarjetaFactura key={f.id_factura} factura={f} onActualizar={onActualizar} puedePagar={puedePagar} />
         ))}
       </div>
     )
@@ -186,7 +196,7 @@ export function FacturasAlumno({ facturas, onActualizar, filtrado = false }: Pro
       )}
 
       {conSaldo.map((f) => (
-        <TarjetaFactura key={f.id_factura} factura={f} onActualizar={onActualizar} />
+        <TarjetaFactura key={f.id_factura} factura={f} onActualizar={onActualizar} puedePagar={puedePagar} />
       ))}
 
       {pagadas.length > 0 && (
@@ -199,7 +209,7 @@ export function FacturasAlumno({ facturas, onActualizar, filtrado = false }: Pro
           >
             {verPagadas ? 'Ocultar facturas pagadas' : `Ver facturas pagadas (${pagadas.length})`}
           </button>
-          {verPagadas && pagadas.map((f) => <TarjetaFactura key={f.id_factura} factura={f} onActualizar={onActualizar} />)}
+          {verPagadas && pagadas.map((f) => <TarjetaFactura key={f.id_factura} factura={f} onActualizar={onActualizar} puedePagar={puedePagar} />)}
         </>
       )}
     </div>

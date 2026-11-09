@@ -13,6 +13,15 @@ export interface UsuarioPanel {
   email: string
   rol: string
   activo: boolean
+  telefono: string | null
+  /** Alumnos vinculados (solo los padres/tutores tienen). */
+  hijos: {
+    id_alumno: number
+    nombre: string
+    apellido: string
+    activo: boolean
+    cursos: { nivel: string; grado_anio: string; division: string } | null
+  }[]
 }
 
 export interface Alumno {
@@ -30,7 +39,7 @@ export interface Alumno {
   nro_obra_social?: string | null
   cursos: { nivel: string; grado_anio: string; division: string } | null
   /** Padre/tutor vinculado (solo en el listado del panel). */
-  padre?: { email: string } | null
+  padre?: { email: string; nombre: string; apellido: string; telefono: string | null } | null
   /** Usuario con el que el alumno entra a la plataforma; `null` si no tiene. */
   usuarios?: UsuarioAlumno | null
 }

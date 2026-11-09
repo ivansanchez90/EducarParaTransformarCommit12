@@ -8,7 +8,7 @@ import type { NextFunction, Request, Response } from 'express'
 import { Prisma } from '../generated/prisma/client.js'
 import { HttpError, fecha, fechaObligatoria, hoyISO, id, lista } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
-import { ROLES_ADMIN, assertAccesoAlumno, esStaff } from '../middleware/auth.js'
+import { ROLES_ADMIN, assertAccesoAlumno, assertNoEsAlumno, esStaff } from '../middleware/auth.js'
 import type { UsuarioAuth } from '../middleware/auth.js'
 import { asincrono, conSesion } from '../middleware/envoltorios.js'
 import { borrarComprobante, guardarComprobante, recibirArchivoComprobante, rutaArchivoPrivado } from '../middleware/upload.js'
@@ -181,6 +181,7 @@ async function subirComprobante(req: Request, res: Response) {
     select: { id_alumno: true, saldo: true },
   })
   if (!factura) throw new HttpError(404, 'Factura no encontrada')
+  assertNoEsAlumno(usuario)
   await assertVePagosDe(usuario, factura.id_alumno)
   if (factura.saldo.lte(0)) throw new HttpError(409, 'La factura ya está pagada: no hace falta subir un comprobante')
 
@@ -247,6 +248,7 @@ async function emitirOrdenPago(req: Request, res: Response) {
   const idFactura = id(req.params.id)
   const factura = await prisma.factura.findUnique({ where: { id_factura: idFactura }, select: { id_alumno: true } })
   if (!factura) throw new HttpError(404, 'Factura no encontrada')
+  assertNoEsAlumno(usuario)
   await assertVePagosDe(usuario, factura.id_alumno)
 
   const orden = await crearOrdenPago(idFactura, idsDeItems(req.body?.items), usuario.id_usuario)

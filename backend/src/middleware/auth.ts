@@ -80,6 +80,17 @@ export const esStaff = (u: UsuarioAuth) => ROLES_STAFF.includes(u.rol)
 export const esTutor = (u: UsuarioAuth) => /padre|tutor/i.test(u.rol)
 
 /**
+ * Pagar (orden de pago, comprobantes) e inscribir o dar de baja servicios lo hace el
+ * padre/tutor o el personal, no el propio alumno: así no hay que distinguir por edad.
+ * El alumno sigue pudiendo ver todo eso.
+ */
+export function assertNoEsAlumno(u: UsuarioAuth) {
+  if (u.rol === 'Alumno') {
+    throw new HttpError(403, 'Esto lo hace tu familia (el padre, la madre o el tutor) desde su cuenta.', 'SOLO_TUTOR')
+  }
+}
+
+/**
  * Verifica que el usuario pueda ver los datos de un alumno: el personal puede
  * ver a todos; el alumno solo a sí mismo y el padre/tutor solo a sus hijos.
  */

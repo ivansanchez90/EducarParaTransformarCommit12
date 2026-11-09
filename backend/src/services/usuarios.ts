@@ -12,8 +12,21 @@ export interface DatosUsuario {
   nombre: string
   apellido: string
   rol: string
-  /** Opcional: por ahora solo lo trae el alta del tutor desde una preinscripción. */
+  /** Opcional: teléfono de contacto (sobre todo de los tutores). */
   telefono?: string | null
+}
+
+/**
+ * Teléfono de contacto: vacío → `null`. Acepta dígitos, espacios, `+`, `-` y paréntesis
+ * ("+54 9 379 455-4837", "(0379) 4554837"), con al menos 6 dígitos.
+ */
+export function telefonoOpcional(valor: unknown): string | null {
+  const telefono = String(valor ?? '').trim().replace(/\s+/g, ' ')
+  if (!telefono) return null
+  if (telefono.length > 30 || !/^[\d\s()+-]+$/.test(telefono) || telefono.replace(/\D/g, '').length < 6) {
+    throw new HttpError(400, `El teléfono ${telefono} no es válido`)
+  }
+  return telefono
 }
 
 export function validarUsuario(body: Record<string, unknown>): DatosUsuario {
@@ -23,6 +36,7 @@ export function validarUsuario(body: Record<string, unknown>): DatosUsuario {
     nombre: String(body.nombre ?? '').trim(),
     apellido: String(body.apellido ?? '').trim(),
     rol: String(body.rol ?? '').trim(),
+    telefono: telefonoOpcional(body.telefono),
   }
   if (!datos.email || !datos.rol) throw new HttpError(400, 'Email y rol son obligatorios')
   if (datos.password.length < 6) throw new HttpError(400, 'La contraseña debe tener al menos 6 caracteres')
