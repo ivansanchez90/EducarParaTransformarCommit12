@@ -379,6 +379,7 @@ inscripcionesRouter.post('/:id/aprobar', ...soloAdmin, async (req, res) => {
           nombre,
           apellido,
           rol: 'Padre',
+          telefono: solicitud.telefono_tutor,
         })
         idTutor = tutor.id_usuario
         tutorCreado = true
