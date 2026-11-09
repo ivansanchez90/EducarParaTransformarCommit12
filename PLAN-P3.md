@@ -303,14 +303,16 @@ _Rama `feat/movil-correcciones-testing`. Defectos 3 a 9 de `PRUEBAS-P3.md`._
 - **Verificado:** sobre una base con `seed:demo`, la API responde 401 sin sesión y 403 a una familia; cubre altas, todas las validaciones, el estado de cada tarifa, la edición y el borrado solo de las programadas, y el profesor y los horarios (también los ve el portal). En el navegador, a 1366 px y a 375 px (sin scroll horizontal ni errores de consola): carga de una tarifa, edición de una actividad con profesor y horarios, y el mensaje de horarios superpuestos. `typecheck` y `build` sin errores; el lint del frontend sigue en los 46 errores que ya había en `main`, ninguno nuevo.
 - **Falta:** cargar las tarifas reales antes de facturar (T08).
 
-### T25 — Informe de uso de IA (los dos): en curso, faltan los apartados 3 y 5
+### T25 — Informe de uso de IA (los dos): en curso, documento de entrega listo
 
 - **Qué quedó (Iván):** `INFORME-IA.md`, el borrador del informe con la estructura de la consigna (página 7 de `TP-Metodologia-3.pdf`). Se escribe en el repo y se pasa al documento de entrega cuando esté completo.
   - **Apartado 1, relación entre la web y la app móvil:** qué existía en la web (Partes 1 y 2) y qué se sumó al portal en la Parte 3, por HU y tarea. También qué comparten (una sola base y una sola API), cómo se comunican, los cambios al backend por tarea, qué se reutiliza y cómo se mantienen sincronizadas: sin caché de `/api`, estado calculado al leer, `aplicarPago()` con bloqueo, tarifas con vigencia y envíos sin repetir.
   - **Apartado 4, tabla "Sin IA / Con IA":** los diez aspectos de la consigna. La columna "Con IA" se apoya en hechos del repo, citando las filas de la bitácora: la estimación de 35,5 días-persona contra las fechas reales de merge, los errores que la IA detectó y los que dejó, y los avisos de Codacy corregidos después.
   - **Apartado 2:** remite a `BITACORA-IA.md`.
 - **Para revisar:** el informe declara **Claude Code** como herramienta, porque es la que figura en las 25 filas de la bitácora, y aclara que el plan había declarado Gemini. La columna "Sin IA" del apartado 4 describe cómo se habría trabajado sin el asistente: conviene ajustarla con la experiencia de cada uno.
-- **Falta:** los apartados 3 y 5 (Juan Manuel), pasar el informe y la bitácora al documento de entrega, y actualizar los números del apartado 4 después del testing del 11/11.
+- **Qué quedó (Juan Manuel):** los apartados 3 (IA vs. conocimiento del sistema, con una tabla de los siete aspectos de la consigna y un caso real de la bitácora en cada uno) y 5 (las diez preguntas de la reflexión crítica), y el documento de entrega `docs/Informe-IA-Grupo12.docx`: portada, los cinco apartados, la bitácora con las ocho columnas de la consigna en A4 apaisado y la tabla Sin IA / Con IA.
+- **Revisión (Iván, 9/11):** el documento se controló contra las páginas 7 y 8 de la consigna, y está completo. Se corrigieron los datos que habían quedado del borrador: 40 usos, 5 parciales (7, 10, 11, 34 y 39), 755 pruebas, el email por Brevo y no por Gmail, y la fila 37, que no es un error de la IA. Se cerraron las filas 16 y 19 (Codacy en verde en los PR #42 y #45) y la 39, y se sumaron a la tabla del apartado 1 los cambios de T24. `INFORME-IA.md` tiene el mismo texto que el documento.
+- **Falta:** si se usa IA en el testing del 11/11, sumar las filas a la bitácora y actualizar los conteos (usos, parciales y pruebas) en los apartados 2, 4 y 5, en el `.docx` y acá. Se entrega el 17/11.
 
 ### T23 — Pruebas integrales con `seed:demo` ampliado (los dos): en curso, falta en teléfonos reales
 
