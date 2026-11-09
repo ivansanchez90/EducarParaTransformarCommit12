@@ -8,7 +8,13 @@ import { Router } from 'express'
 import { HttpError, bool, fecha, id, numOrNull, textOrNull } from '../lib/http.js'
 import { prisma } from '../lib/prisma.js'
 import { ROLES_ADMIN, requireAuth, requireRole } from '../middleware/auth.js'
-import { crearUsuario, partirNombre, emailInstitucionalAlumno } from '../services/usuarios.js'
+import {
+  crearUsuario,
+  diferenciasTutor,
+  emailInstitucionalAlumno,
+  partirNombre,
+  type DiferenciaTutor,
+} from '../services/usuarios.js'
 import { verificarCupoCurso } from './alumnos.js'
 import { borrarArchivo, uploader, urlPublica } from '../middleware/upload.js'
 import { notificarFamilias } from '../services/notificaciones.js'
@@ -327,7 +333,9 @@ inscripcionesRouter.get('/:id', ...soloAdmin, async (req, res) => {
  *
  * Opcionalmente crea los usuarios de acceso: el del tutor (con el email de la
  * solicitud) y el del alumno (`<dni>@alumno.local`). Si el tutor ya tiene
- * usuario, se reutiliza. Todo ocurre en una transacción: o se crea el alumno
+ * usuario (por ejemplo, al inscribir a un segundo hijo), se reutiliza sin
+ * cambiarle los datos, y `accesos.tutor.diferencias` lista lo que la solicitud
+ * trae distinto. Todo ocurre en una transacción: o se crea el alumno
  * con sus accesos y la solicitud queda aprobada, o no se toca nada.
  */
 inscripcionesRouter.post('/:id/aprobar', ...soloAdmin, async (req, res) => {
@@ -349,16 +357,21 @@ inscripcionesRouter.post('/:id/aprobar', ...soloAdmin, async (req, res) => {
     const repetido = await tx.alumno.findUnique({ where: { dni }, select: { id_alumno: true } })
     if (repetido) throw new HttpError(409, 'Ya existe un alumno registrado con ese DNI', '23505')
 
-    // Tutor: se reutiliza su usuario si ya existe.
+    // Tutor: se reutiliza su usuario si ya existe. Sus datos no se tocan; si
+    // la solicitud trae otros (nombre, teléfono) o la cuenta no es de tutor,
+    // la respuesta lo avisa para que la administración decida.
     let idTutor: string | null = null
     let tutorCreado = false
+    let diferencias: DiferenciaTutor[] = []
     if (crearAccesos) {
       const existente = await tx.usuario.findUnique({
         where: { email: solicitud.email_tutor.toLowerCase() },
-        select: { id_usuario: true },
+        select: { id_usuario: true, nombre: true, apellido: true, telefono: true, rol: true },
       })
-      if (existente) idTutor = existente.id_usuario
-      else {
+      if (existente) {
+        idTutor = existente.id_usuario
+        diferencias = diferenciasTutor(existente, solicitud)
+      } else {
         const { nombre, apellido } = partirNombre(solicitud.nombre_tutor)
         const tutor = await crearUsuario(tx, {
           email: solicitud.email_tutor,
@@ -416,7 +429,7 @@ inscripcionesRouter.post('/:id/aprobar', ...soloAdmin, async (req, res) => {
       alumno,
       accesos: crearAccesos
         ? {
-            tutor: { email: solicitud.email_tutor, creado: tutorCreado },
+            tutor: { id_usuario: idTutor, email: solicitud.email_tutor, creado: tutorCreado, diferencias },
             alumno: { email: emailInstitucionalAlumno(dni), password_inicial: dni },
           }
         : null,

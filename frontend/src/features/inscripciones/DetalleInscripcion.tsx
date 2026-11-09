@@ -20,6 +20,13 @@ import {
   selectField,
 } from '../../ui/styles'
 
+/** Dato del tutor que no coincide entre su usuario y la solicitud (lo arma el backend al aprobar). */
+interface DiferenciaTutor {
+  campo: 'Nombre' | 'Teléfono' | 'Rol'
+  registrado: string
+  solicitud: string
+}
+
 const FORM_VACIO = {
   nombre_aspirante: '',
   apellido_aspirante: '',
@@ -54,6 +61,8 @@ export function DetalleInscripcion({
   const [idCurso, setIdCurso] = useState('')
   const [crearUsuarios, setCrearUsuarios] = useState(true)
   const [accesos, setAccesos] = useState<{ email: string; password_inicial: string } | null>(null)
+  // El tutor ya tenía usuario (p. ej., segundo hijo) y la solicitud trae otros datos.
+  const [avisoTutor, setAvisoTutor] = useState<{ email: string; diferencias: DiferenciaTutor[] } | null>(null)
 
   const load = useCallback(async () => {
     const [{ data }, { data: cu }] = await Promise.all([
@@ -123,9 +132,13 @@ export function DetalleInscripcion({
     if (!confirm('¿Aprobar la solicitud y dar de alta al alumno?')) return
     setLoading(true)
     setMsg('')
+    setAvisoTutor(null)
     const { data, error } = await api.post<{
       alumno: { id_alumno: number; nombre: string; apellido: string }
-      accesos: { alumno: { email: string; password_inicial: string } } | null
+      accesos: {
+        tutor: { email: string; creado: boolean; diferencias: DiferenciaTutor[] }
+        alumno: { email: string; password_inicial: string }
+      } | null
     }>(`/inscripciones/${idInscripcion}/aprobar`, {
       id_curso: idCurso ? Number(idCurso) : null,
       crear_usuarios: crearUsuarios,
@@ -136,6 +149,10 @@ export function DetalleInscripcion({
         `✅ Alumno dado de alta: ${data.alumno.apellido}, ${data.alumno.nombre} (legajo ${data.alumno.id_alumno}).`,
       )
       setAccesos(data.accesos?.alumno ?? null)
+      const tutor = data.accesos?.tutor
+      if (tutor && !tutor.creado && tutor.diferencias.length > 0) {
+        setAvisoTutor({ email: tutor.email, diferencias: tutor.diferencias })
+      }
       await load()
       onCambio()
     }
@@ -178,6 +195,37 @@ export function DetalleInscripcion({
               su portal).
             </div>
           )}
+        </div>
+      )}
+
+      {avisoTutor && (
+        <div
+          role='status'
+          className='text-[13px] px-4 py-3 rounded-lg border mb-5 text-text'
+          style={{ background: '#E67E2214', borderColor: '#E67E2240' }}
+        >
+          <div className='font-bold mb-1' style={{ color: '#E67E22' }}>
+            ⚠️ El tutor ya tenía usuario ({avisoTutor.email}) y la solicitud trae otros datos
+          </div>
+          <ul className='my-1 pl-5'>
+            {avisoTutor.diferencias.map((d) =>
+              d.campo === 'Rol' ? (
+                <li key={d.campo}>
+                  La cuenta tiene el rol <strong>{d.registrado}</strong>, no el de tutor: con ese rol no
+                  ve a sus hijos en el portal.
+                </li>
+              ) : (
+                <li key={d.campo}>
+                  {d.campo}: registrado <strong>{d.registrado}</strong> · en la solicitud{' '}
+                  <strong>{d.solicitud}</strong>
+                </li>
+              ),
+            )}
+          </ul>
+          <div>
+            El alumno quedó vinculado a ese usuario y no se cambió ninguno de sus datos. Si
+            corresponde, actualizalo desde Usuarios.
+          </div>
         </div>
       )}
 
@@ -349,7 +397,8 @@ export function DetalleInscripcion({
               Al aprobar se crea el alumno con estos datos. Si marcás la casilla, también se
               crean el usuario del tutor (con su email) y el del alumno
               (<code>{form.dni_aspirante || 'dni'}@alumno.local</code>), ambos con el DNI como
-              contraseña inicial. Si el tutor ya tiene usuario, se reutiliza.
+              contraseña inicial. Si el tutor ya tiene usuario, se reutiliza sin cambiarle los
+              datos y se avisa si la solicitud trae otros.
             </p>
           </>
         )}

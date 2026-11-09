@@ -8,7 +8,8 @@ import { vi } from 'vitest'
 
 export const prismaFalso = {
   usuario: { findUnique: vi.fn(), update: vi.fn() },
-  alumno: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn() },
+  alumno: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
+  inscripcion: { findUnique: vi.fn(), update: vi.fn() },
   fichaMedica: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   atencionEnfermeria: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   auditoriaSalud: { create: vi.fn(), findMany: vi.fn() },
