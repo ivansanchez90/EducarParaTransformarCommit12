@@ -1,6 +1,6 @@
 /**
- * LegajoAlumno — legajo consolidado de un alumno: datos personales, resumen
- * académico, calificaciones, amonestaciones y documentación.
+ * LegajoAlumno — legajo consolidado de un alumno: datos personales, familia (tutor y
+ * hermanos), resumen académico, calificaciones, amonestaciones y documentación.
  */
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
@@ -23,6 +23,7 @@ import {
 } from '../../ui/styles'
 import { PasswordInput, TablaScroll } from '../../ui/components'
 import { ResumenSalud } from '../salud/ResumenSalud'
+import { FamiliaAlumno } from './FamiliaAlumno'
 
 /**
  * Usuario con el que el alumno entra a la plataforma: muestra el email y deja
@@ -193,9 +194,12 @@ function AccesoAlumno({
 export function LegajoAlumno({
   idAlumno,
   onClose,
+  onAbrirLegajo,
 }: {
   idAlumno: number
   onClose: () => void
+  /** Para pasar al legajo de un hermano desde la tarjeta Familia. */
+  onAbrirLegajo?: (idAlumno: number) => void
 }) {
   const [alumno, setAlumno] = useState<AlumnoLegajo | null>(null)
   const [califs, setCalifs] = useState<Calificacion[]>([])
@@ -359,6 +363,8 @@ export function LegajoAlumno({
           <div style={{ color: '#6B6B8A', fontSize: 13 }}>Cargando...</div>
         )}
       </div>
+
+      <FamiliaAlumno idAlumno={idAlumno} onAbrirLegajo={onAbrirLegajo} />
 
       {alumno && (
         <AccesoAlumno

@@ -150,7 +150,16 @@ export function GestionAlumnos() {
 
   if (legajoId !== null) {
     return (
-      <LegajoAlumno idAlumno={legajoId} onClose={() => setLegajoId(null)} />
+      <LegajoAlumno
+        key={legajoId}
+        idAlumno={legajoId}
+        onClose={() => setLegajoId(null)}
+        onAbrirLegajo={(id) => {
+          setLegajoId(id)
+          // El que se desplaza es el <main> del panel, no la ventana.
+          document.querySelector('main')?.scrollTo({ top: 0 })
+        }}
+      />
     )
   }
 

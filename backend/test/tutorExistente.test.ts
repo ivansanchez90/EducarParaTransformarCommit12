@@ -107,3 +107,45 @@ describe('POST /api/inscripciones/:id/aprobar con un tutor que ya tiene usuario'
     })
   })
 })
+
+describe('POST /api/inscripciones/:id/aprobar con un tutor nuevo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    prismaFalso.$transaction.mockImplementation(async (funcion: (tx: unknown) => unknown) => funcion(prismaFalso))
+    // Sesión del admin; ni el tutor ni el alumno tienen usuario todavía.
+    prismaFalso.usuario.findUnique.mockImplementation(async (args: { where: { email?: string } }) =>
+      args.where.email ? null : usuarioConRol('Admin'),
+    )
+    prismaFalso.usuario.create.mockImplementation(async (args: { data: Record<string, unknown> }) => ({
+      id_usuario: args.data.rol === 'Padre' ? '44444444-4444-4444-8444-444444444444' : '55555555-5555-4555-8555-555555555555',
+      ...args.data,
+    }))
+    prismaFalso.inscripcion.findUnique.mockResolvedValue({
+      id_inscripcion: 8,
+      id_alumno_creado: null,
+      nombre_aspirante: 'Tomás',
+      apellido_aspirante: 'Gómez',
+      dni_aspirante: '50333444',
+      fecha_nacimiento_aspirante: new Date('2017-05-01'),
+      nombre_tutor: 'Laura Gómez',
+      email_tutor: 'laura@familia.test',
+      telefono_tutor: ' 11 7777-8888 ',
+    })
+    prismaFalso.alumno.findUnique.mockResolvedValue(null)
+    prismaFalso.alumno.create.mockImplementation(async (args: { data: Record<string, unknown> }) => ({ id_alumno: 100, ...args.data }))
+    prismaFalso.inscripcion.update.mockResolvedValue({})
+  })
+
+  it('guarda el teléfono de la solicitud en el usuario del tutor', async () => {
+    const res = await request(app)
+      .post('/api/inscripciones/8/aprobar')
+      .set('Authorization', `Bearer ${firmarToken()}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    expect(res.body.accesos.tutor).toMatchObject({ creado: true, diferencias: [] })
+    expect(prismaFalso.usuario.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ rol: 'Padre', telefono: '11 7777-8888' }) }),
+    )
+  })
+})

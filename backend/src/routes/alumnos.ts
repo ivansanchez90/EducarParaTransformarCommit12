@@ -332,6 +332,33 @@ alumnosRouter.get('/:id/cuotas', async (req, res) => {
   res.json(cuotas)
 })
 
+/**
+ * Familia del alumno, para la tarjeta del legajo: el usuario del padre/tutor (nombre,
+ * email y teléfono, para contactarlo) y los hermanos, es decir los otros alumnos
+ * vinculados al mismo tutor. La ve el personal, docentes incluidos; las familias no
+ * (la ruta de los hijos del portal es `/mios`).
+ */
+alumnosRouter.get('/:id/familia', requireRole(...ROLES_STAFF), async (req, res) => {
+  const idAlumno = id(req.params.id)
+  const alumno = await prisma.alumno.findUnique({
+    where: { id_alumno: idAlumno },
+    select: {
+      id_usuario_padre: true,
+      padre: { select: { id_usuario: true, nombre: true, apellido: true, email: true, telefono: true, activo: true } },
+    },
+  })
+  if (!alumno) throw new HttpError(404, 'Alumno no encontrado')
+
+  const hermanos = alumno.id_usuario_padre
+    ? await prisma.alumno.findMany({
+        where: { id_usuario_padre: alumno.id_usuario_padre, id_alumno: { not: idAlumno } },
+        select: { id_alumno: true, nombre: true, apellido: true, activo: true, cursos: cursoResumen },
+        orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
+      })
+    : []
+  res.json({ tutor: alumno.padre, hermanos })
+})
+
 alumnosRouter.get('/:id/amonestaciones', requireRole(...ROLES_STAFF), async (req, res) => {
   const amonestaciones = await prisma.amonestacion.findMany({
     where: { id_alumno: id(req.params.id) },

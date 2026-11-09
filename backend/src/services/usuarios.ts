@@ -12,6 +12,8 @@ export interface DatosUsuario {
   nombre: string
   apellido: string
   rol: string
+  /** Opcional: por ahora solo lo trae el alta del tutor desde una preinscripción. */
+  telefono?: string | null
 }
 
 export function validarUsuario(body: Record<string, unknown>): DatosUsuario {
@@ -39,6 +41,7 @@ export async function crearUsuario(tx: Prisma.TransactionClient, datos: DatosUsu
       nombre: datos.nombre,
       apellido: datos.apellido,
       rol: datos.rol,
+      telefono: datos.telefono?.trim() || null,
     },
   })
   // Los docentes necesitan su fila en `docentes` para aparecer en el panel.
