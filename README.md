@@ -153,9 +153,9 @@ puerto **4000**.
 | `JWT_EXPIRES_IN` | opcional, por defecto `8h` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | claves de los avisos push (ver *App instalable*); sin ellas el push queda apagado |
 | `VAPID_SUBJECT` | `mailto:` de contacto de la escuela para los servicios de push |
-| `SMTP_USER` / `SMTP_PASS` | cuenta de Gmail y su **contraseña de aplicación** para los emails; sin ellas el envío queda apagado |
+| `SMTP_USER` / `SMTP_PASS` | usuario y clave del servidor SMTP para los emails (en producción, Brevo con el dominio propio; con Gmail, la cuenta y su **contraseña de aplicación**); sin ellas el envío queda apagado |
 | `MAIL_FROM` | opcional, remitente que ven las familias (por defecto `Educar para Transformar <SMTP_USER>`) |
-| `SMTP_HOST` / `SMTP_PORT` | opcionales, por defecto `smtp.gmail.com` y `465` |
+| `SMTP_HOST` / `SMTP_PORT` | opcionales, por defecto `smtp.gmail.com` y `465` (Brevo: `smtp-relay.brevo.com` y `587`) |
 | `EMAIL_PAUSA_MS` | opcional, pausa entre los emails de fin de mes (por defecto `1000`) |
 | `BANCO_ALIAS` | alias de la cuenta a la que transfieren las familias; aparece en la orden de pago, la factura y los emails |
 | `BANCO_CBU` / `BANCO_TITULAR` / `BANCO_NOMBRE` | resto de los datos de esa cuenta (CBU de 22 dígitos, titular y banco); lo que quede vacío no se muestra. Para la demo, los valores inventados de `.env.example` |
