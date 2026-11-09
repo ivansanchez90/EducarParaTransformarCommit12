@@ -43,6 +43,14 @@ export interface PagoPortal {
   periodo: { anio: number; mes: number } | null
 }
 
+/** Cuenta a la que transfieren las familias. */
+export interface DatosBancarios {
+  alias: string | null
+  cbu: string | null
+  titular: string | null
+  banco: string | null
+}
+
 /** La orden de pago (el comprobante de pago) que emite el sistema para los ítems elegidos. */
 export interface OrdenPago {
   id_orden: number
@@ -52,6 +60,8 @@ export interface OrdenPago {
   total: number
   /** Alias al que se transfiere; vacío si la institución todavía no lo configuró. */
   alias: string | null
+  /** Datos de la cuenta (`BANCO_*` del backend); lo que no está cargado viene en null. */
+  datos_bancarios: DatosBancarios
   items: { id_item: number; importe: number; concepto: string; descripcion: string }[]
 }
 

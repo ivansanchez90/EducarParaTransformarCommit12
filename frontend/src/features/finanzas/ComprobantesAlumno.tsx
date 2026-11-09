@@ -1,4 +1,6 @@
 /** ComprobantesAlumno — las transferencias que subió la familia, con su estado y la factura que pagan. */
+import { useState } from 'react'
+import { abrirConSesion } from '../../lib/api'
 import { Badge } from '../../ui/components'
 import { fechaCorta, nombrePeriodo, numeroFactura, pesos } from './formato'
 import type { ComprobanteListado } from './types'
@@ -32,8 +34,34 @@ export function ComprobantesAlumno({ comprobantes, filtrado }: { comprobantes: C
             {c.orden ? ` · Orden N.º ${numeroFactura(c.orden.numero)}` : ''}
           </div>
           {c.motivo_rechazo && <div className='text-[13px] text-red'>{c.motivo_rechazo}</div>}
+          <VerArchivo idComprobante={c.id_comprobante} />
         </div>
       ))}
+    </div>
+  )
+}
+
+/**
+ * Abre la foto o el PDF que subió la familia. El archivo es privado: se pide con la sesión
+ * y se muestra en otra pestaña (`abrirConSesion` la abre antes de esperar la descarga, así
+ * el navegador del celular no la bloquea).
+ */
+function VerArchivo({ idComprobante }: { idComprobante: number }) {
+  const [error, setError] = useState('')
+  return (
+    <div>
+      <button
+        type='button'
+        className='bg-transparent border-0 p-0 min-h-11 text-[13px] font-bold text-purple-700 cursor-pointer'
+        onClick={async () => {
+          setError('')
+          const fallo = await abrirConSesion(`/comprobantes/${idComprobante}/archivo`)
+          if (fallo) setError(fallo.message)
+        }}
+      >
+        Ver comprobante
+      </button>
+      {error && <div className='text-[13px] text-red'>{error}</div>}
     </div>
   )
 }

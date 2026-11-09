@@ -89,7 +89,7 @@ Estados: Pendiente · En curso · En revisión · Hecho.
 | T21. Reportes: ingresos por período, pagos completos e incompletos por año y alumno (PDF y CSV) | HU19–HU21 | 4 | Juan Manuel | T14 | 2 días | Hecho |
 | T22. Reportes: pagos por deporte/nivel/horario/profesor y por recorrido | HU22, HU23 | 4 | Iván | T06, T21 | 1,5 días | Hecho |
 | T23. Pruebas integrales con `seed:demo` ampliado (tarifas, facturas, pagos) y en teléfonos reales | — | 4 | Los dos | T01–T22 | 1,5 días | En curso |
-| T24. Testing del 11/11 y corrección de defectos | — | 5 | Los dos | T23 | 3 días | Pendiente |
+| T24. Testing del 11/11 y corrección de defectos | — | 5 | Los dos | T23 | 3 días | En curso |
 | T25. Informe de uso de IA: apartados 1 y 4 (Iván), 3 y 5 (Juan Manuel), 2 bitácora (los dos) | — | 5 | Los dos | T05 | 2 días | En curso |
 
 **Sprints:** 0 = 29/09–02/10 · 1 = 05/10–14/10 (12/10 feriado) · 2 = 15/10–23/10 ·
@@ -179,6 +179,21 @@ con `requireAuth` + `assertAccesoAlumno`):
 ## Entregas
 
 _Al cerrar cada tarea, agregar una entrada con el mismo formato que en `PLAN-PWA.md`: qué quedó, qué se verificó y qué falta._
+
+### T24 — Corrección de defectos de la app móvil antes del testing (Iván): en revisión
+
+_Rama `feat/movil-correcciones-testing`. Defectos 3 a 9 de `PRUEBAS-P3.md`._
+
+- **Qué quedó:**
+  - Los diálogos del portal (orden de pago, subir comprobante y cambiar la contraseña) quedan por encima de la cabecera y de la barra inferior.
+  - *Comprobantes*: botón **Ver comprobante**, que abre la foto o el PDF subido en otra pestaña con la sesión.
+  - *Extracurriculares*: días y horarios y profesor de cada actividad; "Inscripto en N de 2 deportes" y el botón bloqueado al llegar al tope; el estado del certificado de aptitud del hijo (solo el tutor); el mensaje de error se desplaza hasta quedar a la vista.
+  - PDF en iPhone y iPad: se abre en otra pestaña (el visor tiene *Compartir → Guardar en Archivos*); en el resto se sigue descargando, y la memoria se libera un minuto después.
+  - Avisos push: la clave se consulta antes de pedir el permiso; sin claves en el servidor se avisa en vez de ofrecer el botón; si el servidor no guarda la suscripción se deshace; en Safari de iPhone sin instalar explica cómo instalar la app.
+  - Datos bancarios: `BANCO_CBU`, `BANCO_TITULAR` y `BANCO_NOMBRE`, además de `BANCO_ALIAS` (`services/banco.ts`). Salen en la orden de pago (pantalla, con botones para copiar el CBU y el alias, y PDF), en la factura y en los emails. Para la demo, los valores inventados de `backend/.env.example` (banco 999, que no existe).
+  - Selector del comprobante con `image/*` (ofrece la cámara), confirmación antes de dar de baja un deporte, el transporte o el comedor, y los errores de esas bajas a la vista.
+- **Verificado** con la API real sobre `seed:demo`, en Chromium simulando un iPhone (375 × 667) y un Pixel 7: los 15 puntos de arriba, sin errores de consola ni de la API y sin scroll horizontal. El PDF de la orden trae el CBU y el banco. Backend con 727 pruebas en verde (3 nuevas de `banco.ts`); `tsc -b` y `build` del frontend sin errores.
+- **Falta:** probarlo en un iPhone y un Android reales (la apertura del PDF en iOS y la cámara no se pueden comprobar en Chromium) y cargar en Coolify las variables `BANCO_*`, `SMTP_*`, `PUBLIC_URL` y `VAPID_*`.
 
 ### T01 — Modelo de datos financiero (Iván): hecho, mergeado en el PR #24
 

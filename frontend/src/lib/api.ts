@@ -131,7 +131,14 @@ function guardarEnElEquipo(blob: Blob, nombre: string) {
   document.body.appendChild(a)
   a.click()
   a.remove()
-  URL.revokeObjectURL(url)
+  // Safari cancela la descarga si la URL se libera en el mismo momento del clic.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+/** iPhone o iPad (el iPad con iPadOS se presenta como Mac, pero tiene pantalla táctil). */
+const esIOS = () => {
+  const ua = navigator.userAgent
+  return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
 }
 
 /** El nombre sugerido por el backend, que viene en la cabecera Content-Disposition. */
@@ -143,6 +150,10 @@ const nombreSugerido = (res: Response, defecto: string) =>
  * se baja con fetch y se entrega al navegador desde memoria.
  */
 export async function descargar(path: string): Promise<ApiError | null> {
+  // En iPhone y iPad un enlace de descarga a un archivo en memoria no siempre baja (sobre todo
+  // con la app instalada): el PDF se abre en otra pestaña, donde el visor tiene "Compartir →
+  // Guardar en Archivos". Se llama antes de cualquier await, para que la pestaña no se bloquee.
+  if (esIOS()) return abrirConSesion(path)
   const r = await pedirArchivo(path)
   if ('error' in r) return r.error
   guardarEnElEquipo(await r.res.blob(), nombreSugerido(r.res, 'reporte'))

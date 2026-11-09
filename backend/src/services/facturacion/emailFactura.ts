@@ -5,6 +5,7 @@
  */
 import { config } from '../../lib/config.js'
 import { pesos } from '../avisos/mensajes.js'
+import { destinoTransferencia } from '../banco.js'
 import { escaparHtml as e } from '../email.js'
 import { nombrePeriodo } from './estrategias.js'
 
@@ -39,9 +40,8 @@ export function emailFinDeMes(nombreFamilia: string, facturas: FacturaParaEmail[
   const aPagar = facturas.reduce((s, f) => s + Math.round(f.saldo * 100), 0) / 100
   const vence = fechaCorta(fecha_vencimiento)
   const hijos = enumerar(facturas.map((f) => f.alumno.split(' ')[0]))
-  const comoPagar = config.bancoAlias
-    ? `Podés pagar por transferencia al alias ${config.bancoAlias} y subir el comprobante desde la app, en Cuotas.`
-    : 'Podés pagar por transferencia y subir el comprobante desde la app, en Cuotas.'
+  const destino = destinoTransferencia()
+  const comoPagar = `Podés pagar por transferencia${destino ? ' ' + destino : ''} y subir el comprobante desde la app, en Cuotas.`
   const enlace = config.publicUrl ? `${config.publicUrl}/portal` : ''
 
   const intro =

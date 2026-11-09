@@ -44,7 +44,9 @@ export function CambiarPassword({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className='fixed inset-0 z-50 flex items-center justify-center p-4'
+      role='dialog'
+      aria-modal='true'
+      className='fixed inset-0 z-[200] flex items-center justify-center p-4'
       style={{ background: 'rgba(26,26,46,0.45)' }}
       onClick={onClose}
     >
