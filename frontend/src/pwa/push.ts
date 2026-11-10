@@ -16,8 +16,10 @@ function soportado() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
 }
 
-const esIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
-const instalada = () =>
+/** iPhone o iPad (el iPad con iPadOS se presenta como Mac, pero tiene pantalla táctil). */
+export const esIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+/** La app se abrió instalada (desde el ícono), no desde una pestaña del navegador. */
+export const instalada = () =>
   window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
 
 /**

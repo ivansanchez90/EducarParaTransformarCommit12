@@ -39,6 +39,7 @@ Variables a cargar para probar todo: `BANCO_ALIAS` (si falta, la orden de pago d
 | Quién | Qué probar | HU | Tarea | Cómo probarlo | Resultado |
 | --- | --- | --- | --- | --- | --- |
 | Familia (PWA) | Iniciar y cerrar sesión con la app instalada, también sin señal | HU01 | T09 | Instalar la PWA, entrar y salir; abrirla en modo avión | |
+| Familia (PWA) | Aviso para instalar la app al entrar desde el celular | — | T24 | Abrir la web en Chrome de Android: aparece la tarjeta con **Instalar** y abre el diálogo del sistema. En Safari de iPhone: aparece con los pasos para *Agregar a inicio*. Con la app ya instalada, o después de "Ahora no" o "Entendido" (por una semana), no aparece; en la computadora tampoco | |
 | Familia | Cambiar la contraseña desde "Mi contraseña" | HU02 | T10 | Cambiarla y volver a entrar con la nueva | |
 | Familia | Recuperar la contraseña por email; el enlace sirve una vez y vence a los 30 min | HU03 | T20 | Pedir el enlace, usarlo dos veces y esperar el vencimiento | |
 | Familia | Precio de cada servicio en "Transporte y comedor" y "Extracurriculares"; "Precio a confirmar" si falta la tarifa | HU24 | T19 | Mirar con la tarifa cargada y, en *Tarifas*, probar con un servicio sin precio | |
@@ -109,3 +110,4 @@ Anotar acá lo que falle, con la pantalla, el mensaje y la tarea; se corrige en 
 | 7 | 2026-11-09 | Iván (revisión del código y Chromium a 375 px) | *Notificaciones*, avisos push | Pedía el permiso antes de saber si el servidor tenía las claves VAPID; si el servidor no guardaba la suscripción, el botón quedaba como activo; en Safari de iPhone sin instalar no explicaba nada | Corregido en `feat/movil-correcciones-testing` |
 | 8 | 2026-11-09 | Iván (revisión del código y Chromium a 375 px) | *Subir comprobante* | El selector solo listaba extensiones: en algunos Android no ofrece sacar la foto con la cámara | Corregido en `feat/movil-correcciones-testing` |
 | 9 | 2026-11-09 | Iván (revisión del código y Chromium a 375 px) | Bajas de deporte, transporte y comedor | Se daban de baja sin confirmar y algunos errores no se mostraban | Corregido en `feat/movil-correcciones-testing` |
+| 10 | 2026-11-10 | Iván (Chromium simulando iPhone) | Sitio público, pie de página | El email de contacto no se cortaba y ensanchaba la página 44 px: en el celular había scroll horizontal | Corregido en `feat/instalar-app` |
