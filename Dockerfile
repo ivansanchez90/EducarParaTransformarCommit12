@@ -29,7 +29,9 @@ ENV PORT=4000
 
 COPY --from=backend --chown=node:node /app/node_modules ./node_modules
 COPY --from=backend --chown=node:node /app/dist ./dist
-COPY --from=backend --chown=node:node /app/src/generated ./src/generated
+# El código fuente (con el cliente generado) lo usa `npm run seed:demo`, que corre
+# con tsx e importa los servicios de facturación, pagos y salud.
+COPY --from=backend --chown=node:node /app/src ./src
 COPY --chown=node:node backend/package.json backend/prisma.config.ts ./
 COPY --chown=node:node backend/prisma ./prisma
 COPY --from=frontend --chown=node:node /frontend/dist ./public
