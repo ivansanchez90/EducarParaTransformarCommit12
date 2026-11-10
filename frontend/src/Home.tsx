@@ -904,7 +904,8 @@ export default function Home() {
                   ].join(' ')}
                 >
                   <span className='text-sm'>{item.icon}</span>
-                  <span className='text-xs opacity-70 leading-[1.5]'>
+                  {/* El email es una sola palabra larga: sin cortarla, en el celular ensancha la página. */}
+                  <span className='text-xs opacity-70 leading-[1.5] min-w-0 [overflow-wrap:anywhere]'>
                     {item.text}
                   </span>
                 </a>

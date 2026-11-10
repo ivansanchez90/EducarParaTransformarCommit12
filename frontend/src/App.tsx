@@ -8,6 +8,7 @@ import StudentPortal from './StudentPortal'
 import NoticiaDetalle from './NoticiaDetalle'
 import { ActualizarApp } from './pwa/ActualizarApp'
 import { AvisoSinConexion } from './pwa/AvisoSinConexion'
+import { InstalarApp } from './pwa/InstalarApp'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
       </Routes>
       <ActualizarApp />
       <AvisoSinConexion />
+      <InstalarApp />
     </BrowserRouter>
   )
 }
