@@ -64,7 +64,7 @@ function formatFecha(dateStr: string): string {
 // Imágenes placeholder por sección (unsplash)
 const PLACEHOLDERS: Record<string, string> = {
   alumnos:
-    'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=600&q=80',
+    'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=600&q=80',
   docentes:
     'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&q=80',
   niveles:
