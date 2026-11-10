@@ -781,7 +781,7 @@ async function main() {
     ['Equipo de vóleibol', 'Deportes', 'photo-1521412644187-c49fa049e84d'],
     ['Laboratorio de computación', 'Tecnología', 'photo-1518770660439-4636190af475'],
     ['Clase de inglés', 'Idiomas', 'photo-1523240795612-9a054b0db644'],
-    ['Acto escolar', 'Actividades', 'photo-1523050854058-8df90110c9f1'],
+    ['Acto escolar', 'Actividades', 'photo-1523580494863-6f3031224c94'],
   ]
   await prisma.galeria.createMany({
     data: FOTOS.map(([titulo, categoria, foto]) => ({
