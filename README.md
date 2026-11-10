@@ -165,6 +165,14 @@ Montar un **volumen persistente en `/app/uploads`** (si no, los archivos
 subidos se pierden en cada deploy). Seed inicial, una sola vez, desde la
 terminal del contenedor: `npx prisma db seed`.
 
+Para cargar los **datos de demostración** (los usuarios de `PRUEBAS-P3.md`), desde la
+terminal del contenedor: `SEED_DEMO_FORCE=true npm run seed:demo`. **Borra toda la base**
+(usuarios, facturas, comprobantes y suscripciones push) y la vuelve a llenar; el admin
+queda con `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` de las variables del contenedor.
+Las familias del seed tienen emails inventados (`@mail.com`): con el envío de emails
+activo, el aviso de deuda del día 20 y el email de fin de mes les escriben a esas
+direcciones, así que conviene `TAREAS_PROGRAMADAS=false` mientras la base tenga datos de demo.
+
 **Migraciones:** el contenedor ejecuta `prisma migrate deploy` al arrancar,
 antes de levantar la app. En cada deploy se aplican las migraciones nuevas de
 `backend/prisma/migrations/` (si no hay ninguna, no hace nada). Si una
