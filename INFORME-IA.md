@@ -62,6 +62,7 @@ En la Parte 3 se sumaron al portal de la PWA (lo que usa la familia en el celula
 | Precio de cada servicio antes de inscribirse | HU24 | T19 |
 | Avisos (in-app, push y email) de comprobante aprobado o rechazado y de deuda del día 20 | HU14, HU18 | T14, T18 |
 | Pagar e inscribir desde la cuenta del tutor (el alumno solo consulta), y correcciones para el celular: diálogos, comprobantes, PDF en iPhone y avisos push | — | T24 |
+| Aviso para instalar la app al entrar desde el celular: botón *Instalar* en Android y los pasos para agregarla a inicio en iPhone | — | T24 |
 
 Del lado de la administración (en la web, que también se usa desde el celular) se sumaron
 *Tarifas*, *Facturación*, la bandeja de *Comprobantes* y los cinco reportes financieros. También
@@ -156,9 +157,13 @@ los ya emitidos:
 
 La bitácora completa está en [`BITACORA-IA.md`](BITACORA-IA.md), con las columnas que pide la
 consigna (problema, prompt, herramienta, respuesta, si funcionó, modificaciones y resultado). Se
-fue completando en cada PR, en el momento de cada uso.
+fue completando en cada PR, en el momento de cada uso. Al controlarla contra los PRs mergeados antes
+de la entrega aparecieron seis usos sin anotar (filas 41 a 46): T01, T02 y T06, que son anteriores a
+la bitácora, el PR de calidad de la Unidad 5, el seed de demo en producción y el aviso para instalar
+la app. Se completaron con los commits y la entrada de cada tarea en el plan, y así se aclara en la
+bitácora.
 
-En el documento de entrega la tabla está completa (40 usos, A4 apaisado), con las ocho columnas
+En el documento de entrega la tabla está completa (46 usos, A4 apaisado), con las ocho columnas
 de la consigna. Debajo de cada problema figuran la fecha, la tarea del plan y quién hizo la
 consulta, y en *¿Funcionó?* y *Resultado* se agrega cómo se comprobó.
 
@@ -206,7 +211,7 @@ La columna "Con IA" sale de lo que pasó en la Parte 3 (bitácora, PRs y tablero
 | **Integración** | Dos personas en paralelo tienden a pisarse en los mismos archivos. | Se repartieron los archivos por dueño y se fijaron los contratos en el plan. Aun así hubo choques: casi todos los PRs chocaron en la bitácora y el tablero, y los dos hicimos el mismo seed de T23 por separado (24). La IA resuelve bien el conflicto, pero decidir qué versión queda lo decidimos nosotros. |
 | **Seguridad** | Depende de lo que el programador recuerde revisar. | Se pidió explícitamente: comprobantes en una carpeta privada (4), el tipo de archivo validado por su contenido (15), y un token de recuperación guardado como hash, de un solo uso y sin revelar qué emails existen (14). Codacy igual marcó avisos después de mergear, que hubo que corregir en PRs aparte (3, 16 y 19). |
 | **Mantenimiento** | El código queda como lo escribió cada uno. | Se pidió seguir los patrones existentes y dejar las reglas en un solo lugar (`aplicarPago()`, `estadoFactura()`, `tarifasVigentes()`). Al pasar de 0 a 755 pruebas automáticas, un cambio que rompe una regla se detecta en la CI. |
-| **Calidad del resultado** | Depende del tiempo disponible para probar. | Cada tarea se dio por hecha con pruebas, verificación con la API real sobre una base descartable y, en las pantallas, en el navegador a 375 px. La calidad no vino sola: en 5 de 40 usos la primera respuesta fue solo parcial (7, 10, 11, 34 y 39) y los defectos de la prueba integral se corrigieron a mano o con nuevas indicaciones. |
+| **Calidad del resultado** | Depende del tiempo disponible para probar. | Cada tarea se dio por hecha con pruebas, verificación con la API real sobre una base descartable y, en las pantallas, en el navegador a 375 px. La calidad no vino sola: en 6 de 46 usos la primera respuesta fue solo parcial (7, 10, 11, 34, 39 y 44) y los defectos de la prueba integral se corrigieron a mano o con nuevas indicaciones. |
 
 **Lo que muestra la experiencia:** la IA acelera mucho la escritura del código. Pero el
 resultado fue correcto porque el equipo:
@@ -243,7 +248,7 @@ que no están en el código:
 
 - el cobro con beca (23) y la imputación de pagos (10);
 - la concurrencia del email de fin de mes (11);
-- el huso horario de las bajas (6);
+- el huso horario de las bajas (6) y de la fecha en la prueba E2E de deportes (44);
 - lo que se guarda sin conexión (7);
 - la pantalla del celular: un diálogo quedaba tapado (10) y el Dashboard tenía scroll horizontal (25).
 
@@ -253,7 +258,7 @@ que no están en el código:
 - Pruebas que no prueban lo que dicen: pasaban aunque se rompiera la regla (18, 31).
 - Avisos de calidad y seguridad del análisis estático (3, 16, 19).
 
-En 5 de los 40 usos registrados la primera respuesta funcionó solo en parte (7, 10, 11, 34, 39).
+En 6 de los 46 usos registrados la primera respuesta funcionó solo en parte (7, 10, 11, 34, 39, 44).
 En ninguno se descartó del todo, pero en el seed se terminó usando la versión del compañero (22, 24).
 
 **5. ¿Fue necesario modificar código generado por IA?** Sí, en la mayoría de las tareas, aunque
